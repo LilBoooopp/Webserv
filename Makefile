@@ -29,8 +29,13 @@ SERVER_SRC =  \
 	StaticHandler.cpp
 SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 
-ALL_SRC = $(SRC) $(CORE) $(HTTP) $(SERVER)
-vpath %.cpp src src/core src/http src/server
+UTILS_DIR = src/utils/
+UTILS_SRC =  \
+	Logger.cpp
+UTILS = $(addprefix $(UTILS_DIR), $(UTILS_SRC))
+
+ALL_SRC = $(SRC) $(CORE) $(HTTP) $(SERVER) $(UTILS)
+vpath %.cpp src src/core src/http src/server src/utils
 #--------------------------------------OBJECTS----------------------------------#
 OBJ_DIR = Objects/
 # Generate object files with same names but in Objects directory

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <map>
+#include <ctime>
 #include "../http/HttpRequest.hpp"
 #include "ChunkedDecoder.hpp"
 
@@ -30,8 +31,10 @@ public:
 
 	ChunkedDecoder	decoder;
 
+	time_t			last_active; // for idle timeout
+
 	Connection()
 	: headers_done(false), responded(false), peer_closed(false),
 	close_after(false), state(READING_HEADERS), want_body(0),
-	is_chunked(false), has_req(false) {}
+	is_chunked(false), has_req(false), last_active(std::time(NULL)) {}
 };

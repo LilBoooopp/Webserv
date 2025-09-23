@@ -15,6 +15,8 @@
 #include "../http/ResponseWriter.hpp"
 #include "../http/ChunkedDecoder.hpp"
 
+#include "../utils/Logger.hpp"
+
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -22,6 +24,7 @@
 #include <cstdio>
 #include <map>
 #include <vector>
+#include <ctime>
 
 class Server {
 	EpollReactor				reactor_;

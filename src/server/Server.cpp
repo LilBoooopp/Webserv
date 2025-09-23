@@ -1,5 +1,8 @@
 #include "Server.hpp"
 
+static void	enable_write(EpollReactor& r, int fd) { r.mod(fd, EPOLLIN | EPOLLOUT); }
+static void	disable_write(EpollReactor& r, int fd) { r.mod(fd, EPOLLIN); }
+
 static int	set_nonblock(int fd) {
 	int	flags = fcntl(fd, F_GETFL, 0);
 	return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
@@ -18,11 +21,33 @@ void	Server::run() {
 	StaticHandler	staticHandler(&cfg_);
 	Router			router(&staticHandler);
 
+	const size_t	MAX_HEADER_BYTES = 16 * 1024;	// 16 KiB header max
+	const int		EPOLL_TMO_MS = 1000;			// epoll_wait timeout to scan idles
+	const int		IDLE_SEC = 30;					// close connections idle > 30s
+
 	// main single-loop reactor
 	while (true)
 	{
 		epoll_event	events[64];
-		int	n = reactor_.wait(events, 64, -1);
+		int	n = reactor_.wait(events, 64, EPOLL_TMO_MS);
+
+		// Idle timout sweep, every tick or when n == 0
+		time_t	now = std::time(NULL);
+		for (std::map<int, Connection>::iterator it = conns_.begin(); it != conns_.end(); )
+		{
+			int	cfd = it->first;
+			Connection&	c = it->second;
+			if (now - c.last_active > IDLE_SEC)
+			{
+				Logger::debug("closing idle fd=%d", cfd);
+				reactor_.del(cfd);
+				::close(cfd);
+				conns_.erase(it++);
+			}
+			else
+				++it;
+		}
+
 		if (n <= 0)
 			continue;
 
@@ -39,15 +64,19 @@ void	Server::run() {
 							break;
 						set_nonblock(cfd);
 						Connection	c;
+						c.last_active = now;
 						conns_[cfd] = c;
-						reactor_.add(cfd, EPOLLIN | EPOLLOUT);
+						reactor_.add(cfd, EPOLLIN);
+						Logger::debug("accepted fd=%d", cfd);
 					}
 				}
 				continue;
 			}
 
 			// HUP/ERR: cleanup the client fd immediately
-			if (ev & (EPOLLHUP | EPOLLERR)) {
+			if (ev & (EPOLLHUP | EPOLLERR))
+			{
+				Logger::debug("HUP/ERR fd=%d -> close", fd);
 				reactor_.del(fd);
 				::close(fd);
 				conns_.erase(fd);
@@ -64,6 +93,23 @@ void	Server::run() {
 					ssize_t	r = ::read(fd, &inbuf_[0], inbuf_.size());
 					if (r > 0) {
 						c.in.append(&inbuf_[0], r);
+
+						// Header cap defense
+						if (c.state == READING_HEADERS && c.in.size() > MAX_HEADER_BYTES)
+						{
+							HttpResponse	res;
+							res.status = 431;
+							res.reason = "Request Header Fields Too Large";
+							res.contentType = "text/plain";
+							res.body = "header too large";
+							res.close = true;
+							c.out = ResponseWriter::toWire(res);
+							c.close_after = res.close;
+							c.state = WRITING_RESPONSE;
+							enable_write(reactor_, fd);
+							c.in.clear();
+							break;
+						}
 
 						// STATE: READING_HEADERS
 						if (c.state == READING_HEADERS)
@@ -86,7 +132,8 @@ void	Server::run() {
 									c.out = ResponseWriter::toWire(res);
 									c.close_after = res.close;
 									c.state = WRITING_RESPONSE;
-									reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+									enable_write(reactor_, fd);
+									c.in.clear();
 								}
 								else
 								{
@@ -147,7 +194,8 @@ void	Server::run() {
 										c.out = ResponseWriter::toWire(res);
 										c.close_after = res.close;
 										c.state = WRITING_RESPONSE;
-										reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+										enable_write(reactor_, fd);
+										c.in.erase(0, endpos);
 									}
 									else
 									{
@@ -172,7 +220,7 @@ void	Server::run() {
 											c.out = ResponseWriter::toWire(res);
 											c.close_after = res.close;
 											c.state = WRITING_RESPONSE;
-											reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+											enable_write(reactor_, fd);
 											c.in.erase(0, endpos);
 											continue;
 										}
@@ -225,7 +273,7 @@ void	Server::run() {
 										c.out = ResponseWriter::toWire(res);
 										c.close_after = res.close;
 										c.state = WRITING_RESPONSE;
-										reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+										enable_write(reactor_, fd);
 										break;
 									}
 									if (st == ChunkedDecoder::DONE)
@@ -241,7 +289,7 @@ void	Server::run() {
 											c.out = ResponseWriter::toWire(res);
 											c.close_after = res.close;
 											c.state = WRITING_RESPONSE;
-											reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+											enable_write(reactor_, fd);
 										}
 										else
 											c.state = WRITING_RESPONSE;
@@ -298,7 +346,7 @@ void	Server::run() {
 
 							c.out = ResponseWriter::toWire(res);
 							c.close_after = res.close;
-							reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+							enable_write(reactor_, fd);
 						}
 
 						continue;
@@ -334,11 +382,14 @@ void	Server::run() {
 					if (cx.out.empty())
 					{
 						cx.responded = true;
+						disable_write(reactor_, fd);
 						reactor_.del(fd);
 						::close(fd);
 						conns_.erase(it);
 					}
 				}
+				else
+					disable_write(reactor_, fd); // nothing to write -> stop EPOLLOUT
 			}
 		}
 	}

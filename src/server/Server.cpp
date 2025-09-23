@@ -1,25 +1,5 @@
 #include "Server.hpp"
 
-#include "../core/EpollReactor.hpp"
-#include "Listener.hpp"
-
-#include "../http/HttpRequest.hpp"
-#include "../http/HttpResponse.hpp"
-#include "../http/HttpParser.hpp"
-#include "../http/ResponseWriter.hpp"
-#include "../http/Connection.hpp"
-
-#include "StaticHandler.hpp"
-#include "Router.hpp"
-
-#include <sys/socket.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <cstring>
-#include <cstdio>
-#include <map>
-
-
 static int	set_nonblock(int fd) {
 	int	flags = fcntl(fd, F_GETFL, 0);
 	return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
@@ -116,6 +96,46 @@ void	Server::run() {
 										bad = true;
 									if (req.target.empty() || req.target[0] != '/')
 										bad = true;
+									
+									bool	has_te_chunked = false;
+									bool	has_cl = false;
+									size_t	content_length = 0;
+
+									std::map<std::string,std::string>::iterator itCL = req.headers.find("content-length");
+									if (itCL != req.headers.end())
+									{
+										has_cl = true;
+										const std::string &s = itCL->second;
+										size_t	acc = 0;
+										for (size_t k = 0; k < s.size(); ++k)
+										{
+											if (s[k] < '0' || s[k] > '9')
+											{
+												acc = (size_t)-1;
+												break;
+											}
+											acc = acc * 10 +(s[k] - '0');
+										}
+										if (acc == (size_t)-1)
+											bad = true;
+										else
+											content_length = acc;
+									}
+									std::map<std::string,std::string>::iterator	itTE = req.headers.find("transfer-encoding");
+									if (itTE != req.headers.end())
+									{
+										std::string	v = itTE->second;
+										// very simple case-insensitive contains ("chunked")
+										std::string lower = v;
+										for (size_t k = 0; k < lower.size(); ++k)
+											lower[k] = (char)std::tolower((unsigned char)lower[k]);
+										if (lower.find("chunked") != std::string::npos)
+											has_te_chunked = true;
+									}
+
+									if (has_cl && has_te_chunked)
+										bad = true;
+									
 									if (bad)
 									{
 										HttpResponse	res;
@@ -135,41 +155,13 @@ void	Server::run() {
 										c.req = req;
 										c.has_req = true;
 
-										// Parse Content-Length
-										size_t	content_length = 0;
-										std::map<std::string, std::string>::iterator	itCL = req.headers.find("content-length");
-										if (itCL != req.headers.end())
-										{
-											const std::string &s = itCL->second;
-											size_t	acc = 0;
-											for (size_t k = 0; k < s.size(); ++k)
-											{
-												if (s[k] < '0' || s[k] > '9')
-												{
-													acc = (size_t)-1;
-													break;
-												}
-												acc = acc * 10 + (s[k] - '0');
-											}
-											if (acc == (size_t)-1)
-											{
-												HttpResponse	res;
-												res.status = 400;
-												res.reason = "Bad Request";
-												res.contentType = "text/plain";
-												res.body = "bad request";
-												res.close = true;
-												c.out = ResponseWriter::toWire(res);
-												c.close_after = res.close;
-												c.state = WRITING_RESPONSE;
-												reactor_.mod(fd, EPOLLIN | EPOLLOUT);
-												continue;
-											}
-											content_length = acc;
-										}
+										// body mode
+										c.is_chunked = has_te_chunked;
+										c.want_body = has_cl ? content_length : 0;
+										c.body.clear();
 
-										// Enforce client_max_body_size
-										if (content_length > cfg_.client_max_body_size)
+										// When Content-Length is known, enforce max size
+										if (has_cl && c.want_body > cfg_.client_max_body_size)
 										{
 											HttpResponse	res;
 											res.status = 413;
@@ -181,27 +173,28 @@ void	Server::run() {
 											c.close_after = res.close;
 											c.state = WRITING_RESPONSE;
 											reactor_.mod(fd, EPOLLIN | EPOLLOUT);
-											// Consume head to avoid re-parsing loops
 											c.in.erase(0, endpos);
 											continue;
 										}
 
-										// Move any bytes after head into body
-										c.want_body = content_length;
-										c.body.clear();
+										// Remove the head from 'in' and leave any bytes after hea for body
+										c.in.erase(0, endpos);
 
-										if (c.in.size() > endpos)
+										// If Content-Length: move what we have into body
+										if (!c.is_chunked && c.want_body > 0 && !c.in.empty())
 										{
-											size_t	avail = c.in.size() - endpos;
-											size_t	take = (avail > c.want_body) ? c.want_body : avail;
-											c.body.append(c.in.data() + endpos, take);
+											size_t	take = (c.in.size() > c.want_body) ? c.want_body : c.in.size();
+											c.body.append(c.in.data(), take);
+											c.in.erase(0, take);
 										}
 
-										// Erase head ( + any bytes moved to body) from c.in
-										c.in.erase(0, endpos + (c.body.size()));
-
 										// Decide next state
-										if (c.want_body == c.body.size())
+										if (c.is_chunked)
+										{
+											c.decoder.reset();
+											c.state = READING_BODY;
+										}
+										else if (c.want_body == c.body.size())
 											c.state = WRITING_RESPONSE;
 										else
 											c.state = READING_BODY;
@@ -213,16 +206,62 @@ void	Server::run() {
 						// STATE: READING_BODY
 						if (c.state == READING_BODY)
 						{
-							// Pull form c.in into c.body until we reach want_body
-							if (c.want_body > c.body.size() && !c.in.empty())
+							if (c.is_chunked)
 							{
-								size_t	room = c.want_body - c.body.size();
-								size_t	take = (c.in.size() > room) ? room : c.in.size();
-								c.body.append(c.in.data(), take);
-								c.in.erase(0, take);
+								// Decode as far as we can
+								for (;;)
+								{
+									ChunkedDecoder::Status	st = c.decoder.feed(c.in, c.body);
+									if (st == ChunkedDecoder::NEED_MORE)
+										break;
+									if (st == ChunkedDecoder::ERROR)
+									{
+										HttpResponse	res;
+										res.status = 400;
+										res.reason = "Bad Request";
+										res.contentType = "text/plain";
+										res.body = "bad request";
+										res.close = true;
+										c.out = ResponseWriter::toWire(res);
+										c.close_after = res.close;
+										c.state = WRITING_RESPONSE;
+										reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+										break;
+									}
+									if (st == ChunkedDecoder::DONE)
+									{
+										// Size limiting: enforce after fully decoded
+										if (c.body.size() > cfg_.client_max_body_size)
+										{
+											HttpResponse	res;
+											res.status = 413;
+											res.reason = "Payload Too Large";
+											res.contentType = "text/plain"; res.body = "payload too large";
+											res.close = true;
+											c.out = ResponseWriter::toWire(res);
+											c.close_after = res.close;
+											c.state = WRITING_RESPONSE;
+											reactor_.mod(fd, EPOLLIN | EPOLLOUT);
+										}
+										else
+											c.state = WRITING_RESPONSE;
+										break;
+									}
+								}
 							}
-							if (c.body.size() == c.want_body)
-								c.state = WRITING_RESPONSE;
+							else
+							{
+								// Content-Length mode: pull as much as we can
+								if (c.want_body > c.body.size() && !c.in.empty())
+								{
+									size_t	room = c.want_body - c.body.size();
+									size_t	take = (c.in.size() > room) ? room : c.in.size();
+									c.body.append(c.in.data(), take);
+									c.in.erase(0, take);
+								}
+								if (c.body.size() == c.want_body)
+									c.state = WRITING_RESPONSE;
+							}
 						}
 
 						// If we just became WRITING_RESPONSE and have no staged bytes yet, prepare response
@@ -239,6 +278,7 @@ void	Server::run() {
 							}
 							else if (req.method == "POST")
 							{
+								// Temp 'echo size' to see if body handling works
 								res.status = 200;
 								res.reason = "OK";
 								res.contentType = "text/plain";

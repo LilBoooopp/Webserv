@@ -18,6 +18,7 @@ CORE = $(addprefix $(CORE_DIR), $(CORE_SRC))
 
 HTTP_DIR = src/http/
 HTTP_SRC =  \
+	ChunkedDecoder.cpp \
 	HttpParser.cpp
 HTTP = $(addprefix $(HTTP_DIR), $(HTTP_SRC))
 

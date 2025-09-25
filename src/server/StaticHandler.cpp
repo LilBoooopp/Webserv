@@ -2,6 +2,7 @@
 #include "../config/Config.hpp"
 #include "../utils/Mime.hpp"
 #include "../utils/Path.hpp"
+#include "../server/Server.hpp"
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -51,7 +52,7 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 					res.status = 200;
 					res.reason = "OK";
 					res.body = body;
-					res.contentType = mime_from_path(idx);
+					res.setContentType(mime_from_path(idx));
 					res.close = true;
 					return ;
 				}
@@ -59,7 +60,7 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 			res.status = 404;
 			res.reason = "Not Found";
 			res.body = "not found";
-			res.contentType = "text/plain";
+			res.setContentType("text/plain");
 			res.close = true;
 			return	;
 		}
@@ -71,7 +72,7 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 				res.status = 200;
 				res.reason = "OK";
 				res.body = body;
-				res.contentType = mime_from_path(path);
+				res.setContentType(mime_from_path(path));
 				res.close = true;
 				return	;
 			}
@@ -80,6 +81,6 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 	res.status = 404;
 	res.reason = "Not Found";
 	res.body = "not found";
-	res.contentType = "text/plain";
+	res.setContentType("text/plain");
 	res.close = true;
 }

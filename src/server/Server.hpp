@@ -32,6 +32,13 @@ class Server {
 	std::map<int, Connection>	conns_;
 	std::vector<char>			inbuf_;
 	ServerConfig				cfg_;
+
+	void	acceptReady(std::time_t now);
+	void	handleReadable(int fd, std::time_t now);
+	void	handleWritable(int fd);
+	void	enableWrite(int fd);
+	void	disableWrite(int fd);
+	void	prepareResponse(int fd, Connection& c);
 public:
 	Server(): inbuf_(8192) {}
 	bool	start(uint32_t ip_be, uint16_t port_be);

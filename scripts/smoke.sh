@@ -104,4 +104,5 @@ PY
 
 echo
 echo "${YLW}Result:${RST} ${OK}/${TOTAL} tests passed."
+kill "$(cat /tmp/webserv-smoke/webserv.pid)"
 exit $(( OK == TOTAL ? 0 : 1 ))

@@ -49,19 +49,15 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 				std::string	body;
 				if (read_file_small(idx, body))
 				{
-					res.status = 200;
-					res.reason = "OK";
-					res.body = body;
+					res.setStatus(200, "OK");
+					res.setBody(body);
 					res.setContentType(mime_from_path(idx));
-					res.close = true;
 					return ;
 				}
 			}
-			res.status = 404;
-			res.reason = "Not Found";
-			res.body = "not found";
+			res.setStatus(404, "Not Found");
+			res.setBody("not found");
 			res.setContentType("text/plain");
-			res.close = true;
 			return	;
 		}
 		else if (is_reg(st))
@@ -69,18 +65,14 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 			std::string	body;
 			if (read_file_small(path, body))
 			{
-				res.status = 200;
-				res.reason = "OK";
-				res.body = body;
+				res.setStatus(200, "OK");
+				res.setBody(body);
 				res.setContentType(mime_from_path(path));
-				res.close = true;
 				return	;
 			}
 		}
 	}
-	res.status = 404;
-	res.reason = "Not Found";
-	res.body = "not found";
+	res.setStatus(404, "Not Found");
+	res.setBody("not found");
 	res.setContentType("text/plain");
-	res.close = true;
 }

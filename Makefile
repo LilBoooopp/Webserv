@@ -96,6 +96,7 @@ $(OBJ_DIR)%.o: %.cpp
 	bar=$$(printf "█%.0s" $$(seq 1 $$done)); \
 	space=$$(printf "░%.0s" $$(seq 1 $$todo)); \
 	printf "\r\033[1;36m%s \033[1mCompiling\033[0m [%-*s] %3d%% \033[36m%-40.40s\033[0m" "$$frame" "$$barlen" "$$bar$$space" "$$percent" "$<"; \
+	printf "\n";
 	$(CC) $(FLAGS) -c $< -o $@
 
 clean:

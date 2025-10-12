@@ -61,7 +61,7 @@ be0.
 •You must submit a Makefile that compiles your source files. It must not perform
 unnecessary relinking.
 •Your Makefile must at least contain the rules:
-$(NAME),all,clean,fcleanandre.
+$(NAME),all,clean,fclean and re.
 •Compile your code with c++and the flags -Wall -Wextra -Werror
 •Your code must comply with the C++ 98 standard and should still compile when
 adding the flag -std=c++98 .

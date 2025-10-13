@@ -16,6 +16,12 @@ static inline void	rstrip_cr(std::string& s) {
 		s.erase(s.size() - 1);
 }
 
+/**
+ * @brief Finds and saves "Method" (e.g. GET, POST, etc) "Target", and "version" (e.g. HTTP/1.1)
+ * @param line
+ * @param req
+ * @return Bool checking version == "HTTP/1.1"
+ */
 static bool	parse_start_line(const std::string& line, HttpRequest& req) {
 	size_t	p1 = line.find(' ');
 	if (p1 == std::string::npos)

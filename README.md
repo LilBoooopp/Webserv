@@ -53,6 +53,7 @@ make
 - Support multiple servers, ports, custom error pages, max body size, routes, redirects, directory listing, CGI, upload paths.
 
 ### 2. HTTP Methods
+- Check how far GET request needs to go, what files to return, etc.
 - Implement DELETE method logic.
 - Extend POST to support file uploads and saving to disk.
 

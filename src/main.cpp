@@ -3,6 +3,7 @@
 #include "http/HttpParser.hpp"
 #include <arpa/inet.h>
 #include <signal.h>
+#include <iostream>
 
 int	main(void) {
 	{
@@ -23,6 +24,7 @@ int	main(void) {
 		std::perror("webserv: start failed (is another instance running?");
 		return (1);
 	}
+	std::cout << "started" << std::endl;
 	s.run();
 	return (0);
 }

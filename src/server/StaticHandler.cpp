@@ -7,14 +7,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <vector>
-#include <iostream>
 
 static bool	is_dir(const struct stat& st) { return (S_ISDIR(st.st_mode)); }
 static bool	is_reg(const struct stat& st) { return (S_ISREG(st.st_mode)); }
 
 static bool	read_file_small(const std::string& path, std::string& out)
 {
-	std::cout << path << std::endl;
+	Logger::info("GET file path: %s", path.c_str());
+	Logger::error("GET file path: %s", path.c_str());
+	Logger::warn("GET file path: %s", path.c_str());
 	int	fd = ::open(path.c_str(), O_RDONLY);
 	if (fd < 0)
 		return (false);

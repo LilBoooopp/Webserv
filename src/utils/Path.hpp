@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <iostream>
 
 inline static void	split(const std::string& s, char sep, std::vector<std::string>& out)
 {
@@ -8,9 +9,14 @@ inline static void	split(const std::string& s, char sep, std::vector<std::string
 	while (i <= s.size())
 	{
 		size_t	j = s.find(sep, i);
+		if (j == i)
+		{
+			i++;
+			continue;
+		}
 		if (j == std::string::npos)
 			j = s.size();
-		out.push_back(s.substr(i, j - 1));
+		out.push_back(s.substr(i, j - i));
 		i = j + 1;
 	}
 }

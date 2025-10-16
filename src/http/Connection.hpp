@@ -4,6 +4,7 @@
 #include <ctime>
 #include "../http/HttpRequest.hpp"
 #include "ChunkedDecoder.hpp"
+#include "../utils/TimerQueue.hpp"
 
 enum ConnState {
 	READING_HEADERS,
@@ -33,8 +34,15 @@ public:
 
 	time_t			last_active; // for idle timeout
 
+	u64				gen_header;
+	u64				gen_body;
+	u64				gen_send;
+	u64				gen_keep;
+
 	Connection()
 	: headers_done(false), responded(false), peer_closed(false),
 	close_after(false), state(READING_HEADERS), want_body(0),
-	is_chunked(false), has_req(false), last_active(std::time(NULL)) {}
+	is_chunked(false), has_req(false), gen_header(0),
+	gen_body(0), gen_send(0), gen_keep(0),
+	last_active(std::time(NULL)) {}
 };

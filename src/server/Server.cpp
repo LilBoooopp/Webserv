@@ -13,6 +13,7 @@ bool	Server::start(uint32_t ip_be, uint16_t port_be) {
 		return (false);
 	if (!reactor_.add(listener_.fd(), EPOLLIN))
 		return (false);
+	reactor_.add(STDIN_FILENO, EPOLLIN);
 	return (true);
 }
 
@@ -328,6 +329,14 @@ void	Server::run() {
 		{
 			int			fd = events[i].data.fd;
 			uint32_t	ev = events[i].events;
+
+			// Check for an input in console to quit correctly (NEED TO UPDATE WHEN CGI)
+			if (fd == 0)
+			{
+				ssize_t	r = ::read(fd, &inbuf_[0], inbuf_.size());
+				if (r > 0)
+					return ;
+			}
 
 			if (fd == listener_.fd())
 			{

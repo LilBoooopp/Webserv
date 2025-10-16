@@ -80,6 +80,7 @@ test_case "POST (Content-Length) echoes size" bash -c '
 '
 
 # 5) POST chunked (two chunks: 4 + 3)
+# printf 'POST /echo HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWXYZ\r\n3\r\n123\r\n0\r\n\r\n' | nc (addr) (port)
 test_case "POST (chunked) echoes size" bash -c '
   printf '"'"'POST /echo HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWXYZ\r\n3\r\n123\r\n0\r\n\r\n'"'"' \
   | nc -w '"${TIMEOUT}"' '"${WS_ADDR}"' '"${WS_PORT}"' | grep -q "received 7 bytes"

@@ -147,6 +147,8 @@ void	Server::handleReadable(int fd, std::time_t now)
 		ssize_t	r = ::read(fd, &inbuf_[0], inbuf_.size());
 		if (r > 0)
 		{
+			c.gen_keep++;
+
 			c.in.append(&inbuf_[0], r);
 			c.gen_header++;
 			timers_.add(fd, T_HEADER, add_ms(now_ms(), cfg_.timeouts.client_header_timeout_ms), c.gen_header);
@@ -161,6 +163,9 @@ void	Server::handleReadable(int fd, std::time_t now)
 				c.state = WRITING_RESPONSE;
 				enableWrite(fd);
 				c.in.clear();
+
+				c.gen_send++;
+				timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
 				break;
 			}
 
@@ -183,6 +188,9 @@ void	Server::handleReadable(int fd, std::time_t now)
 						c.state = WRITING_RESPONSE;
 						enableWrite(fd);
 						c.in.clear();
+
+						c.gen_send++;
+						timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
 					}
 					else
 					{
@@ -237,6 +245,9 @@ void	Server::handleReadable(int fd, std::time_t now)
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);
 							c.in.erase(0, endpos);
+
+							c.gen_send++;
+							timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
 						}
 						else
 						{
@@ -256,6 +267,8 @@ void	Server::handleReadable(int fd, std::time_t now)
 								c.state = WRITING_RESPONSE;
 								enableWrite(fd);
 								c.in.erase(0, endpos);
+								c.gen_send++;
+								timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
 							}
 							else
 							{
@@ -279,7 +292,10 @@ void	Server::handleReadable(int fd, std::time_t now)
 									timers_.add(fd, T_BODY, add_ms(now_ms(), cfg_.timeouts.client_body_timeout_ms), c.gen_body);
 								}
 								else if (c.want_body == c.body.size())
+								{
+									c.gen_body++;
 									c.state = WRITING_RESPONSE;
+								}
 								else
 									c.state = READING_BODY;
 								c.close_after = wants_close_after(req);
@@ -288,7 +304,6 @@ void	Server::handleReadable(int fd, std::time_t now)
 						
 					}
 				}
-				c.gen_header++;
 			}
 
 			// READING_BODY
@@ -309,6 +324,10 @@ void	Server::handleReadable(int fd, std::time_t now)
 							c.out = res.serialize(false);
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);
+
+							c.gen_send++;
+							timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
+
 							break;
 						}
 						if (st == ChunkedDecoder::DONE)
@@ -321,6 +340,9 @@ void	Server::handleReadable(int fd, std::time_t now)
 								c.out = res.serialize(false);
 								c.state = WRITING_RESPONSE;
 								enableWrite(fd);
+
+								c.gen_send++;
+								timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
 							}
 							else
 								c.state = WRITING_RESPONSE;
@@ -406,6 +428,9 @@ void	Server::handleWritable(int fd)
 				c.want_body = 0;
 				c.state = READING_HEADERS;
 				c.decoder.reset();
+
+				// make sure old timers dont fire mid switch
+				c.gen_header++;
 
 				// 2) back to read events only
 				disableWrite(fd);

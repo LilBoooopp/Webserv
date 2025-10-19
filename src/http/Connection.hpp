@@ -32,13 +32,13 @@ public:
 
 	ChunkedDecoder	decoder;
 
-	time_t			last_active; // for idle timeout
-
 	u64				gen_header;
 	u64				gen_body;
 	u64				gen_send;
 	u64				gen_keep;
 
+	time_t			last_active; // for idle timeout
+	
 	Connection()
 	: headers_done(false), responded(false), peer_closed(false),
 	close_after(false), state(READING_HEADERS), want_body(0),

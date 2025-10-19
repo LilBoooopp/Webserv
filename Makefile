@@ -32,7 +32,8 @@ SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 
 UTILS_DIR = src/utils/
 UTILS_SRC =  \
-	Logger.cpp
+	Logger.cpp \
+	TimerQueue.cpp
 UTILS = $(addprefix $(UTILS_DIR), $(UTILS_SRC))
 
 ALL_SRC = $(SRC) $(CORE) $(HTTP) $(SERVER) $(UTILS)

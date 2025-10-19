@@ -1,5 +1,63 @@
 #include "Server.hpp"
 
+/**
+ * @return pointer or 0 if gone
+ */
+inline Connection* Server::find_conn(int fd)
+{
+	std::map<int, Connection>::iterator it = conns_.find(fd);
+	return ((it == conns_.end()) ? 0 : &it->second);
+}
+
+inline void Server::hard_close(int fd)
+{
+	reactor_.del(fd);
+	::close(fd);
+	conns_.erase(fd);
+}
+
+inline void Server::send_408_and_send(int fd, Connection& c)
+{
+	HttpResponse res(408);
+	res.setContentType("text/plain");
+	res.setBody("request timeout");
+	c.out = res.serialize(false);
+	c.state = WRITING_RESPONSE;
+	enableWrite(fd);
+
+	c.gen_send++;
+	timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
+}
+
+/**
+ * @brief Check if persistant connection
+ */
+static bool	wants_close_after(const HttpRequest& req)
+{
+	// keep persistent by default if HTTP/1.1
+	std::map<std::string,std::string>::const_iterator it = req.headers.find("connection");
+	if (it != req.headers.end())
+	{
+		std::string v = it->second;
+		for (size_t i = 0; i < v.size(); ++i)
+			v[i] = (char)std::tolower((unsigned char)v[i]);
+		if (v.find("close") != std::string::npos)
+			return (true);
+	}
+	// HTTP/1.0 non persistent unless said otherwise
+	if (req.version == "HTTP/1.0")
+	{
+		if (it != req.headers.end())
+		{
+			const std::string& v = it->second;
+			if (v.find("keep-alive") != std::string::npos)
+				return (false);
+		}
+		return (true);
+	}
+	return (false);
+}
+
 void	Server::enableWrite(int fd) { reactor_.mod(fd, EPOLLIN | EPOLLOUT); }
 void	Server::disableWrite(int fd) { reactor_.mod(fd, EPOLLIN); }
 
@@ -32,6 +90,9 @@ void	Server::acceptReady(std::time_t now)
 		conns_[cfd] = c;
 		reactor_.add(cfd, EPOLLIN);
 		Logger::debug("accepted fd=%d", cfd);
+
+		conns_[cfd].gen_header++;
+		timers_.add(cfd, T_HEADER, add_ms(now_ms(), cfg_.timeouts.client_header_timeout_ms), conns_[cfd].gen_header);
 	}
 }
 
@@ -63,7 +124,14 @@ void	Server::prepareResponse(int fd, Connection& c)
 		res.setBody("not implemented");
 	}
 
+	if (c.close_after)
+		res.setHeader("Connection", "close");
+	else
+		res.setHeader("Connection", "keep-alive");
+
 	c.out = res.serialize(head_only);
+	c.gen_send++;
+	timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
 	enableWrite(fd);
 }
 
@@ -80,6 +148,8 @@ void	Server::handleReadable(int fd, std::time_t now)
 		if (r > 0)
 		{
 			c.in.append(&inbuf_[0], r);
+			c.gen_header++;
+			timers_.add(fd, T_HEADER, add_ms(now_ms(), cfg_.timeouts.client_header_timeout_ms), c.gen_header);
 
 			// Header cap defense
 			if (c.state == READING_HEADERS && c.in.size() > MAX_HANDLE_BYTES)
@@ -196,6 +266,8 @@ void	Server::handleReadable(int fd, std::time_t now)
 								{
 									size_t	take = (c.in.size() > c.want_body) ? c.want_body : c.in.size();
 									c.body.append(c.in.data(), take);
+									c.gen_body++;
+									timers_.add(fd, T_BODY, add_ms(now_ms(), cfg_.timeouts.client_body_timeout_ms), c.gen_body);
 									c.in.erase(0, take);
 								}
 
@@ -203,16 +275,20 @@ void	Server::handleReadable(int fd, std::time_t now)
 								{
 									c.decoder.reset();
 									c.state = READING_BODY;
+									c.gen_body++;
+									timers_.add(fd, T_BODY, add_ms(now_ms(), cfg_.timeouts.client_body_timeout_ms), c.gen_body);
 								}
 								else if (c.want_body == c.body.size())
 									c.state = WRITING_RESPONSE;
 								else
 									c.state = READING_BODY;
+								c.close_after = wants_close_after(req);
 							}
 						}
 						
 					}
 				}
+				c.gen_header++;
 			}
 
 			// READING_BODY
@@ -268,7 +344,11 @@ void	Server::handleReadable(int fd, std::time_t now)
 
 			// WRITING_RESPONSE
 			if (c.state == WRITING_RESPONSE && c.out.empty() && c.has_req)
+			{
 				prepareResponse(fd, c);
+				c.gen_send++;
+				timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
+			}
 
 			continue;
 		}
@@ -295,7 +375,12 @@ void	Server::handleWritable(int fd)
 		{
 			ssize_t	w = ::send(fd, c.out.data() + sent, c.out.size() - sent, MSG_NOSIGNAL);
 			if (w > 0)
+			{
 				sent += w;
+				
+				c.gen_send++;
+				timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
+			}
 			else
 				break;
 		}
@@ -305,9 +390,36 @@ void	Server::handleWritable(int fd)
 		if (c.out.empty())
 		{
 			c.responded = true;
-			reactor_.del(fd);
-			::close(fd);
-			conns_.erase(it);
+			c.gen_send++;
+
+			if (!c.close_after && cfg_.keepalive)
+			{
+				// keep alive mode
+				// 1) reset connection state to parse next request
+				c.in.clear();
+				c.body.clear();
+				c.headers_done = false;
+				c.responded = false;
+				c.peer_closed = false;
+				c.has_req = false;
+				c.is_chunked = false;
+				c.want_body = 0;
+				c.state = READING_HEADERS;
+				c.decoder.reset();
+
+				// 2) back to read events only
+				disableWrite(fd);
+
+				// 3) refresh keepalive inactivity timer
+				c.gen_keep++;
+				timers_.add(fd, T_KEEPALIVE, add_ms(now_ms(), cfg_.timeouts.keepalive_timeout_ms), c.gen_keep);
+			}
+			else
+			{
+				reactor_.del(fd);
+				::close(fd);
+				conns_.erase(it);
+			}
 		}
 	}
 	else
@@ -319,7 +431,8 @@ void	Server::run() {
 	while (true)
 	{
 		epoll_event	events[64];
-		int	n = reactor_.wait(events, 64, -1);
+		int	poll_timeout = timers_.time_to_next(now_ms());
+		int	n = reactor_.wait(events, 64, poll_timeout);
 		if (n <= 0)
 			continue;
 
@@ -357,6 +470,55 @@ void	Server::run() {
 				handleReadable(fd, now);
 			if (ev & EPOLLOUT)
 				handleWritable(fd);
+		}
+
+		// TIMER EXPERIATION
+		Timer	t;
+		u64		now_ms_val = now_ms();
+		while (timers_.next_due(now_ms_val, t))
+		{
+			Connection* cp = find_conn(t.fd);
+			if (!cp) // fd already closed
+				continue;
+			Connection&	c = *cp;
+
+			// Ignore stale timers "generation mismatch"
+			if ((t.kind == T_HEADER && t.gen != c.gen_header) ||
+				(t.kind == T_BODY && t.gen != c.gen_body) ||
+				(t.kind == T_SEND && t.gen != c.gen_send) ||
+				(t.kind == T_KEEPALIVE && t.gen != c.gen_keep))
+			{
+				continue;
+			}
+
+			switch (t.kind)
+			{
+				case T_HEADER:
+					// reading headers without progress
+					if (c.state == READING_HEADERS && !c.responded)
+						send_408_and_send(t.fd, c);
+					else
+						hard_close(t.fd);
+					break;
+				
+				case T_BODY:
+					// reading body without progress
+					if (c.state == READING_BODY && !c.responded)
+						send_408_and_send(t.fd, c);
+					else
+						hard_close(t.fd);
+					break;
+
+				case T_SEND:
+					// no send progress
+					hard_close(t.fd);
+					break;
+
+				case T_KEEPALIVE:
+					// no new request arrived in time
+					hard_close(t.fd);
+					break;
+			}
 		}
 	}
 }

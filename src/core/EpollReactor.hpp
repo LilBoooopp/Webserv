@@ -1,5 +1,9 @@
 #pragma once
-#include <sys/epoll.h>
+#ifndef MAC
+	#include "EpollMac.hpp"
+#else
+	#include <sys/epoll.h>
+#endif
 #include <map>
 
 class EpollReactor {

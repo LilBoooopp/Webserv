@@ -317,6 +317,7 @@ void	Server::run() {
 	// main single-loop reactor
 	while (true)
 	{
+		std::cout << "====== READING ======\n";
 		epoll_event	events[64];
 		int	n = reactor_.wait(events, 64, -1);
 		if (n <= 0)

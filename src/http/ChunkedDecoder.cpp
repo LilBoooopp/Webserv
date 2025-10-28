@@ -26,7 +26,10 @@ bool	ChunkedDecoder::parse_size_line(const std::string& line, size_t& size)
 	const std::string	hex = (end == std::string::npos) ? line : line.substr(0, end);
 	if (hex.empty())
 		return (false);
-	
+
+	#ifdef SIZE_T_MAX
+	# undef SIZE_T_MAX
+	#endif
 	const size_t	SIZE_T_MAX = std::numeric_limits<size_t>::max();
 	
 	// Parse hex (no leading 0x)

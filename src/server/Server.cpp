@@ -357,6 +357,8 @@ void	Server::handleReadable(int fd, std::time_t now)
 						size_t	room = c.want_body - c.body.size();
 						size_t	take = (c.in.size() > room) ? room : c.in.size();
 						c.body.append(c.in.data(), take);
+						c.gen_body++;
+						timers_.add(fd, T_BODY, add_ms(now_ms(), cfg_.timeouts.client_body_timeout_ms), c.gen_body);
 						c.in.erase(0, take);
 					}
 					if (c.body.size() == c.want_body)
@@ -366,11 +368,7 @@ void	Server::handleReadable(int fd, std::time_t now)
 
 			// WRITING_RESPONSE
 			if (c.state == WRITING_RESPONSE && c.out.empty() && c.has_req)
-			{
 				prepareResponse(fd, c);
-				c.gen_send++;
-				timers_.add(fd, T_SEND, add_ms(now_ms(), cfg_.timeouts.send_timeout_ms), c.gen_send);
-			}
 
 			continue;
 		}

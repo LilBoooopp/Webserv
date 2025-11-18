@@ -34,7 +34,7 @@ static bool	parse_start_line(const std::string& line, HttpRequest& req) {
 	req.target = line.substr(p1 + 1, p2 - (p1 + 1));
 	req.version = line.substr(p2 + 1);
 
-	return (req.version == "HTTP/1.1");
+	return (req.version == "HTTP/1.1" || req.version == "HTTP/1.0");
 }
 
 static bool	parse_headers_block(const std::string& block, HttpRequest& req) {

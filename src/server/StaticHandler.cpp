@@ -2,7 +2,7 @@
 #include "../config/Config.hpp"
 #include "../utils/Mime.hpp"
 #include "../utils/Path.hpp"
-#include "../server/Server.hpp"
+#include "../utils/Logger.hpp"
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>

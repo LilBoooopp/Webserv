@@ -1,5 +1,4 @@
 #pragma once
-#include "../core/EpollReactor.hpp"
 #include <netinet/in.h>
 
 class Listener {

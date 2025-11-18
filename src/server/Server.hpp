@@ -1,21 +1,13 @@
 #pragma once
 
 #include "Listener.hpp"
-#include "StaticHandler.hpp"
-#include "Router.hpp"
 
 #include "../core/EpollReactor.hpp"
 
 #include "../config/Config.hpp"
 
 #include "../http/Connection.hpp"
-#include "../http/HttpRequest.hpp"
-#include "../http/HttpResponse.hpp"
-#include "../http/HttpParser.hpp"
 #include "../http/ResponseWriter.hpp"
-#include "../http/ChunkedDecoder.hpp"
-
-#include "../utils/Logger.hpp"
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -25,6 +17,9 @@
 #include <map>
 #include <vector>
 #include <ctime>
+
+#define MAX_READ 1024 * 16
+#define MAX_WRITE 1024 * 16
 
 class Server {
 	EpollReactor				reactor_;

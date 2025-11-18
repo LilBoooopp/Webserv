@@ -1,5 +1,14 @@
 #include "Server.hpp"
 
+#include "../http/HttpRequest.hpp"
+#include "../http/HttpResponse.hpp"
+#include "../http/HttpParser.hpp"
+#include "StaticHandler.hpp"
+#include "Router.hpp"
+#include "../http/ChunkedDecoder.hpp"
+
+#include "../utils/Logger.hpp"
+
 void	Server::enableWrite(int fd) { reactor_.mod(fd, EPOLLIN | EPOLLOUT); }
 void	Server::disableWrite(int fd) { reactor_.mod(fd, EPOLLIN); }
 
@@ -106,13 +115,26 @@ void	Server::handleReadable(int fd, std::time_t now)
 					size_t	endpos = 0;
 					if (!HttpParser::parse(c.in, req, endpos))
 					{
-						HttpResponse	res(400);
-						res.setContentType("text/plain");
-						res.setBody("bad request");
-						c.out = res.serialize(false);
-						c.state = WRITING_RESPONSE;
-						enableWrite(fd);
-						c.in.clear();
+						if (req.version != "HTTP/1.1" || req.version != "HTTP/1.0")
+						{
+							HttpResponse	res(505);
+							res.setContentType("text/plain");
+							res.setBody("HTTP Version Not Supported");
+							c.out = res.serialize(false);
+							c.state = WRITING_RESPONSE;
+							enableWrite(fd);
+							c.in.clear();
+						}
+						else
+						{
+							HttpResponse	res(400);
+							res.setContentType("text/plain");
+							res.setBody("Bad Request");
+							c.out = res.serialize(false);
+							c.state = WRITING_RESPONSE;
+							enableWrite(fd);
+							c.in.clear();
+						}
 					}
 					else
 					{
@@ -162,7 +184,7 @@ void	Server::handleReadable(int fd, std::time_t now)
 						{
 							HttpResponse	res(400);
 							res.setContentType("text/plain");
-							res.setBody("bad request");
+							res.setBody("Bad Request");
 							c.out = res.serialize(false);
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);
@@ -229,7 +251,7 @@ void	Server::handleReadable(int fd, std::time_t now)
 						{
 							HttpResponse	res(400);
 							res.setContentType("text/plain");
-							res.setBody("bad request");
+							res.setBody("Bad Request");
 							c.out = res.serialize(false);
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);

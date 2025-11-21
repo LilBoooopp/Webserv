@@ -34,7 +34,8 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 	// We assume: method validated (ONLY GET for now)
 	const	ServerConfig&	cfg = *cfg_;
 	std::string	path = safe_join_under_root(cfg.root, req.target);
-
+	path = "www/";
+	std::cout << path << std::endl;
 	struct stat st;
 	if (::stat(path.c_str(), &st) == 0)
 	{

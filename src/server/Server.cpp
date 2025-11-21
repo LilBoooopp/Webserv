@@ -317,14 +317,12 @@ void	Server::run() {
 	// main single-loop reactor
 	while (true)
 	{
-		std::cout << "====== READING ======\n";
 		epoll_event	events[64];
 		int	n = reactor_.wait(events, 64, -1);
 		if (n <= 0)
 			continue;
 
 		std::time_t	now = std::time(NULL);
-
 		for (int i = 0; i < n; ++i)
 		{
 			int			fd = events[i].data.fd;

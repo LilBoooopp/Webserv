@@ -1,5 +1,11 @@
 #include "Chrono.hpp"
 
+unsigned long now_ms() {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (unsigned long)tv.tv_sec * 1000UL + (unsigned long)(tv.tv_usec / 1000UL);
+}
+
 std::string getTimestamp() {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);

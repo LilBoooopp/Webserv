@@ -34,7 +34,7 @@ LOGGER_IMPL(timer, "", LOG_INFO, TS)
 LOGGER_IMPL(simple, NULL, LOG_INFO, NULL)
 
 void Logger::print_valid_levels() {
-	if (level <= 0)
+	if (level <= LOG_NONE)
 		return;
 	const char *levels[4] = {"ERROR", "WARN", "INFO", "DEBUG"};
 	std::fprintf(stderr, "Logger %d - ", level);

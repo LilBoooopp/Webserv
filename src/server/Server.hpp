@@ -3,6 +3,7 @@
 #include "Listener.hpp"
 #include "Router.hpp"
 #include "StaticHandler.hpp"
+#include "cgiHandler.hpp"
 
 #include "../core/EpollReactor.hpp"
 

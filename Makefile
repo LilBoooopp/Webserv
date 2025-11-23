@@ -27,6 +27,7 @@ SERVER_DIR = src/server/
 SERVER_SRC =  \
 	Listener.cpp \
 	Server.cpp \
+	cgiHandler.cpp \
 	StaticHandler.cpp
 SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 
@@ -80,6 +81,11 @@ $(NAME): $(OBJECTS)
 	@printf "\n"
 	@echo "\033[1;32m\n✅ $(NAME) successfully compiled!\n\033[0m"
 	@rm .counter
+
+debug: $(OBJECTS)
+	@$(CC) $(FLAGS) -fsanitize=address -g $(OBJECTS) -o $(NAME)
+	@printf "\n"
+	@echo "\033[1;32m\n✅ $(NAME) successfully compiled! <DEBUG>\n\033[0m"
 
 #--------------------------------------COMPILATION RULE------------------------#
 $(OBJ_DIR)%.o: %.cpp

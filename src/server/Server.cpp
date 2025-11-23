@@ -14,8 +14,11 @@ bool Server::start(uint32_t ip_be, uint16_t port_be) {
 	if (!reactor_.add(listener_.fd(), EPOLLIN))
 		return (false);
 	Logger::print_valid_levels();
+	Logger::simple("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB", rgb(168, 185, 145), GREY,
+		       "timeout", (unsigned long)cfg_.cgi_timeout_ms, "maxOutput",
+		       (unsigned long)(cfg_.cgi_maxOutput / (1024UL * 1024UL)));
 	Logger::simple(SERVER);
-	Logger::simple("  %s%-5s %d\n  %-5s %d\n", GREY, "ip", ntohl(ip_be), "port",
+	Logger::simple("  %s%-10s %d\n  %-10s %d\n", GREY, "ip", ntohl(ip_be), "port",
 		       ntohs(port_be));
 	return (true);
 }
@@ -313,6 +316,9 @@ void Server::executeStdin() {
 		const char *clr = "\033[2J\033[H";
 		write(1, clr, std::strlen(clr));
 		return;
+	} else if (!buff[1] && buff[0] >= '0' && buff[0] <= '9') {
+		Logger::set_level((LogLevel)(buff[0] - '0'));
+		Logger::print_valid_levels();
 	} else if (std::strcmp(buff, "buff") == 0) {
 		std::cout.write(&inbuf_[0], 200);
 		std::cout << std::endl;

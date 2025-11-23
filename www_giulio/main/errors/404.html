@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+
+  <body>
+    <script src="../js/buttons.js"></script>
+
+    <script>
+      var dv = [];
+      function init() {
+        const c = [window.innerWidth / 2, window.innerHeight / 2];
+        dv.push(addDiv("404 NOT FOUND", [c[0], c[1] - 150], 3));
+        addHomeButton();
+      }
+      init();
+      window.addEventListener("resize", () => {
+        for (const d of dv) d.remove();
+        dv = [];
+        init();
+      });
+    </script>
+  </body>
+</html>

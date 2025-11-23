@@ -32,7 +32,8 @@ SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 
 UTILS_DIR = src/utils/
 UTILS_SRC =  \
-	Logger.cpp
+	Logger.cpp \
+	Chrono.cpp
 UTILS = $(addprefix $(UTILS_DIR), $(UTILS_SRC))
 
 ALL_SRC = $(SRC) $(CORE) $(HTTP) $(SERVER) $(UTILS)
@@ -76,27 +77,27 @@ $(OBJ_DIR):
 
 $(NAME): $(OBJECTS)
 	@$(CC) $(FLAGS) $(OBJECTS) -o $(NAME)
+	@printf "\n"
 	@echo "\033[1;32m\n✅ $(NAME) successfully compiled!\n\033[0m"
 	@rm .counter
 
 #--------------------------------------COMPILATION RULE------------------------#
 $(OBJ_DIR)%.o: %.cpp
 	@mkdir -p $(OBJ_DIR)
-	@if [ ! -f .counter ]; then echo "0" > .counter; fi
-	@file_count=$$(cat .counter); \
-	file_count=$$((file_count + 1)); \
-	echo $$file_count > .counter; \
+	@compiled=$$(ls -1 $(OBJ_DIR)/*.o 2>/dev/null | wc -l); \
+	total=$(TOTAL_FILES); \
+	compiled=$$((compiled + 1)); \
 	frames="⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏"; \
-	frame_index=$$((file_count % 10)); \
+	frame_index=$$((compiled % 10)); \
 	frame=$$(echo $$frames | cut -d ' ' -f $$((frame_index + 1))); \
-	percent=$$((100 * file_count / $(TOTAL_FILES))); \
 	barlen=30; \
+	percent=$$((100 * compiled / total)); \
 	done=$$((barlen * percent / 100)); \
 	todo=$$((barlen - done)); \
 	bar=$$(printf "█%.0s" $$(seq 1 $$done)); \
 	space=$$(printf "░%.0s" $$(seq 1 $$todo)); \
-	printf "\r\033[1;36m%s \033[1mCompiling\033[0m [%-*s] %3d%% \033[36m%-40.40s\033[0m" "$$frame" "$$barlen" "$$bar$$space" "$$percent" "$<"; \
-	printf "\n";
+	printf "\r\033[2K\033[1;36m%s \033[1mCompiling\033[0m [%-*s] %3d%% \033[36m%-40.40s\033[0m" \
+	"$$frame" "$$barlen" "$$bar$$space" "$$percent" "$<"; \
 	$(CC) $(FLAGS) -c $< -o $@
 
 clean:

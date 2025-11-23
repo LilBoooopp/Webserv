@@ -1,40 +1,42 @@
 #pragma once
-#include <string>
-#include <map>
-#include <ctime>
 #include "../http/HttpRequest.hpp"
+#include "../utils/Chrono.hpp"
+#include "../utils/Logger.hpp"
 #include "ChunkedDecoder.hpp"
+#include <ctime>
+#include <map>
+#include <string>
 
-enum ConnState {
-	READING_HEADERS,
-	READING_BODY,
-	WRITING_RESPONSE
-};
+enum ConnState { READING_HEADERS, READING_BODY, WRITING_RESPONSE };
 
 class Connection {
-public:
-	std::string		in;		// head + maybe more
-	std::string		out;	// response bytes to send
-	std::string		body;	// request body as we accumulate it
+    public:
+	std::string in;	  // head + maybe more
+	std::string out;  // response bytes to send
+	std::string body; // request body as we accumulate it
 
-	bool			headers_done;
-	bool			responded;
-	bool			peer_closed;
-	bool			close_after;
+	bool headers_done;
+	bool responded;
+	bool peer_closed;
+	bool close_after;
 
-	ConnState		state;
-	size_t			want_body;	// expected body length (from Content-Length)
-	bool			is_chunked;	// trye if TE: chunked
+	ConnState state;
+	size_t want_body; // expected body length (from Content-Length)
+	bool is_chunked;  // trye if TE: chunked
 
-	HttpRequest		req;
-	bool			has_req;
+	HttpRequest req;
+	bool has_req;
 
-	ChunkedDecoder	decoder;
+	ChunkedDecoder decoder;
 
-	time_t			last_active; // for idle timeout
+	time_t last_active; // for idle timeout
 
+	void printStatus(const std::string &label) {
+		Logger::simple("%s - in: %s out: %s last: %s state: %d", label.c_str(), in.c_str(),
+			       out.c_str(), formatTime(last_active).c_str(), (int)state);
+	}
 	Connection()
-	: headers_done(false), responded(false), peer_closed(false),
-	close_after(false), state(READING_HEADERS), want_body(0),
-	is_chunked(false), has_req(false), last_active(std::time(NULL)) {}
+	    : headers_done(false), responded(false), peer_closed(false), close_after(false),
+	      state(READING_HEADERS), want_body(0), is_chunked(false), has_req(false),
+	      last_active(std::time(NULL)) {}
 };

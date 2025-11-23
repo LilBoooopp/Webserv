@@ -1,17 +1,44 @@
 #include "Logger.hpp"
+#include "Chrono.hpp"
+#include "Colors.hpp"
 
-LogLevel Logger::level = LOG_INFO;
+LogLevel Logger::level = LOG_ALL;
 
-static void	vlog(LogLevel want, const char* tag, const char* fmt, va_list ap)
-{
+static void vlog(LogLevel want, const char *tag, const char *fmt, const char *clr, va_list ap) {
 	if (want > Logger::level)
-		return ;
-	std::fprintf(stderr, "[%s] ", tag);
+		return;
+	if (tag)
+		std::fprintf(stderr, "%s%s%s %-6s %s", rgb(163, 163, 163), getTimestamp().c_str(), clr, tag, TS);
 	std::vfprintf(stderr, fmt, ap);
-	std::fprintf(stderr, "\n");
+	std::fprintf(stderr, "%s\n", TS);
 }
 
-void Logger::error(const char* fmt, ...) { va_list	ap; va_start(ap, fmt); vlog(LOG_ERROR, "ERROR", fmt, ap); va_end(ap); }
-void Logger::warn(const char* fmt, ...) { va_list	ap; va_start(ap, fmt); vlog(LOG_ERROR, "WARN ", fmt, ap); va_end(ap); }
-void Logger::info(const char* fmt, ...) { va_list	ap; va_start(ap, fmt); vlog(LOG_ERROR, "INFO ", fmt, ap); va_end(ap); }
-void Logger::debug(const char* fmt, ...) { va_list	ap; va_start(ap, fmt); vlog(LOG_ERROR, "DEBUG", fmt, ap); va_end(ap); }
+static void log_internal(LogLevel level, const char *tag, const char *color, const char *fmt,
+			 va_list ap) {
+	vlog(level, tag, fmt, color, ap);
+}
+
+#define LOGGER_IMPL(funcName, TAG, LEVEL, COLOR)                                                   \
+	void Logger::funcName(const char *fmt, ...) {                                              \
+		va_list ap;                                                                        \
+		va_start(ap, fmt);                                                                 \
+		log_internal(LEVEL, TAG, COLOR, fmt, ap);                                          \
+		va_end(ap);                                                                        \
+	}
+
+LOGGER_IMPL(error, "ERROR", LOG_ERROR, RED)
+LOGGER_IMPL(warn, "WARN", LOG_WARN, PURPLE)
+LOGGER_IMPL(info, "INFO", LOG_INFO, rgb(82, 135, 149))
+LOGGER_IMPL(debug, "DEBUG", LOG_DEBUG, YELLOW)
+LOGGER_IMPL(timer, "", LOG_INFO, TS)
+LOGGER_IMPL(simple, NULL, LOG_INFO, NULL)
+
+void Logger::print_valid_levels() {
+	if (level <= 0)
+		return;
+	const char *levels[4] = {"ERROR", "WARN", "INFO", "DEBUG"};
+	std::fprintf(stderr, "Logger %d - ", level);
+	for (int i = 0; i < 4; i++)
+		std::fprintf(stderr, "[%s%s%s] ", i < level ? GREEN : RED, levels[i], TS);
+	std::fprintf(stderr, "\n");
+}

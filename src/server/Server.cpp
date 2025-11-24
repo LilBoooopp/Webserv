@@ -1,13 +1,13 @@
 #include "Server.hpp"
-
+#include "../http/HttpParser.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
-#include "../http/HttpParser.hpp"
 #include "StaticHandler.hpp"
 #include "Router.hpp"
-#include "../http/ChunkedDecoder.hpp"
-
 #include "../utils/Logger.hpp"
+#include <fcntl.h>
+#include <sstream>
+#include <sys/types.h>
 
 void	Server::enableWrite(int fd) { reactor_.mod(fd, EPOLLIN | EPOLLOUT); }
 void	Server::disableWrite(int fd) { reactor_.mod(fd, EPOLLIN); }
@@ -26,7 +26,7 @@ bool	Server::start(uint32_t ip_be, uint16_t port_be) {
 	return (true);
 }
 
-void	Server::acceptReady(std::time_t now)
+void	Server::acceptReady(void)
 {
 	if (listener_.fd() < 0)
 		return ;
@@ -37,7 +37,6 @@ void	Server::acceptReady(std::time_t now)
 			break;
 		set_nonblock(cfd);
 		Connection	c;
-		c.last_active = now;
 		conns_[cfd] = c;
 		reactor_.add(cfd, EPOLLIN);
 		Logger::debug("accepted fd=%d", cfd);
@@ -57,6 +56,52 @@ void	Server::prepareResponse(int fd, Connection& c)
 		StaticHandler	StaticHandler(&cfg_);
 		Router			router(&StaticHandler);
 		router.route(req.target)->handle(req, res);
+
+		// Detect large static file streaming case for GET
+		if (req.method == "GET")
+		{
+			const std::string kStreamHeader = "X-Stream-File";
+
+			if (res.hasHeader(kStreamHeader))
+			{
+				std::string file_path = res.getHeader(kStreamHeader);
+
+				// Try to open the file now, in non-streaming, blocking mode.
+				// We will only read it in small chunks later form handleWritable.
+				int ffd = ::open(file_path.c_str(), O_RDONLY);
+				if (ffd >= 0)
+				{
+					c.file_fd = ffd;
+					c.streaming_file = true;
+
+					// Initialize remaining bytes from Content-Length
+					std::string cl = res.getHeader("Content-Length");
+					off_t remaining = 0;
+					if (!cl.empty())
+					{
+						std::istringstream iss(cl);
+						iss >> remaining;
+					}
+					c.file_remaining = remaining;
+
+					// Remove the internal header so the client doesn't see it.
+					if (res.hasHeader(kStreamHeader))
+						res.eraseHeader(kStreamHeader);
+				} 
+				else {
+					// If open fails, fall back to a 404
+					HttpResponse err(404);
+					err.setContentType("text/plain");
+					err.setBody("Not found");
+					res = err;
+
+					// ensure no streaming
+					c.streaming_file = false;
+					c.file_fd = -1;
+					c.file_remaining = 0;
+				}
+			}
+		}
 	}
 	else if (req.method == "POST") // TEMP, only echo response
 	{
@@ -76,10 +121,9 @@ void	Server::prepareResponse(int fd, Connection& c)
 	enableWrite(fd);
 }
 
-void	Server::handleReadable(int fd, std::time_t now)
+void	Server::handleReadable(int fd)
 {
 	Connection &c = conns_[fd];
-	c.last_active = now;
 
 	const size_t	MAX_HANDLE_BYTES = 16 * 1024; // max bytes to read from socket per iteration
 	const size_t	MAX_DECODE_BYTES = 16 * 1024; // max bytes to consume from c.in for body parsin per iteration
@@ -412,8 +456,6 @@ void	Server::run() {
 		if (n <= 0)
 			continue;
 
-		std::time_t	now = std::time(NULL);
-
 		for (int i = 0; i < n; ++i)
 		{
 			int			fd = events[i].data.fd;
@@ -430,7 +472,7 @@ void	Server::run() {
 			if (fd == listener_.fd())
 			{
 				if (ev & EPOLLIN)
-					acceptReady(now);
+					acceptReady();
 				continue;
 			}
 
@@ -443,7 +485,7 @@ void	Server::run() {
 			}
 
 			if (ev & EPOLLIN)
-				handleReadable(fd, now);
+				handleReadable(fd);
 			if (ev & EPOLLOUT)
 				handleWritable(fd);
 		}

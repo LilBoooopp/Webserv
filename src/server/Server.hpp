@@ -28,8 +28,8 @@ class Server {
 	std::vector<char>			inbuf_;
 	ServerConfig				cfg_;
 
-	void	acceptReady(std::time_t now);
-	void	handleReadable(int fd, std::time_t now);
+	void	acceptReady(void);
+	void	handleReadable(int fd);
 	void	handleWritable(int fd);
 	void	enableWrite(int fd);
 	void	disableWrite(int fd);

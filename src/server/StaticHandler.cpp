@@ -12,6 +12,9 @@
 static bool	is_dir(const struct stat& st) { return (S_ISDIR(st.st_mode)); }
 static bool	is_reg(const struct stat& st) { return (S_ISREG(st.st_mode)); }
 
+// Threshold above which we stream instead of loading into memory
+static const off_t STREAM_THRESHOLD = 256 * 1024; // 256 KB
+
 /**
  * @brief Convert a file size (off_t) to std::string
  */
@@ -88,15 +91,28 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 					return	;
 				}
 
-				// For GET, we read the file contents
-				std::string	body;
-				if (read_file_small(idx, body))
+				// Decide between small read vs streaming
+				if (st.st_size <= STREAM_THRESHOLD)
 				{
+					std::string	body;
+					if (read_file_small(idx, body))
+					{
+						res.setStatus(200, "OK");
+						res.setBody(body);
+						res.setContentType(mime_from_path(idx));
+						// For GET, HttpResponse::serialize() can establish Content-Length from body.size()
+						return ;
+					}
+				}
+				else
+				{
+					// Large file: mark for streaming
 					res.setStatus(200, "OK");
-					res.setBody(body);
 					res.setContentType(mime_from_path(idx));
-					// For GET, HttpResponse::serialize() can establish Content-Length from body.size()
-					return ;
+					res.setHeader("Content-Length", size_to_str(st.st_size));
+					// Internal hint for Server: path to stream
+					res.setHeader("X-Stream-File", idx);
+					return	;
 				}
 			}
 			res.setStatus(404, "Not Found");
@@ -116,14 +132,29 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 				res.setHeader("Content-Length", size_to_str(st.st_size));
 				return	;
 			}
+			
 
-			// For GET, we read the file contents
-			std::string	body;
-			if (read_file_small(path, body))
+			// Decide between small read vs streaming
+			if (st.st_size <= STREAM_THRESHOLD)
 			{
+				std::string	body;
+				if (read_file_small(path, body))
+				{
+					res.setStatus(200, "OK");
+					res.setBody(body);
+					res.setContentType(mime_from_path(path));
+					// For GET, HttpResponse::serialize() can establish Content-Length from body.size()
+					return ;
+				}
+			}
+			else
+			{
+				// Large file: mark for streaming
 				res.setStatus(200, "OK");
-				res.setBody(body);
 				res.setContentType(mime_from_path(path));
+				res.setHeader("Content-Length", size_to_str(st.st_size));
+				// Internal hint for Server: path to stream
+				res.setHeader("X-Stream-File", path);
 				return	;
 			}
 		}

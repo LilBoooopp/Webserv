@@ -10,6 +10,9 @@ public:
 	void		setBody(const std::string& body);
 	void		setContentType(const std::string& type);
 	void		setHeader(const std::string& key, const std::string& value);
+	bool		hasHeader(const std::string& key) const;
+	void		eraseHeader(const std::string& key);
+	std::string	getHeader(const std::string& key) const;
 	std::string	serialize(bool headOnly = false) const;
 
 private:

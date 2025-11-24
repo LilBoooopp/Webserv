@@ -30,6 +30,25 @@ void	HttpResponse::setHeader(const std::string& key, const std::string& value)
 	headers_[key] = value;
 }
 
+bool	HttpResponse::hasHeader(const std::string& key) const
+{
+	std::map<std::string,std::string>::const_iterator it = headers_.find(key);
+	return (it != headers_.end());
+}
+
+std::string HttpResponse::getHeader(const std::string& key) const
+{
+	std::map<std::string,std::string>::const_iterator it = headers_.find(key);
+	if (it != headers_.end())
+		return (it->second);
+	return std::string();
+}
+
+void	HttpResponse::eraseHeader(const std::string& key)
+{
+	headers_.erase(key);
+}
+
 std::string	HttpResponse::serialize(bool headOnly) const {
 	std::ostringstream	oss;
 	oss << "HTTP/1.1 " << statusCode_ << " " << reasonPhrase_ << "\r\n";

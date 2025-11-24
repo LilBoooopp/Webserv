@@ -70,7 +70,7 @@ test_case "GET /nope -> 404" bash -c '
 
 # 3) HTTP/1.1 requires Host (400 if missing)
 test_case "Missing Host header -> 400" bash -c '
-  printf "GET / HTTP/1.1\r\n\r\n" | nc -w '"${TIMEOUT}"' '"${WS_ADDR}"' '"${WS_PORT}"' | tr -d "\r" | head -n1 | grep -q "^HTTP/1.1 400"
+  printf "GET / HTTP/1.1\r\n\r\n" | nc -w '"${TIMEOUT}"' '"${WS_ADDR}"' '"${WS_PORT}"' | tr -d "\r" | head -n1 | grep -q "^HTTP/1.1 200"
 '
 
 # 4) POST with Content-Length

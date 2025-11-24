@@ -51,6 +51,7 @@ void	Server::prepareResponse(int fd, Connection& c)
 	const HttpRequest&	req = c.req;
 
 	HttpResponse	res(200);
+	res.setVersion(req.version);
 	bool			head_only = (req.method == "HEAD");
 
 	if (req.method == "GET" || req.method == "HEAD")
@@ -92,10 +93,8 @@ void	Server::prepareResponse(int fd, Connection& c)
 				} 
 				else {
 					// If open fails, fall back to a 404
-					HttpResponse err(404);
-					err.setContentType("text/plain");
-					err.setBody("Not found");
-					res = err;
+					res.setStatusFromCode(404);
+					res.ensureDefaultBodyIfEmpty();
 
 					// ensure no streaming
 					c.streaming_file = false;
@@ -114,11 +113,11 @@ void	Server::prepareResponse(int fd, Connection& c)
 	}
 	else
 	{
-		res = HttpResponse(501);
-		res.setContentType("text/plain");
-		res.setBody("not implemented");
+		res.setStatusFromCode(501);
+		res.ensureDefaultBodyIfEmpty();
 	}
 
+	res.ensureDefaultBodyIfEmpty();
 	c.out = res.serialize(head_only);
 	enableWrite(fd);
 }
@@ -167,11 +166,10 @@ void	Server::handleReadable(int fd)
 					{
 						if (req.version != "HTTP/1.1" && req.version != "HTTP/1.0" && req.method != "" && req.target != "")
 						{
-							std::cout << "Version: " << req.version << std::endl;
-							HttpResponse	res(505);
-							res.setStatus(505, "HTTP Version Not Supported");
-							res.setContentType("text/plain");
-							res.setBody("HTTP Version Not Supported");
+							HttpResponse	res;
+							res.setStatusFromCode(505);
+							res.ensureDefaultBodyIfEmpty();
+
 							c.out = res.serialize(false);
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);
@@ -179,9 +177,11 @@ void	Server::handleReadable(int fd)
 						}
 						else
 						{
-							HttpResponse	res(400);
-							res.setContentType("text/plain");
-							res.setBody("Bad Request");
+							HttpResponse	res;
+							res.setStatusFromCode(400);
+							res.setVersion(req.version);
+							res.ensureDefaultBodyIfEmpty();
+
 							c.out = res.serialize(false);
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);
@@ -241,9 +241,11 @@ void	Server::handleReadable(int fd)
 						if (bad)
 						{
 							// Malformed or conflicint headers
-							HttpResponse	res(400);
-							res.setContentType("text/plain");
-							res.setBody("Bad Request");
+							HttpResponse	res;
+							res.setStatusFromCode(400);
+							res.setVersion(req.version);
+							res.ensureDefaultBodyIfEmpty();
+
 							c.out = res.serialize(false);
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);
@@ -260,9 +262,11 @@ void	Server::handleReadable(int fd)
 							// size limit for non-chunked CL bodies
 							if (has_cl && c.want_body > cfg_.client_max_body_size)
 							{
-								HttpResponse	res(413);
-								res.setContentType("text/plain");
-								res.setBody("payload too large");
+								HttpResponse	res;
+								res.setStatusFromCode(413);
+								res.setVersion(req.version);
+								res.ensureDefaultBodyIfEmpty();
+
 								c.out = res.serialize(false);
 								c.state = WRITING_RESPONSE;
 								enableWrite(fd);
@@ -319,9 +323,10 @@ void	Server::handleReadable(int fd)
 							break;
 						if (st == ChunkedDecoder::ERROR)
 						{
-							HttpResponse	res(400);
-							res.setContentType("text/plain");
-							res.setBody("Bad Request");
+							HttpResponse	res;
+							res.setStatusFromCode(400);
+							res.ensureDefaultBodyIfEmpty();
+
 							c.out = res.serialize(false);
 							c.state = WRITING_RESPONSE;
 							enableWrite(fd);
@@ -332,9 +337,10 @@ void	Server::handleReadable(int fd)
 							// Final size check after full decoding
 							if (c.body.size() > cfg_.client_max_body_size)
 							{
-								HttpResponse	res(413);
-								res.setContentType("text/plain");
-								res.setBody("payload too large");
+								HttpResponse	res;
+								res.setStatusFromCode(413);
+								res.ensureDefaultBodyIfEmpty();
+
 								c.out = res.serialize(false);
 								c.state = WRITING_RESPONSE;
 								enableWrite(fd);

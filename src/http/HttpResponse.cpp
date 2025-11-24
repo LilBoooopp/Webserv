@@ -1,11 +1,33 @@
 #include "HttpResponse.hpp"
+#include <fcntl.h>
 #include <sstream>
 
-HttpResponse::HttpResponse(int statusCode, const std::string& reason)
-: statusCode_(statusCode), reasonPhrase_(reason), body_("")
+const char *HttpResponse::reasonForStatus(int code)
+{
+	switch (code)
+	{
+		case 200: return ("OK");
+		case 400: return ("Bad Request");
+		case 403: return ("Forbidden");
+		case 404: return ("Not Found");
+		case 405: return ("Method Not Allowed");
+		case 413: return ("Payload Too Large");
+		case 501: return ("Not Implemented");
+		case 505: return ("HTTP Version Not Supported");
+		default: return ("Unknown");
+	}
+}
+
+HttpResponse::HttpResponse(int statusCode, const std::string& version)
+: version_(version), statusCode_(statusCode), reasonPhrase_(reasonForStatus(statusCode)), body_("")
 {
 	headers_["Content-Type"] = "text/plain";
 	headers_["Connection"] = "close";
+}
+
+void HttpResponse::setVersion(const std::string &version)
+{
+	version_ = version;
 }
 
 void	HttpResponse::setStatus(int code, const std::string& reason)
@@ -14,10 +36,48 @@ void	HttpResponse::setStatus(int code, const std::string& reason)
 	reasonPhrase_ = reason;
 }
 
+void HttpResponse::setStatusFromCode(int code)
+{
+	statusCode_ = code;
+	reasonPhrase_ = reasonForStatus(code);
+}
+
 void	HttpResponse::setBody(const std::string& body)
 {
 	body_ = body;
 	headers_["Content-Length"] = toString(body.size());
+}
+
+void	HttpResponse::setBodyIfEmpty(const std::string &body)
+{
+	if (body_.empty())
+	{
+		body_ = body;
+		headers_["Content-Length"] = toString(body_.size());
+	}
+}
+
+void	HttpResponse::ensureDefaultBodyIfEmpty(void)
+{
+	if (!body_.empty())
+		return	;
+
+	// default HTML error page
+	std::ostringstream	oss;
+	oss	<< "<!DOCTYPE html>" << std::endl
+		<< "<html><head><title>" << statusCode_ << " " << reasonPhrase_
+		<< "</title></head><body>" << std::endl
+		<< "<h1>" << statusCode_ << " " << reasonPhrase_ << "</h1>" << std::endl
+		<< "<p> The server encountered this error.</p>" << std::endl
+		<< "</body></html>" << std::endl;
+
+	body_ = oss.str();
+
+	// Default body is HTML
+	if (headers_.find("Content-Type") == headers_.end())
+		headers_["Content-Type"] = "text/html";
+
+	headers_["Content-Length"] = toString(body_.size());
 }
 
 void	HttpResponse::setContentType(const std::string& type)
@@ -51,10 +111,16 @@ void	HttpResponse::eraseHeader(const std::string& key)
 
 std::string	HttpResponse::serialize(bool headOnly) const {
 	std::ostringstream	oss;
-	oss << "HTTP/1.1 " << statusCode_ << " " << reasonPhrase_ << "\r\n";
+
+	oss << version_ << " " << statusCode_ << " " << reasonPhrase_ << "\r\n";
+
+	// Headers
 	for (std::map<std::string,std::string>::const_iterator it = headers_.begin(); it != headers_.end(); ++it)
 		oss << it->first << ": " << it->second << "\r\n";
+
+	// Blank line separates head andbody
 	oss << "\r\n";
+
 	if (!headOnly)
 		oss << body_;
 

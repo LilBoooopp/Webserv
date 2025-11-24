@@ -81,27 +81,30 @@ void	Server::handleReadable(int fd, std::time_t now)
 	Connection &c = conns_[fd];
 	c.last_active = now;
 
-	const size_t	MAX_HANDLE_BYTES = 16 * 1024;
+	const size_t	MAX_HANDLE_BYTES = 16 * 1024; // max bytes to read from socket per iteration
+	const size_t	MAX_DECODE_BYTES = 16 * 1024; // max bytes to consume from c.in for body parsin per iteration
 
-	for (;;)
+	size_t	handled = 0;
+	while (handled < MAX_HANDLE_BYTES)
 	{
 		ssize_t	r = ::read(fd, &inbuf_[0], inbuf_.size());
 		if (r > 0)
 		{
-			c.in.append(&inbuf_[0], r);
+			handled += static_cast<size_t>(r);
+			c.in.append(&inbuf_[0], static_cast<size_t>(r));
 
 			// Header cap defense
-			if (c.state == READING_HEADERS && c.in.size() > MAX_HANDLE_BYTES)
-			{
-				HttpResponse	res(431);
-				res.setContentType("text/plain");
-				res.setBody("header too large");
-				c.out = res.serialize(false);
-				c.state = WRITING_RESPONSE;
-				enableWrite(fd);
-				c.in.clear();
-				break;
-			}
+			//if (c.state == READING_HEADERS && c.in.size() > MAX_HANDLE_BYTES)
+			//{
+			//	HttpResponse	res(431);
+			//	res.setContentType("text/plain");
+			//	res.setBody("header too large");
+			//	c.out = res.serialize(false);
+			//	c.state = WRITING_RESPONSE;
+			//	enableWrite(fd);
+			//	c.in.clear();
+			//	break;
+			//}
 
 			// READING_HEADERS
 			if (c.state == READING_HEADERS)
@@ -113,6 +116,7 @@ void	Server::handleReadable(int fd, std::time_t now)
 
 					HttpRequest	req;
 					size_t	endpos = 0;
+
 					if (!HttpParser::parse(c.in, req, endpos))
 					{
 						if (req.version != "HTTP/1.1" || req.version != "HTTP/1.0")
@@ -138,9 +142,10 @@ void	Server::handleReadable(int fd, std::time_t now)
 					}
 					else
 					{
-						// minimal validation
 						bool	bad = false;
-						if (req.version != "HTTP/1.1" || req.target.empty() || req.target[0] != '/')
+
+						// minimal validation
+						if ((req.version != "HTTP/1.1" && req.version != "HTTP/1.0") || req.target.empty() || req.target[0] != '/')
 							bad = true;
 						
 						// TE/CL detection
@@ -148,8 +153,9 @@ void	Server::handleReadable(int fd, std::time_t now)
 						bool	has_cl = false;
 						size_t	content_length = 0;
 
+						// Check for Content-Length header
 						std::map<std::string,std::string>::iterator	itCL = req.headers.find("content-length");
-						if (itCL != req.headers.end())
+						if (itCL != req.headers.end() && !bad)
 						{
 							has_cl = true;
 							const std::string &s = itCL->second;
@@ -158,18 +164,20 @@ void	Server::handleReadable(int fd, std::time_t now)
 							{
 								if (s[k] < '0' || s[k] > '9')
 								{
-									acc = (size_t)-1;
+									acc = static_cast<size_t>(-1);
 									break;
 								}
-								acc = acc * 10 + (s[k] - '0');
+								acc = acc * 10 + static_cast<size_t>(s[k] - '0');
 							}
-							if (acc == (size_t)-1)
+							if (acc == static_cast<size_t>(-1))
 								bad = true;
 							else
 								content_length = acc;
 						}
+
+						// Check for Transfer-Encoding: chunked
 						std::map<std::string,std::string>::iterator	itTE = req.headers.find("transfer-encoding");
-						if (itTE != req.headers.end())
+						if (itTE != req.headers.end() && !bad)
 						{
 							std::string v = itTE->second;
 							for (size_t k = 0; k < v.size(); ++k)
@@ -177,11 +185,14 @@ void	Server::handleReadable(int fd, std::time_t now)
 							if (v.find("chunked") != std::string::npos)
 								has_te_chunked = true;
 						}
+
+						// Having both CL and TE:chunked is invalid
 						if (has_cl && has_te_chunked)
 							bad = true;
 
 						if (bad)
 						{
+							// Malformed or conflicint headers
 							HttpResponse	res(400);
 							res.setContentType("text/plain");
 							res.setBody("Bad Request");
@@ -198,7 +209,7 @@ void	Server::handleReadable(int fd, std::time_t now)
 							c.want_body = has_cl ? content_length : 0;
 							c.body.clear();
 
-							// size limit for CL
+							// size limit for non-chunked CL bodies
 							if (has_cl && c.want_body > cfg_.client_max_body_size)
 							{
 								HttpResponse	res(413);
@@ -214,6 +225,7 @@ void	Server::handleReadable(int fd, std::time_t now)
 								// Remove head so that only the body is leftover
 								c.in.erase(0, endpos);
 
+								// Pre-consume body bytes for Content-Length requests
 								if (!c.is_chunked && c.want_body > 0 && !c.in.empty())
 								{
 									size_t	take = (c.in.size() > c.want_body) ? c.want_body : c.in.size();
@@ -223,12 +235,13 @@ void	Server::handleReadable(int fd, std::time_t now)
 
 								if (c.is_chunked)
 								{
+									// Initialize chunk decoder
 									c.decoder.reset();
 									c.state = READING_BODY;
 								}
-								else if (c.want_body == c.body.size())
+								else if (c.want_body == c.body.size()) // No Body or alread have entire body
 									c.state = WRITING_RESPONSE;
-								else
+								else // still need more body bytes
 									c.state = READING_BODY;
 							}
 						}
@@ -240,11 +253,20 @@ void	Server::handleReadable(int fd, std::time_t now)
 			// READING_BODY
 			if (c.state == READING_BODY)
 			{
+				size_t	decode_left = MAX_DECODE_BYTES;
+
 				if (c.is_chunked)
 				{
-					for (;;)
+					// Chunked transfer decoding loop
+					while (decode_left > 0 && !c.in.empty())
 					{
+						size_t before = c.in.size();
 						ChunkedDecoder::Status	st = c.decoder.feed(c.in, c.body);
+						size_t consumed = before - c.in.size();
+						if (consumed > decode_left)
+							consumed = decode_left;
+						decode_left -= consumed;
+
 						if (st == ChunkedDecoder::NEED_MORE)
 							break;
 						if (st == ChunkedDecoder::ERROR)
@@ -259,6 +281,7 @@ void	Server::handleReadable(int fd, std::time_t now)
 						}
 						if (st == ChunkedDecoder::DONE)
 						{
+							// Final size check after full decoding
 							if (c.body.size() > cfg_.client_max_body_size)
 							{
 								HttpResponse	res(413);
@@ -269,20 +292,30 @@ void	Server::handleReadable(int fd, std::time_t now)
 								enableWrite(fd);
 							}
 							else
-								c.state = WRITING_RESPONSE;
+								c.state = WRITING_RESPONSE; // Full request body decoded
 							break;
 						}
+						if (decode_left == 0)
+							break;
 					}
 				}
 				else
 				{
-					if (c.want_body > c.body.size() && !c.in.empty())
+					// Non-chunked body: consume up to want_body, capped by decode_left
+					if (c.want_body > c.body.size() && !c.in.empty() && decode_left > 0)
 					{
 						size_t	room = c.want_body - c.body.size();
-						size_t	take = (c.in.size() > room) ? room : c.in.size();
+						size_t	take = c.in.size();
+						if (take > room)
+							take = room;
+						if (take > decode_left)
+							take = decode_left;
+
 						c.body.append(c.in.data(), take);
 						c.in.erase(0, take);
+						decode_left -= take;
 					}
+					// If we now have the full body, we can move on to responding
 					if (c.body.size() == c.want_body)
 						c.state = WRITING_RESPONSE;
 				}
@@ -292,6 +325,8 @@ void	Server::handleReadable(int fd, std::time_t now)
 			if (c.state == WRITING_RESPONSE && c.out.empty() && c.has_req)
 				prepareResponse(fd, c);
 
+			// Continue reading (if handled < MAX_HANDLE_BYTES)
+			// or exit the loop when the budget is used up
 			continue;
 		}
 		if (r == 0)
@@ -299,41 +334,73 @@ void	Server::handleReadable(int fd, std::time_t now)
 			c.peer_closed = true;
 			break;
 		}
+		// r < 0
+		// Subject does not allow checking errno so just stop and wait for epoll
 		break;
 	}
 }
 
 void	Server::handleWritable(int fd)
 {
+	// Find the connection associated with the fd
 	std::map<int, Connection>::iterator	it = conns_.find(fd);
 	if (it == conns_.end())
 		return ;
 
 	Connection	&c = it->second;
+
+	// Max number of bytes we will attempt to send in a single call.
+	// This prevents one big response from blocking other clients.
+	const size_t MAX_WRITE_BYTES = 16 * 1024;
+
+	// Only write if:
+	// - c.out is not empty
+	// - connection is not "responded"
 	if (!c.out.empty() && !c.responded)
 	{
-		ssize_t	sent = 0;
-		while (sent < (ssize_t)c.out.size())
+		size_t	written = 0; // how many bytes we attempted/sent in this iteration
+		ssize_t	offset = 0; // how many bytes from the fron of c.out we have consumed
+
+		// Socket write loop
+		while (written < MAX_WRITE_BYTES && offset < static_cast<ssize_t>(c.out.size()))
 		{
-			ssize_t	w = ::send(fd, c.out.data() + sent, c.out.size() - sent, MSG_NOSIGNAL);
+			// Try to send as much as possible from c.out, starting at 'offset'.
+			ssize_t	w = ::send(fd, c.out.data() + offset, c.out.size() - static_cast<size_t>(offset), MSG_NOSIGNAL);
 			if (w > 0)
-				sent += w;
+			{
+				offset += w;
+				written += static_cast<size_t>(w);
+			}
 			else
+			{
+				// w < 0 -> error
+				// stop writing until epoll activates again
 				break;
+			}
 		}
-		if (sent > 0)
-			c.out.erase(0, sent);
+
+		// Drop the bytes we successfully sent from the front of c.out.
+		if (offset > 0)
+			c.out.erase(0, static_cast<size_t>(offset));
 
 		if (c.out.empty())
 		{
 			c.responded = true;
+
+			// Remove fd from reactor and close
 			reactor_.del(fd);
 			::close(fd);
+
+			// Remove the connection stat from our map
 			conns_.erase(it);
 		}
 	}
 	else
+	{
+		// No data to write
+		// remove EPOLLOUT so we dont get useless wakeups.
 		disableWrite(fd);
+	}
 }
 
 void	Server::run() {

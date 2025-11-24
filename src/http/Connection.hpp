@@ -1,6 +1,5 @@
 #pragma once
 #include <string>
-#include <map>
 #include <ctime>
 #include "../http/HttpRequest.hpp"
 #include "ChunkedDecoder.hpp"
@@ -8,7 +7,9 @@
 enum ConnState {
 	READING_HEADERS,
 	READING_BODY,
-	WRITING_RESPONSE
+	READY_TO_RESPOND,
+	WRITING_RESPONSE,
+	CLOSING
 };
 
 class Connection {

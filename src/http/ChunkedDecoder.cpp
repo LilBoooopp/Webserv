@@ -1,4 +1,5 @@
 #include "ChunkedDecoder.hpp"
+#include <limits>
 
 ChunkedDecoder::ChunkedDecoder() : state_(READ_SIZE_LINE), chunk_rem_(0) {}
 

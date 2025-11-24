@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <sstream>
 #include <sys/types.h>
+#include <unistd.h>
+#include <iostream>
 
 void	Server::enableWrite(int fd) { reactor_.mod(fd, EPOLLIN | EPOLLOUT); }
 void	Server::disableWrite(int fd) { reactor_.mod(fd, EPOLLIN); }
@@ -163,9 +165,11 @@ void	Server::handleReadable(int fd)
 
 					if (!HttpParser::parse(c.in, req, endpos))
 					{
-						if (req.version != "HTTP/1.1" || req.version != "HTTP/1.0")
+						if (req.version != "HTTP/1.1" && req.version != "HTTP/1.0" && req.method != "" && req.target != "")
 						{
+							std::cout << "Version: " << req.version << std::endl;
 							HttpResponse	res(505);
+							res.setStatus(505, "HTTP Version Not Supported");
 							res.setContentType("text/plain");
 							res.setBody("HTTP Version Not Supported");
 							c.out = res.serialize(false);
@@ -397,13 +401,10 @@ void	Server::handleWritable(int fd)
 	// This prevents one big response from blocking other clients.
 	const size_t MAX_WRITE_BYTES = 16 * 1024;
 
-	// Only write if:
-	// - c.out is not empty
-	// - connection is not "responded"
 	if (!c.out.empty() && !c.responded)
 	{
-		size_t	written = 0; // how many bytes we attempted/sent in this iteration
-		ssize_t	offset = 0; // how many bytes from the fron of c.out we have consumed
+		size_t	written = 0; // bytes sent in this iteration
+		ssize_t	offset = 0; // bytes consumed from front of c.out
 
 		// Socket write loop
 		while (written < MAX_WRITE_BYTES && offset < static_cast<ssize_t>(c.out.size()))
@@ -426,24 +427,48 @@ void	Server::handleWritable(int fd)
 		// Drop the bytes we successfully sent from the front of c.out.
 		if (offset > 0)
 			c.out.erase(0, static_cast<size_t>(offset));
-
-		if (c.out.empty())
-		{
-			c.responded = true;
-
-			// Remove fd from reactor and close
-			reactor_.del(fd);
-			::close(fd);
-
-			// Remove the connection stat from our map
-			conns_.erase(it);
-		}
 	}
-	else
+
+	// If c.out is empty, decide to stream more file or finish
+	if (c.out.empty())
 	{
-		// No data to write
-		// remove EPOLLOUT so we dont get useless wakeups.
-		disableWrite(fd);
+		// If we still have a static file to stream, and we're not done
+		if (c.streaming_file && c.file_fd >= 0 && c.file_remaining > 0 && !c.responded)
+		{
+			// Read next chunk from the file into c.out
+			const size_t FILE_CHUNK = 16 * 1024;
+
+			char	buf[FILE_CHUNK];
+			size_t	to_read = FILE_CHUNK;
+			if (static_cast<off_t>(to_read) > c.file_remaining)
+				to_read = static_cast<size_t>(c.file_remaining);
+
+			// Blocking read on regular file, but small (<= FILE_CHUNK) and not in a loop
+			ssize_t r = ::read(c.file_fd, buf, to_read);
+			if (r > 0)
+			{
+				c.file_remaining -= static_cast<off_t>(r);
+				c.out.append(buf, static_cast<size_t>(r));
+				// Not marked as responded or close here
+				// just wait for epoll to call to send it.
+				return	;
+			}
+			else
+			{
+				::close(c.file_fd);
+				c.file_fd = -1;
+				c.streaming_file = false;
+				c.file_remaining = 0;
+			}
+		}
+
+		// No data left to send an no more file to stream
+		if (!c.responded)
+				c.responded = true;
+
+		reactor_.del(fd);
+		::close(fd);
+		conns_.erase(it);
 	}
 }
 

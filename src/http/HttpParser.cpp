@@ -39,6 +39,7 @@ static bool	parse_start_line(const std::string& line, HttpRequest& req) {
 
 static bool	parse_headers_block(const std::string& block, HttpRequest& req) {
 	size_t	start = 0;
+
 	while (start < block.size()) {
 		size_t	end = block.find("\r\n", start);
 		std::string	line = (end == std::string::npos)
@@ -66,7 +67,7 @@ static bool	parse_headers_block(const std::string& block, HttpRequest& req) {
 		start = end + 2;
 	}
 
-	return (req.headers.find("host") != req.headers.end());
+	return (true);
 }
 
 // public API
@@ -76,21 +77,23 @@ bool	HttpParser::parse(const std::string& buf, HttpRequest& req, size_t& endpos)
 	if (sep == std::string::npos)
 		return (false);
 
-	// Extract head (request line + headers)
-	std::string	head = buf.substr(0, sep);
-
 	// First line
-	size_t	eol = head.find("\r\n");
+	size_t	eol = buf.find("\r\n");
 	if (eol == std::string::npos)
 		return (false);
 
-	std::string	start_line = head.substr(0, eol);
+	std::string	start_line = buf.substr(0, eol);
 	rstrip_cr(start_line);
 	if (!parse_start_line(start_line, req))
 		return (false);
 
 	// Headers (no trailing blank line here)
-	std::string	headers = head.substr(eol + 2);
+	std::string	headers;
+	if (eol + 2 < sep)
+		headers = buf.substr(eol + 2, sep - (eol + 2));
+	else
+		headers.clear();
+
 	if (!parse_headers_block(headers, req))
 		return (false);
 	

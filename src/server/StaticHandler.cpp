@@ -115,9 +115,8 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 					return	;
 				}
 			}
-			res.setStatus(404, "Not Found");
-			res.setBody("not found");
-			res.setContentType("text/plain");
+			res.setStatusFromCode(404);
+			res.ensureDefaultBodyIfEmpty();
 			return	;
 		}
 		// Is a Regular File
@@ -159,7 +158,6 @@ void	StaticHandler::handle(const HttpRequest& req, HttpResponse& res) {
 			}
 		}
 	}
-	res.setStatus(404, "Not Found");
-	res.setBody("not found");
-	res.setContentType("text/plain");
+	res.setStatusFromCode(404);
+	res.ensureDefaultBodyIfEmpty();
 }

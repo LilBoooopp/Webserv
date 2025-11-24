@@ -27,7 +27,7 @@ bool	ChunkedDecoder::parse_size_line(const std::string& line, size_t& size)
 	if (hex.empty())
 		return (false);
 	
-	const size_t	SIZE_T_MAX = std::numeric_limits<size_t>::max();
+	const size_t	SIZE_T_MAX_VALUE = std::numeric_limits<size_t>::max();
 	
 	// Parse hex (no leading 0x)
 	size_t	acc = 0;
@@ -44,7 +44,7 @@ bool	ChunkedDecoder::parse_size_line(const std::string& line, size_t& size)
 		else
 			return (false);
 		// overflow check
-		if (acc > (SIZE_T_MAX >> 4))
+		if (acc > (SIZE_T_MAX_VALUE >> 4))
 			return (false);
 		acc = (acc << 4) | v;
 	}

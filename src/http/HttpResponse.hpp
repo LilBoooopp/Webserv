@@ -6,7 +6,7 @@
 class HttpResponse {
 public:
 	HttpResponse(int statusCode = 200, const std::string& reason = "OK");
-
+	int			getStatus();
 	void		setStatus(int code, const std::string& reason);
 	void		setBody(const std::string& body);
 	void		setContentType(const std::string& type);

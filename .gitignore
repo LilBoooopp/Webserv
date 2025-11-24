@@ -1,4 +1,5 @@
 webserv
 Objects
 .counter
-.vscode/settings.json
+.DS_Store
+src/.DS_Store

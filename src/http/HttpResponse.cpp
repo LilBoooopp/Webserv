@@ -1,4 +1,5 @@
 #include "HttpResponse.hpp"
+#include <sstream>
 
 HttpResponse::HttpResponse(int statusCode, const std::string& reason)
 : statusCode_(statusCode), reasonPhrase_(reason), body_("")

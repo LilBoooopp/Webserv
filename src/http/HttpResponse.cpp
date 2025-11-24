@@ -68,15 +68,13 @@ void	HttpResponse::ensureDefaultBodyIfEmpty(void)
 		<< "<html><head><title>" << statusCode_ << " " << reasonPhrase_
 		<< "</title></head><body>" << std::endl
 		<< "<h1>" << statusCode_ << " " << reasonPhrase_ << "</h1>" << std::endl
-		<< "<p> The server encountered this error.</p>" << std::endl
+		<< "<p> The server encountered an error.</p>" << std::endl
 		<< "</body></html>" << std::endl;
 
 	body_ = oss.str();
 
-	// Default body is HTML
-	if (headers_.find("Content-Type") == headers_.end())
-		headers_["Content-Type"] = "text/html";
-
+	// Default body is HTML	
+	headers_["Content-Type"] = "text/html";
 	headers_["Content-Length"] = toString(body_.size());
 }
 

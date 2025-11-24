@@ -16,7 +16,33 @@ function initLabelDiv(x, y, text = "", bgrColor = null, color = "white", parent 
   return div;
 }
 
-function announce(msg, dur = 2000, bgr = "rgba(0, 0, 0, 1)") {
-  const infoBox = addDiv(msg, [window.innerWidth / 2, window.innerHeight - 100], 1, "white", bgr);
-  setTimeout(() => infoBox.remove(), dur);
+function writeBox(w, h, x, y, bgrClr) {
+  const div = document.createElement("div");
+  div.style.width = w + "px";
+  div.style.height = h + "px";
+  div.style.top = y + "px";
+  div.style.left = x + "px";
+  div.style.position = "absolute";
+  div.style.backgroundColor = bgrClr;
+  document.body.appendChild(div);
+}
+
+writeBox(window.innerWidth, 20, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.26)");
+writeBox(window.innerWidth, 100, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.13)");
+let infoBoxes = [];
+function announce(msg, dur = 2000, bgr = null) {
+  const base = [window.innerWidth / 2, window.innerHeight - 55];
+  const y = base[1] + infoBoxes.length * 20;
+  const box = addDiv(msg, [base[0], y], 1, "white", bgr);
+  infoBoxes.push(box);
+  setTimeout(() => {
+    box.remove();
+    const i = infoBoxes.indexOf(box);
+    if (i !== -1) infoBoxes.splice(i, 1);
+    for (let j = 0; j < infoBoxes.length; j++) {
+      const div = infoBoxes[j];
+      div.style.top = base[1] + j * 20 + "px";
+    }
+  }, dur);
+  return box;
 }

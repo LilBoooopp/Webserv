@@ -10,5 +10,5 @@ struct ServerConfig {
 	// ServerConfig() : root("www/"), index("index.html"), client_max_body_size(1 << 20) {}
 	ServerConfig()
 	    : root("www_giulio/"), index("index.html"), client_max_body_size(1 << 20),
-	      cgi_timeout_ms(200), cgi_maxOutput(1024 * 1024) {}
+	      cgi_timeout_ms(5000), cgi_maxOutput(1024 * 1024 * 1024) {}
 };

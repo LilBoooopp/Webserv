@@ -4,3 +4,9 @@ body {
   padding: 0;
   background-color: rgb(157, 176, 189);
 }
+
+#ui-root {
+  position: relative;
+  width: auto;
+  height: auto;
+}

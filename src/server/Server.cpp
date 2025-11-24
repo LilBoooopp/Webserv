@@ -14,12 +14,10 @@ bool Server::start(uint32_t ip_be, uint16_t port_be) {
 	if (!reactor_.add(listener_.fd(), EPOLLIN))
 		return (false);
 	Logger::print_valid_levels();
-	Logger::simple("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB", rgb(168, 185, 145), GREY,
-		       "timeout", (unsigned long)cfg_.cgi_timeout_ms, "maxOutput",
-		       (unsigned long)(cfg_.cgi_maxOutput / (1024UL * 1024UL)));
 	Logger::simple(SERVER);
 	Logger::simple("  %s%-10s %d\n  %-10s %d\n", GREY, "ip", ntohl(ip_be), "port",
 		       ntohs(port_be));
+	cgiHandler_.setConfig(cfg_);
 	return (true);
 }
 
@@ -50,6 +48,10 @@ void Server::prepareResponse(int fd, Connection &c) {
 	bool head_only = (req.method == "HEAD");
 
 	if (req.method == "GET" || req.method == "HEAD") {
+		if (is_cgi(req.target)) {
+			cgiHandler_.runCgi(req, res, c, fd);
+			return;
+		}
 		StaticHandler StaticHandler(&cfg_);
 		Router router(&StaticHandler);
 		router.route(req.target)->handle(req, res);
@@ -345,42 +347,51 @@ void Server::run() {
 	while (true) {
 		epoll_event events[64];
 		int n = reactor_.wait(events, 64, 1);
-		if (n == 0) {
+		std::time_t now = std::time(NULL);
+
+		if (n > 0) {
+			for (int i = 0; i < n; ++i) {
+				int fd = events[i].data.fd;
+				if (fd == 0) {
+					executeStdin();
+					logged = false;
+					continue;
+				}
+				uint32_t ev = events[i].events;
+
+				if (fd == listener_.fd()) {
+					if (ev & EPOLLIN)
+						acceptReady(now);
+					continue;
+				}
+
+				if (ev & (EPOLLHUP | EPOLLERR)) {
+					reactor_.del(fd);
+					::close(fd);
+					conns_.erase(fd);
+					continue;
+				}
+
+				if (ev & EPOLLIN)
+					handleReadable(fd, now);
+				if (ev & EPOLLOUT)
+					handleWritable(fd);
+			}
+			if (logged)
+				Logger::timer("%s ready", SERVER);
+			logged = false;
+		} else {
 			if (!logged)
 				Logger::timer("%s waiting...", SERVER);
 			logged = true;
-			continue;
 		}
-		std::time_t now = std::time(NULL);
-		for (int i = 0; i < n; ++i) {
-			int fd = events[i].data.fd;
-			if (fd == 0) {
-				executeStdin();
-				logged = false;
-				continue;
-			}
-			uint32_t ev = events[i].events;
 
-			if (fd == listener_.fd()) {
-				if (ev & EPOLLIN)
-					acceptReady(now);
-				continue;
-			}
+		cgiHandler_.handleResponses();
 
-			if (ev & (EPOLLHUP | EPOLLERR)) {
-				reactor_.del(fd);
-				::close(fd);
-				conns_.erase(fd);
-				continue;
-			}
-
-			if (ev & EPOLLIN)
-				handleReadable(fd, now);
-			if (ev & EPOLLOUT)
-				handleWritable(fd);
+		for (std::map<int, Connection>::iterator it = conns_.begin(); it != conns_.end();
+		     ++it) {
+			if (it->second.state == WRITING_RESPONSE && !it->second.out.empty())
+				enableWrite(it->first);
 		}
-		if (logged)
-			Logger::timer("%s ready", SERVER);
-		logged = false;
 	}
 }

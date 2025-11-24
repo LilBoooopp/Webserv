@@ -6,8 +6,8 @@ function addInputDiv(label, pos, onEnd = null) {
   addDiv(label, [pos[0] - 30, pos[1] + 10], 1);
 
   input.style.position = "absolute";
-  input.style.left = pos[0] + "px";
-  input.style.top = pos[1] + "px";
+  input.style.left = (pos[0] / window.innerWidth) * 100 + "%";
+  input.style.top = (pos[1] / window.innerHeight) * 100 + "%";
 
   document.body.appendChild(input);
 
@@ -43,4 +43,16 @@ function addFormulary(pos = [50, 50]) {
     okButton.fields.push({ label, input });
     y += 40;
   }
+}
+
+function openFileDialog(callback) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "*/*";
+
+  input.onchange = () => {
+    if (callback) callback(input.files);
+  };
+
+  input.click();
 }

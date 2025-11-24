@@ -11,6 +11,13 @@ SRC_SRC =  \
 	main.cpp
 SRC = $(addprefix $(SRC_DIR), $(SRC_SRC))
 
+CGI_DIR = src/cgi/
+CGI_SRC = \
+	Execute.cpp \
+	ParseRequest.cpp \
+	Respond.cpp
+CGI = $(addprefix $(CGI_DIR), $(CGI_SRC))
+
 CORE_DIR = src/core/
 CORE_SRC =  \
 	EpollReactor.cpp
@@ -27,7 +34,6 @@ SERVER_DIR = src/server/
 SERVER_SRC =  \
 	Listener.cpp \
 	Server.cpp \
-	cgiHandler.cpp \
 	StaticHandler.cpp
 SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 
@@ -37,8 +43,8 @@ UTILS_SRC =  \
 	Chrono.cpp
 UTILS = $(addprefix $(UTILS_DIR), $(UTILS_SRC))
 
-ALL_SRC = $(SRC) $(CORE) $(HTTP) $(SERVER) $(UTILS)
-vpath %.cpp src src/core src/http src/server src/utils
+ALL_SRC = $(SRC) $(CGI) $(CORE) $(HTTP) $(SERVER) $(UTILS)
+vpath %.cpp src src/core src/http src/server src/utils src/cgi
 #--------------------------------------OBJECTS----------------------------------#
 OBJ_DIR = Objects/
 # Generate object files with same names but in Objects directory

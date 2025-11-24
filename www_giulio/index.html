@@ -7,34 +7,57 @@
   </head>
 
   <body>
+    <div id="ui-root"></div>
+
     <script src="js/buttons.js"></script>
     <script src="js/inputField.js"></script>
     <script src="js/div.js"></script>
 
     <script>
-      var dv = [];
       function init() {
-        const c = [window.innerWidth / 2, window.innerHeight / 2];
-        const w = 50;
-        dv.push(addDiv("HOME", [c[0], c[1] - 150], 3));
+        const c = [window.innerWidth / 2, window.innerHeight * 0.4];
+        const colSpacing = 200;
+        const rowSpacing = 50;
 
-        const names = ["about", "somePage", "form"];
-        for (let i = 0; i < names.length; i++) dv.push(cgiButton(names[i].toUpperCase(), "/cgi/printArg.py", [c[0] - 200, c[1] + w * i], "/main/" + names[i] + ".html"));
-        dv.push(addButton("SPAM REQUESTS", [c[0], c[1]], loopRequest));
-        dv.push(addButton("HUGE REQUEST", [c[0], c[1] + w], longRequest));
+        addDiv("WebServ", [c[0], c[1] - 150], 3, "white");
 
-        const cgPaths = ["infinite.py", "printArg.py", "print.cgi", "hugeResponse.py"];
-        for (let i = 0; i < cgPaths.length; i++) {
-          dv.push(cgiButton(cgPaths[i], "/cgi/" + cgPaths[i], [c[0] + 200, c[1] + w * i], "Cool", announceResponse));
+        const menus = ["Navigation", "Requests", "CGI", "Post"];
+        const totalWidth = (menus.length - 1) * colSpacing;
+
+        const colX = [];
+        for (let i = 0; i < menus.length; i++) {
+          const x = c[0] - totalWidth / 2 + i * colSpacing;
+          colX.push(x);
+          addDiv(menus[i], [x, c[1] - 80], 1.5);
         }
-      }
-      init();
 
-      window.addEventListener("resize", (e) => {
-        for (const d of dv) d.remove();
-        dv = [];
-        init();
-      });
+        const navX = colX[0];
+        const reqX = colX[1];
+        const cgiX = colX[2];
+        const postX = colX[3];
+
+        const names = ["about", "form", "somePage"];
+        for (let i = 0; i < names.length; i++) {
+          cgiButton(names[i].toUpperCase(), "/cgi/printArg.py", [navX, c[1] + 25 + rowSpacing * i], "/main/" + names[i] + ".html");
+        }
+
+        addButton("SPAM", [reqX, c[1] + 25], loopRequest);
+        cgiButton("not found", "notFound", [reqX, c[1] + 25 + rowSpacing]);
+
+        const cgPaths = ["print.cgi", "printArg.py", "infinite.py", "hugeResponse.py"];
+        for (let i = 0; i < cgPaths.length; i++) {
+          cgiButton(cgPaths[i], "/cgi/" + cgPaths[i], [cgiX, c[1] + 25 + rowSpacing * i], "Cool", announceResponse);
+        }
+
+		var y = 0;
+        addButton("File", [postX, c[1] + 25], () => openFileDialog());
+        addButton("1 Byte", [postX, c[1] + 25 + rowSpacing], () => longRequest(1));
+        addButton("1 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => longRequest(1_000_000));
+        addButton("10 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => longRequest(10_000_000));
+        addButton("1 GB", [postX, c[1] + 25 + ++y * rowSpacing], () => longRequest(999_999_999));
+      }
+
+      init();
     </script>
   </body>
 </html>

@@ -3,8 +3,10 @@ function addDiv(text, pos, size, clr = null, bgrClr = null) {
   div.textContent = text;
 
   div.style.position = "absolute";
-  div.style.left = pos[0] + "px";
-  div.style.top = pos[1] + "px";
+
+  div.style.left = (pos[0] / window.innerWidth) * 100 + "%";
+  div.style.top = (pos[1] / window.innerHeight) * 100 + "%";
+
   div.style.transform = "translate(-50%, -50%) scale(" + size + ")";
   div.style.transformOrigin = "center center";
 
@@ -24,7 +26,7 @@ function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = nul
   div.style.padding = "8px 12px";
   div.style.position = "absolute";
   div.style.userSelect = "none";
-  div.style.backgroundColor = "black";
+  div.style.backgroundColor = "rgba(0, 0, 0, 0.89)";
   div.style.color = "white";
   div.style.cursor = "pointer";
   div.style.borderRadius = "5px";
@@ -45,8 +47,10 @@ function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = nul
   if (onEnd) {
     div.addEventListener("mousedown", onEnd);
   }
-  div.style.left = p[0] + "px";
-  div.style.top = p[1] + "px";
+
+  div.style.left = (p[0] / window.innerWidth) * 100 + "%";
+  div.style.top = (p[1] / window.innerHeight) * 100 + "%";
+
   return div;
 }
 
@@ -76,22 +80,36 @@ function cgiButton(label, scriptPath, pos = [0, 0], arg = null, onEnd = moveToUr
 function loopRequest() {
   const counter = 9999;
   let completed = 0;
-  const div = addDiv("SENT 0 REQUESTS", [window.innerWidth / 2, window.innerHeight / 2 - 100], 1, "red", "black");
+  var div = announce("SENT 0 REQUESTS", 6000);
   for (let i = 0; i < counter; i++) {
     fetch("/").then(() => {
       completed++;
-      div.textContent = "SENT " + completed + " REQUESTS";
-      if (completed >= 9998) div.remove();
+      div.textContent = `SENT ${completed} REQUESTS`;
     });
   }
 }
 
-function longRequest() {
-  length = 99999999;
-  var string = "TEST ";
-  for (let i = 0; i < length; i++) string += "0";
-  fetch(string);
-  announce("Done!");
+
+
+function longRequest(size) {
+  const length = size; // 999M bytes
+  const buf = new Uint8Array(length);
+
+  const textEncoder = new TextEncoder();
+  const header = textEncoder.encode("TEST ");
+
+  const body = new Blob([header, buf]);
+
+  const start = performance.now();
+  fetch("/huge", {
+    method: "POST",
+    body,
+  })
+    .then((r) => r.text().then((t) => ({ r, t })))
+    .then(({ r, t }) => {
+      const responseText = t.trim();
+      announce(`Server received package in ${Number((performance.now() - start) / 1000).toFixed(3)}s, response: ${responseText}`);
+    });
 }
 
 function addHomeButton() {

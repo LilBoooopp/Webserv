@@ -4,7 +4,7 @@
 #include "../utils/Logger.hpp"
 #include "../utils/Mime.hpp"
 #include "../utils/Path.hpp"
-#include "cgiHandler.hpp"
+#include "../cgi/cgi.hpp"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -13,7 +13,6 @@
 
 static bool is_dir(const struct stat &st) { return (S_ISDIR(st.st_mode)); }
 static bool is_reg(const struct stat &st) { return (S_ISREG(st.st_mode)); }
-static bool is_cgi(const std::string &req_target) { return req_target.rfind("/cgi/", 0) == 0; }
 
 static bool read_file_small(const std::string &path, std::string &out) {
 	int fd = ::open(path.c_str(), O_RDONLY);
@@ -40,18 +39,7 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 
 	Logger::info("%s rooted %s%s%s -> %s%s", SERVER, GREY, req.target.c_str(), TS, GREY,
 		     path.c_str());
-
-	std::string queryString = "";
-	bool isCgi = is_cgi(req.target);
-	if (isCgi)
-		queryString = cgiHandler::extractArguments(path);
-
 	if (::stat(path.c_str(), &st) == 0) {
-		if (isCgi) {
-			std::string raw = cgiHandler::runCgi(path, queryString, res, cfg);
-			Logger::info("cgi execution returned: \n\'%s\'\n", raw.c_str());
-			return;
-		}
 		if (is_dir(st)) {
 			// try index file
 			if (path.size() == 0 || path[path.size() - 1] != '/')

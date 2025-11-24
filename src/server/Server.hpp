@@ -3,10 +3,9 @@
 #include "Listener.hpp"
 #include "Router.hpp"
 #include "StaticHandler.hpp"
-#include "cgiHandler.hpp"
 
+#include "../cgi/cgi.hpp"
 #include "../core/EpollReactor.hpp"
-
 #include "../config/Config.hpp"
 
 #include "../http/ChunkedDecoder.hpp"
@@ -35,6 +34,7 @@ class Server {
 	std::map<int, Connection> conns_;
 	std::vector<char> inbuf_;
 	ServerConfig cfg_;
+	cgiHandler cgiHandler_;
 
 	void acceptReady(std::time_t now);
 	void handleReadable(int fd, std::time_t now);

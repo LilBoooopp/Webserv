@@ -17,6 +17,7 @@
 
 #include "../utils/Colors.hpp"
 #include "../utils/Logger.hpp"
+#include "../http/ResponseWriter.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -27,6 +28,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <vector>
+
+#define MAX_READ 1024 * 16
+#define MAX_WRITE 1024 * 16
 
 class Server {
 	EpollReactor reactor_;

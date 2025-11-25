@@ -3,3 +3,4 @@ Objects
 .counter
 .DS_Store
 src/.DS_Store
+.vscode/settings.json

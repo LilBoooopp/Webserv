@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <iostream>
 
 inline static void split(const std::string &s, char sep, std::vector<std::string> &out) {
 	out.clear();

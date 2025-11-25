@@ -45,6 +45,7 @@ void	Server::acceptReady(void)
 		}
 		set_nonblock(cfd);
 		Connection	c;
+		c.start = now_ms();
 		conns_[cfd] = c;
 		reactor_.add(cfd, EPOLLIN);
 		Logger::debug("Connection from fd %d%s accepted", cfd, GREEN);
@@ -125,9 +126,6 @@ void Server::prepareResponse(int fd, Connection &c) {
 		res.ensureDefaultBodyIfEmpty();
 	}
 
-	std::string head = res.serialize(true);
-	Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd, res.getStatus() == 200 ? GREEN : RED, head.c_str());
-
 	res.ensureDefaultBodyIfEmpty();
 	c.out = res.serialize(head_only);
 	enableWrite(fd);
@@ -139,6 +137,8 @@ void	Server::handleReadable(int fd)
 
 	const size_t	MAX_HANDLE_BYTES = 16 * 1024; // max bytes to read from socket per iteration
 	const size_t	MAX_DECODE_BYTES = 16 * 1024; // max bytes to consume from c.in for body parsin per iteration
+
+	HttpResponse	res;
 
 	size_t	handled = 0;
 	while (handled < MAX_HANDLE_BYTES)
@@ -175,7 +175,6 @@ void	Server::handleReadable(int fd)
 					{
 						if (req.version != "HTTP/1.1" && req.version != "HTTP/1.0" && req.method != "" && req.target != "")
 						{
-							HttpResponse	res;
 							res.setStatusFromCode(505);
 							res.ensureDefaultBodyIfEmpty();
 
@@ -186,7 +185,6 @@ void	Server::handleReadable(int fd)
 						}
 						else
 						{
-							HttpResponse	res;
 							res.setStatusFromCode(400);
 							res.setVersion(req.version);
 							res.ensureDefaultBodyIfEmpty();
@@ -251,7 +249,6 @@ void	Server::handleReadable(int fd)
 						if (bad)
 						{
 							// Malformed or conflicint headers
-							HttpResponse	res;
 							res.setStatusFromCode(400);
 							res.setVersion(req.version);
 							res.ensureDefaultBodyIfEmpty();
@@ -270,7 +267,6 @@ void	Server::handleReadable(int fd)
 							// size limit for non-chunked CL bodies
 							if (has_cl && c.want_body > cfg_.client_max_body_size)
 							{
-								HttpResponse	res;
 								res.setStatusFromCode(413);
 								res.setVersion(req.version);
 								res.ensureDefaultBodyIfEmpty();
@@ -329,7 +325,6 @@ void	Server::handleReadable(int fd)
 							break;
 						if (st == ChunkedDecoder::ERROR)
 						{
-							HttpResponse	res;
 							res.setStatusFromCode(400);
 							res.ensureDefaultBodyIfEmpty();
 
@@ -343,7 +338,6 @@ void	Server::handleReadable(int fd)
 							// Final size check after full decoding
 							if (c.body.size() > cfg_.client_max_body_size)
 							{
-								HttpResponse	res;
 								res.setStatusFromCode(413);
 								res.ensureDefaultBodyIfEmpty();
 
@@ -382,8 +376,13 @@ void	Server::handleReadable(int fd)
 			}
 
 			// WRITING_RESPONSE
-			if (c.state == WRITING_RESPONSE && c.out.empty() && c.has_req)
-				prepareResponse(fd, c);
+			if (c.state == WRITING_RESPONSE && c.has_req)
+			{
+				std::string head = res.serialize(true);
+				Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd, res.getStatus() == 200 ? GREEN : RED, head.c_str());
+				if (c.out.empty())
+					prepareResponse(fd, c);
+			}
 
 			// Continue reading (if handled < MAX_HANDLE_BYTES)
 			// or exit the loop when the budget is used up
@@ -476,6 +475,7 @@ void	Server::handleWritable(int fd)
 		// No data left to send an no more file to stream
 		if (!c.responded)
 				c.responded = true;
+		Logger::debug("fd %d closed", fd);
 
 		reactor_.del(fd);
 		::close(fd);
@@ -483,23 +483,27 @@ void	Server::handleWritable(int fd)
 	}
 }
 
-void Server::executeStdin() {
+bool Server::executeStdin() {
 	char buff[50];
 
 	ssize_t sr = read(0, buff, sizeof(buff) - 1);
 	if (sr <= 0)
-		return;
+		return false;
 	buff[sr] = '\0';
 	while (sr > 0 && (buff[sr - 1] == '\n' || buff[sr - 1] == '\r')) {
 		buff[--sr] = '\0';
 	}
 	if (sr == 0)
-		return;
+		return false;
 	if (std::strcmp(buff, "clear") == 0) {
 		const char *clr = "\033[2J\033[H";
 		write(1, clr, std::strlen(clr));
-		return;
-	} else if (!buff[1] && buff[0] >= '0' && buff[0] <= '9') {
+		return false;
+	}
+	else if (std::strcmp(buff, "quit") == 0) {
+		return true;
+	} 
+	else if (!buff[1] && buff[0] >= '0' && buff[0] <= '9') {
 		Logger::set_level((LogLevel)(buff[0] - '0'));
 		Logger::print_valid_levels();
 	} else if (std::strcmp(buff, "buff") == 0) {
@@ -509,7 +513,7 @@ void Server::executeStdin() {
 		unsigned long n = conns_.size();
 		if (!n) {
 			Logger::timer("No connections");
-			return;
+			return false;
 		}
 		Logger::info("Listing previous connections [%u]", n);
 		for (unsigned long i = 0; i < n; i++) {
@@ -519,6 +523,7 @@ void Server::executeStdin() {
 			conns_[i].printStatus(label);
 		}
 	}
+	return false;
 }
 
 void Server::run() {
@@ -533,7 +538,8 @@ void Server::run() {
 			for (int i = 0; i < n; ++i) {
 				int fd = events[i].data.fd;
 				if (fd == 0) {
-					executeStdin();
+					if (executeStdin())
+						return;
 					logged = false;
 					continue;
 				}

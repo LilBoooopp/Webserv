@@ -122,8 +122,8 @@ bool cgiHandler::handleResponses() {
 			finished = true;
 		unsigned long nowMs = now_ms();
 		if (!finished && cfg_->cgi_timeout_ms > 0 &&
-		    nowMs - data.start >= cfg_->cgi_timeout_ms) {
-			unsigned long elapsed = nowMs - data.start;
+		    nowMs - data.conn->start >= cfg_->cgi_timeout_ms) {
+			unsigned long elapsed = nowMs - data.conn->start;
 			err = "CGI timed out";
 			Logger::error("stopping \'%s%s%s\' execution - timed out after %lums",
 				      YELLOW, data.file.c_str(), TS, elapsed);
@@ -155,7 +155,7 @@ bool cgiHandler::handleResponses() {
 				Logger::info("%s%s%s execution ended after %lums - raw output "
 					     "(first 50 bytes):\n'%s'",
 					     YELLOW, data.file.c_str(), TS,
-					     (unsigned long)(nowMs - data.start), preview.c_str());
+					     (unsigned long)(nowMs - data.conn->start), preview.c_str());
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;
 			}

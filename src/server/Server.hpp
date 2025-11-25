@@ -51,5 +51,5 @@ class Server {
 	Server() : inbuf_(8192) {}
 	bool start(uint32_t ip_be, uint16_t port_be);
 	void run();
-	void executeStdin();
+	bool executeStdin();
 };

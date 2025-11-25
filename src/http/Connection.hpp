@@ -33,6 +33,7 @@ class Connection {
 	size_t want_body; // expected body length (from Content-Length)
 	bool is_chunked;  // trye if TE: chunked
 
+	size_t start;
 	HttpRequest req;
 	bool has_req;
 

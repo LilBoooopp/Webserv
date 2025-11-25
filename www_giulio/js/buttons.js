@@ -1,4 +1,4 @@
-function addDiv(text, pos, size, clr = null, bgrClr = null) {
+function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true) {
   let div = document.createElement("div");
   div.textContent = text;
 
@@ -7,7 +7,12 @@ function addDiv(text, pos, size, clr = null, bgrClr = null) {
   div.style.left = (pos[0] / window.innerWidth) * 100 + "%";
   div.style.top = (pos[1] / window.innerHeight) * 100 + "%";
 
-  div.style.transform = "translate(-50%, -50%) scale(" + size + ")";
+  if (centered) {
+    div.style.transform = "translate(-50%, -50%) scale(" + size + ")";
+  } else {
+    div.style.transform = "scale(" + size + ")";
+  }
+
   div.style.transformOrigin = "center center";
 
   div.style.userSelect = "none";
@@ -26,8 +31,8 @@ function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = nul
   div.style.padding = "8px 12px";
   div.style.position = "absolute";
   div.style.userSelect = "none";
-  div.style.backgroundColor = "rgba(0, 0, 0, 0.89)";
-  div.style.color = "white";
+  div.style.backgroundColor = "rgba(255, 255, 255, 0.15)";
+  div.style.color = "black";
   div.style.cursor = "pointer";
   div.style.borderRadius = "5px";
   if (color) div.style.color = color;
@@ -58,6 +63,7 @@ function moveToUrl(_response, text) {
   console.warn("moving to " + text);
   window.location.href = text;
 }
+
 function announceResponse(response, _text) {
   announce("Status " + response.status + " " + _text);
 }
@@ -88,8 +94,6 @@ function loopRequest() {
     });
   }
 }
-
-
 
 function longRequest(size) {
   const length = size; // 999M bytes

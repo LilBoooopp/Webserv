@@ -1,3 +1,15 @@
+function initImage(w, h, x, y, src) {
+  const imgDiv = document.createElement("img");
+  imgDiv.src = src;
+  imgDiv.width = w;
+  imgDiv.height = h;
+  imgDiv.style.left = x + "px";
+  imgDiv.style.top = y + "px";
+  imgDiv.style.position = "absolute";
+  document.body.appendChild(imgDiv);
+  return imgDiv;
+}
+
 function initLabelDiv(x, y, text = "", bgrColor = null, color = "white", parent = document.body) {
   let div = document.createElement("label");
   div.className = "infoText";
@@ -25,10 +37,11 @@ function writeBox(w, h, x, y, bgrClr) {
   div.style.position = "absolute";
   div.style.backgroundColor = bgrClr;
   document.body.appendChild(div);
+  return div;
 }
 
-writeBox(window.innerWidth, 20, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.26)");
-writeBox(window.innerWidth, 100, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.13)");
+// writeBox(window.innerWidth, 20, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.26)");
+// writeBox(window.innerWidth, 100, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.13)");
 let infoBoxes = [];
 function announce(msg, dur = 2000, bgr = null) {
   const base = [window.innerWidth / 2, window.innerHeight - 55];

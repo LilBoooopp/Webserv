@@ -2,10 +2,11 @@
 #include "http/HttpRequest.hpp"
 #include "server/Server.hpp"
 #include <arpa/inet.h>
+#include <iostream>
 #include <signal.h>
 #include <cstdlib>
 
-int main(int argc, char **argv) {
+int main(void) {
 	{
 		HttpRequest rq;
 		size_t endp = 0;
@@ -17,13 +18,13 @@ int main(int argc, char **argv) {
 
 	uint32_t ip_be = htonl(INADDR_LOOPBACK); // 127.0.0.1
 	uint16_t port_be = htons(8080);
-	if (argc > 1)
-		port_be = htons(std::atoi(argv[1]));
+
 	Server s;
 	if (!s.start(ip_be, port_be)) {
 		std::perror("webserv: start failed (is another instance running?");
 		return (1);
 	}
+	std::cout << "started" << std::endl;
 	s.run();
 	return (0);
 }

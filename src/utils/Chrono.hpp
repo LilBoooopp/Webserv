@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <sys/time.h>
+#include <signal.h>
 
 std::string getTimestamp();
 std::string formatTime(time_t t);

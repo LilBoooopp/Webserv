@@ -1,5 +1,6 @@
 #include "../utils/Chrono.hpp"
 #include "cgi.hpp"
+#include <cstdlib>
 
 static void trim_spaces(std::string &s) {
 	std::string::size_type start = 0;

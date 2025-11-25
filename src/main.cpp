@@ -3,6 +3,7 @@
 #include "server/Server.hpp"
 #include <arpa/inet.h>
 #include <signal.h>
+#include <cstdlib>
 
 int main(int argc, char **argv) {
 	{

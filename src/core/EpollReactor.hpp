@@ -1,9 +1,11 @@
 #pragma once
-#ifndef MAC
-	#include "EpollMac.hpp"
+
+#if defined(__linux__)
+    #include <sys/epoll.h>
 #else
-	#include <sys/epoll.h>
+    #include "EpollMac.hpp"
 #endif
+
 #include <map>
 
 class EpollReactor {

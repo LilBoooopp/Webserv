@@ -40,8 +40,8 @@ class Server {
 	ServerConfig cfg_;
 	cgiHandler cgiHandler_;
 
-	void acceptReady(std::time_t now);
-	void handleReadable(int fd, std::time_t now);
+	void acceptReady();
+	void handleReadable(int fd);
 	void handleWritable(int fd);
 	void enableWrite(int fd);
 	void disableWrite(int fd);

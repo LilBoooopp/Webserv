@@ -26,8 +26,7 @@ bool Server::start(uint32_t ip_be, uint16_t port_be) {
 		return (false);
 	Logger::print_valid_levels();
 	Logger::simple(SERVER);
-	Logger::simple("  %s%-10s %d\n  %-10s %d\n", GREY, "ip", ntohl(ip_be), "port",
-		       ntohs(port_be));
+	Logger::simple("  %s%-10s %d\n  %-10s %d\n", GREY, "ip", ntohl(ip_be), "port", ntohs(port_be));
 	cgiHandler_.setConfig(cfg_);
 	return (true);
 }
@@ -119,21 +118,15 @@ void Server::prepareResponse(int fd, Connection &c) {
 		char msg[128];
 		std::snprintf(msg, sizeof(msg), "received %zu bytes\n", c.body.size());
 		res.setBody(msg);
-	} else {
-		res = HttpResponse(501);
-		res.setContentType("text/plain");
-		res.setBody("not implemented");
-	}
-
-	std::string head = res.serialize(true);
-	Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd,
-		     res.getStatus() == 200 ? GREEN : RED, head.c_str());
 	}
 	else
 	{
 		res.setStatusFromCode(501);
 		res.ensureDefaultBodyIfEmpty();
 	}
+
+	std::string head = res.serialize(true);
+	Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd, res.getStatus() == 200 ? GREEN : RED, head.c_str());
 
 	res.ensureDefaultBodyIfEmpty();
 	c.out = res.serialize(head_only);
@@ -211,6 +204,11 @@ void	Server::handleReadable(int fd)
 						// minimal validation
 						if ((req.version != "HTTP/1.1" && req.version != "HTTP/1.0") || req.target.empty() || req.target[0] != '/')
 							bad = true;
+
+						// TE/CL detection
+						bool	has_te_chunked = false;
+						bool	has_cl = false;
+						size_t	content_length = 0;
 
 						// Check for Content-Length header
 						std::map<std::string,std::string>::iterator	itCL = req.headers.find("content-length");
@@ -530,7 +528,6 @@ void Server::run() {
 	while (true) {
 		epoll_event events[64];
 		int n = reactor_.wait(events, 64, 1);
-		std::time_t now = std::time(NULL);
 
 		if (n > 0) {
 			for (int i = 0; i < n; ++i) {
@@ -544,7 +541,7 @@ void Server::run() {
 
 				if (fd == listener_.fd()) {
 					if (ev & EPOLLIN)
-						acceptReady(now);
+						acceptReady();
 					continue;
 				}
 
@@ -556,7 +553,7 @@ void Server::run() {
 				}
 
 				if (ev & EPOLLIN)
-					handleReadable(fd, now);
+					handleReadable(fd);
 				if (ev & EPOLLOUT)
 					handleWritable(fd);
 			}

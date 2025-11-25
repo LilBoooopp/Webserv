@@ -6,6 +6,7 @@ class HttpResponse {
 public:
 	HttpResponse(int statusCode = 200, const std::string& version = "HTTP/1.1");
 
+	int			getStatus(void);
 	void		setVersion(const std::string& version);
 	void		setStatus(int code, const std::string& reason);
 	void		setStatusFromCode(int code);

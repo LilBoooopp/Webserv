@@ -30,20 +30,9 @@ void HttpResponse::setVersion(const std::string &version)
 	version_ = version;
 }
 
-void HttpResponse::setVersion(const std::string &version)
-{
-	version_ = version;
-}
-
 void HttpResponse::setStatus(int code, const std::string &reason) {
 	statusCode_ = code;
 	reasonPhrase_ = reason;
-}
-
-void HttpResponse::setStatusFromCode(int code)
-{
-	statusCode_ = code;
-	reasonPhrase_ = reasonForStatus(code);
 }
 
 void HttpResponse::setStatusFromCode(int code)
@@ -89,35 +78,6 @@ void	HttpResponse::ensureDefaultBodyIfEmpty(void)
 	headers_["Content-Length"] = toString(body_.size());
 }
 
-void	HttpResponse::setBodyIfEmpty(const std::string &body)
-{
-	if (body_.empty())
-	{
-		body_ = body;
-		headers_["Content-Length"] = toString(body_.size());
-	}
-}
-
-void	HttpResponse::ensureDefaultBodyIfEmpty(void)
-{
-	if (!body_.empty())
-		return	;
-
-	// default HTML error page
-	std::ostringstream	oss;
-	oss	<< "<!DOCTYPE html>" << std::endl
-		<< "<html><head><title>" << statusCode_ << " " << reasonPhrase_
-		<< "</title></head><body>" << std::endl
-		<< "<h1>" << statusCode_ << " " << reasonPhrase_ << "</h1>" << std::endl
-		<< "<p> The server encountered an error.</p>" << std::endl
-		<< "</body></html>" << std::endl;
-
-	body_ = oss.str();
-
-	// Default body is HTML	
-	headers_["Content-Type"] = "text/html";
-	headers_["Content-Length"] = toString(body_.size());
-}
 
 void HttpResponse::setContentType(const std::string &type) { headers_["Content-Type"] = type; }
 

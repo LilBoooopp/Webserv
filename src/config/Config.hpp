@@ -13,13 +13,14 @@
 // 	      cgi_timeout_ms(5000), cgi_maxOutput(1024 * 1024 * 1024) {}
 // };
 
-
-#include <iostream>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <sstream>
-#include <map>
+#ifndef CONFIG_HPP
+# define CONFIG_HPP
+# include <iostream>
+# include <string>
+# include <vector>
+# include <fstream>
+# include <sstream>
+# include <map>
 
 struct HostPort
 {
@@ -119,3 +120,5 @@ class Config
 		};
 
 };
+
+#endif

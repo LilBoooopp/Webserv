@@ -19,7 +19,7 @@ static int set_nonblock(int fd) {
 	return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
 }
 
-bool Server::start(uint32_t ip_be, uint16_t port_be) {
+bool Server::start(uint32_t ip_be, uint16_t port_be, Conf &config) {
 	if (!listener_.bindAndListen(ip_be, port_be))
 		return (false);
 	if (!reactor_.add(listener_.fd(), EPOLLIN))
@@ -27,7 +27,7 @@ bool Server::start(uint32_t ip_be, uint16_t port_be) {
 	Logger::print_valid_levels();
 	Logger::simple(SERVER);
 	Logger::simple("  %s%-10s %d\n  %-10s %d\n", GREY, "ip", ntohl(ip_be), "port", ntohs(port_be));
-	cgiHandler_.setConfig(cfg_);
+	cgiHandler_.setConfig(config);
 	return (true);
 }
 
@@ -265,7 +265,7 @@ void	Server::handleReadable(int fd)
 							c.body.clear();
 
 							// size limit for non-chunked CL bodies
-							if (has_cl && c.want_body > cfg_.client_max_body_size)
+							if (has_cl && c.want_body > cfg_.servers[0].locations[0].max_size)
 							{
 								res.setStatusFromCode(413);
 								res.setVersion(req.version);
@@ -336,7 +336,7 @@ void	Server::handleReadable(int fd)
 						if (st == ChunkedDecoder::DONE)
 						{
 							// Final size check after full decoding
-							if (c.body.size() > cfg_.client_max_body_size)
+							if (c.body.size() > cfg_.servers[0].locations[0].max_size)
 							{
 								res.setStatusFromCode(413);
 								res.ensureDefaultBodyIfEmpty();

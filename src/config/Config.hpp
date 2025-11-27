@@ -55,19 +55,24 @@ struct LocationConf
 	bool	has_php;
 	std::string	php_path;
 
+	size_t	cgi_timeout_ms;
+	size_t	cgi_maxOutput;
+
 	bool	has_max_size;
 	size_t	max_size;
 
     LocationConf()
-        : redirect_enabled(false),
-          redirect_status(0),
-          has_root(false),
-          has_index(false),
-          autoindex_set(false),
-          autoindex(false),
-          upload_enabled(false),
-          has_max_size(false),
-          max_size(0)
+	:	redirect_enabled(false),
+		redirect_status(0),
+		has_root(false),
+		has_index(false),
+		autoindex_set(false),
+		autoindex(false),
+		upload_enabled(false),
+		cgi_timeout_ms(5000),
+		cgi_maxOutput(1024 * 1024 * 1024),
+		has_max_size(false),
+		max_size(0)
     {}
 };
 

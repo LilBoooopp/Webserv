@@ -108,11 +108,11 @@ bool cgiHandler::handleResponses() {
 			data.out.append(buf, n);
 			data.bytesRead += n;
 			anyProgress = true;
-			if (data.bytesRead > cfg_->cgi_maxOutput) {
+			if (data.bytesRead > cfg_->servers[0].locations[0].cgi_maxOutput) {
 				err = "CGI output exceeded server limit";
 				Logger::error("cgi stopping %s execution after %lu bytes (max %lu)",
 					      data.file.c_str(), (unsigned long)data.bytesRead,
-					      (unsigned long)cfg_->cgi_maxOutput);
+					      (unsigned long)cfg_->servers[0].locations[0].cgi_maxOutput);
 				kill(data.pid, SIGKILL);
 				finished = true;
 			}
@@ -121,8 +121,8 @@ bool cgiHandler::handleResponses() {
 		else if (errno != EAGAIN && errno != EWOULDBLOCK)
 			finished = true;
 		unsigned long nowMs = now_ms();
-		if (!finished && cfg_->cgi_timeout_ms > 0 &&
-		    nowMs - data.conn->start >= cfg_->cgi_timeout_ms) {
+		if (!finished && cfg_->servers[0].locations[0].cgi_timeout_ms > 0 &&
+		    nowMs - data.conn->start >= cfg_->servers[0].locations[0].cgi_timeout_ms) {
 			unsigned long elapsed = nowMs - data.conn->start;
 			err = "CGI timed out";
 			Logger::error("stopping \'%s%s%s\' execution - timed out after %lums",

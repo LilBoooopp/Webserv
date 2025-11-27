@@ -12,7 +12,7 @@ static bool execute(CgiExecutionData &data) {
 	int fds[2];
 	if (pipe(fds) == -1) {
 		Logger::error("Pipe error");
-		return "";
+	return "";
 	}
 
 	pid_t pid = fork();
@@ -61,7 +61,7 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		Logger::error("cgiHandler used without config!");
 		return;
 	}
-	std::string parseRequest = safe_join_under_root(cfg_->root, req.target);
+	std::string parseRequest = safe_join_under_root(cfg_->servers[0].root, req.target);
 	std::string path, file, interpreter, queryString;
 	parseCgiRequest(parseRequest, path, file, interpreter, queryString);
 	struct stat st;
@@ -96,9 +96,10 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		cgiResponses_.push_back(data);
 }
 
-void cgiHandler::setConfig(const ServerConfig &cfg) {
+void cgiHandler::setConfig(const Conf &cfg) {
 	cfg_ = &cfg;
 	Logger::simple("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1),
-		       GREY, "timeout", (unsigned long)cfg_->cgi_timeout_ms, "maxOutput",
-		       (unsigned long)(cfg_->cgi_maxOutput / (1024UL * 1024UL)));
+		       GREY, "timeout", (unsigned long)cfg_->servers[0].locations[0].cgi_timeout_ms, "maxOutput",
+		       (unsigned long)(cfg_->servers[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
+
 }

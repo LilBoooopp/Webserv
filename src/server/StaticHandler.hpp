@@ -1,9 +1,10 @@
 #pragma once
 #include "../config/Config.hpp"
 #include "IHandler.hpp"
+#include "../config/Config.hpp"
 
 struct StaticHandler : IHandler {
-	const ServerConfig *cfg_;
-	explicit StaticHandler(const ServerConfig *cfg) : cfg_(cfg) {}
+	const Conf *cfg_;
+	explicit StaticHandler(const Conf *cfg) : cfg_(cfg) {}
 	virtual void handle(const HttpRequest &req, HttpResponse &res);
 };

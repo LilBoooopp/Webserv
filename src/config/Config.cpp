@@ -1,4 +1,5 @@
 #include "Config.hpp"
+#include <cstdlib>
 
 
 Config::Config() {}
@@ -27,7 +28,7 @@ std::vector<std::string> read_lines(const std::string &filename)
 
 std::string Config::remove_coms(std::string &line)
 {
-    int pos = line.find('#');
+    size_t pos = line.find('#');
     if (pos != std::string::npos)
         return line.substr(0, pos);
     return line;
@@ -53,7 +54,7 @@ std::string Config::separate(std::string &line)
 {
 	std::string res;
 
-	for (int i = 0; i < line.size(); ++i)
+	for (size_t i = 0; i < line.size(); ++i)
 	{
 		char c = line[i];
 
@@ -91,23 +92,23 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server)
 	{
 		std::string host_port = tokens[1];
 		HostPort	res;
-		int	pos = host_port.find(':');
+		size_t	pos = host_port.find(':');
 		if (pos == std::string::npos)
 		{
 			res.host = "0.0.0.0";
-			res.port = std::atoi(host_port.c_str());
+			res.port = ::atoi(host_port.c_str());
 		}
 		else
 		{
 			res.host = host_port.substr(0, pos);
-			res.port = std::atoi(host_port.substr(pos + 1).c_str());
+			res.port = ::atoi(host_port.substr(pos + 1).c_str());
 		}
 		server.hosts.push_back(res);
 	}
 	else if (key == "server_name")
 	{
 		server.names.clear();
-		for (int i = 1; (i + 1) < tokens.size(); ++i)
+		for (size_t i = 1; (i + 1) < tokens.size(); ++i)
 			server.names.push_back(tokens[i]);
 	}
 	else if (key == "root")
@@ -115,7 +116,7 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server)
 	else if (key == "index")
 	{
 		server.files.clear();
-		for (int i = 1; (i + 1) < tokens.size(); ++i)
+		for (size_t i = 1; (i + 1) < tokens.size(); ++i)
 			server.files.push_back(tokens[i]);
 	}
 	else if (key == "error_page")
@@ -143,7 +144,7 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	else if (key == "allowed_methods")
 	{
 		location.methods.clear();
-		for (int i = 1; (i + 1) < tokens.size(); ++i)
+		for (size_t i = 1; (i + 1) < tokens.size(); ++i)
 			location.methods.push_back(tokens[i]);
 	}
 	else if (key == "return")
@@ -165,7 +166,7 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	{
 		location.index_files.clear();
 		location.has_index = true;
-		for (int i = 1; (i + 1) < tokens.size(); ++i)
+		for (size_t i = 1; (i + 1) < tokens.size(); ++i)
 			location.index_files.push_back(tokens[i]);
 	}
 	else if (key == "autoindex")
@@ -221,7 +222,7 @@ Conf Config::parse(const std::string &filename)
 	Context ctx = GLOBAL;
 	std::vector<std::string> lines = read_lines(filename);
 	
-	for (int i = 0; i < lines.size(); i++)
+	for (size_t i = 0; i < lines.size(); i++)
     {
         std::string line = remove_coms(lines[i]);
         line = trim(line);

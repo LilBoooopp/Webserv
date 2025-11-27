@@ -65,11 +65,11 @@ static bool	read_file_small(const std::string& path, std::string& out)
 
 void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 	// We assume: method validated (ONLY GET for now)
-	const	ServerConfig&	cfg = *cfg_;
+	const	Conf&	cfg = *cfg_;
 	const bool	is_head = (req.method == "HEAD");
 
 	// Map the request target to a safe filesystem path under cfg.root
-	std::string	path = safe_join_under_root(cfg.root, req.target);
+	std::string	path = safe_join_under_root(cfg.servers[0].locations[0].index_files[0], req.target);
 
 	Logger::info("%s rooted %s%s%s -> %s%s", SERVER, GREY, req.target.c_str(), TS, GREY, path.c_str());
 
@@ -83,7 +83,7 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 			if (path.size() == 0 || path[path.size() - 1] != '/')
 				path += '/';
 
-			std::string	idx = path + cfg.index;
+			std::string	idx = path + cfg.servers[0].locations[0].index_files[0];
 
 
 			if (::stat(idx.c_str(), &st) == 0 && is_reg(st))

@@ -43,8 +43,13 @@ UTILS_SRC =  \
 	Chrono.cpp
 UTILS = $(addprefix $(UTILS_DIR), $(UTILS_SRC))
 
-ALL_SRC = $(SRC) $(CGI) $(CORE) $(HTTP) $(SERVER) $(UTILS)
-vpath %.cpp src src/core src/http src/server src/utils src/cgi
+CONFIG_DIR = src/config/
+CONFIG_SRC = \
+	Config.cpp
+CONFIG = $(addprefix $(CONFIG_DIR), $(CONFIG_SRC))
+
+ALL_SRC = $(SRC) $(CGI) $(CORE) $(HTTP) $(SERVER) $(UTILS) $(CONFIG)
+vpath %.cpp src src/core src/http src/server src/utils src/cgi src/config
 #--------------------------------------OBJECTS----------------------------------#
 OBJ_DIR = Objects/
 # Generate object files with same names but in Objects directory

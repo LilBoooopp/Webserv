@@ -1,6 +1,7 @@
 #include "HttpResponse.hpp"
 #include <fcntl.h>
 #include <sstream>
+#include <iostream>
 
 const char *HttpResponse::reasonForStatus(int code)
 {
@@ -79,7 +80,9 @@ void	HttpResponse::ensureDefaultBodyIfEmpty(void)
 }
 
 
-void HttpResponse::setContentType(const std::string &type) { headers_["Content-Type"] = type; }
+void HttpResponse::setContentType(const std::string &type) {
+	setHeader("Content-Type", type);
+}
 
 void HttpResponse::setHeader(const std::string &key, const std::string &value) {
 	headers_[key] = value;

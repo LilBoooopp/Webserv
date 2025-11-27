@@ -45,7 +45,7 @@ class Server {
 	void handleWritable(int fd);
 	void enableWrite(int fd);
 	void disableWrite(int fd);
-	void prepareResponse(int fd, Connection &c);
+	void prepareResponse(int fd, Connection &c, HttpResponse &res);
 
     public:
 	Server() : inbuf_(8192) {}

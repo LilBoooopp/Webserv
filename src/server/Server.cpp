@@ -59,10 +59,9 @@ void	Server::acceptReady(void)
 }
 
 // Build and serialize a response once the request/body are ready
-void Server::prepareResponse(int fd, Connection &c) {
+void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 	const HttpRequest &req = c.req;
 
-	HttpResponse	res(200);
 	res.setVersion(req.version);
 	bool			head_only = (req.method == "HEAD");
 
@@ -384,10 +383,10 @@ void	Server::handleReadable(int fd)
 			// WRITING_RESPONSE
 			if (c.state == WRITING_RESPONSE && c.has_req)
 			{
+				if (c.out.empty())
+					prepareResponse(fd, c, res);
 				std::string head = res.serialize(true);
 				Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd, res.getStatus() == 200 ? GREEN : RED, head.c_str());
-				if (c.out.empty())
-					prepareResponse(fd, c);
 			}
 
 			// Continue reading (if handled < MAX_HANDLE_BYTES)

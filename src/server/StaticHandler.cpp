@@ -70,6 +70,9 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 
 	// Map the request target to a safe filesystem path under cfg.root
 	std::string	path = safe_join_under_root(cfg.servers[0].locations[0].root, req.target);
+	
+	// Check mime type
+	res.setContentType(mime_from_path(path));
 
 	Logger::info("%s rooted %s%s%s -> %s%s", SERVER, GREY, req.target.c_str(), TS, GREY, path.c_str());
 
@@ -85,14 +88,12 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 
 			std::string	idx = path + cfg.servers[0].locations[0].index_files[0];
 
-			std::cout << "path -> " << idx << std::endl;
 			if (::stat(idx.c_str(), &st) == 0 && is_reg(st))
 			{
 				// For HEAD, we don't read the file, we just set headers
 				if (is_head)
 				{
 					res.setStatus(200, "OK");
-					res.setContentType(mime_from_path(idx));
 					// Use stat's size for Content_Length
 					res.setHeader("Content-Length", size_to_str(st.st_size));
 					return	;
@@ -106,7 +107,6 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 					{
 						res.setStatus(200, "OK");
 						res.setBody(body);
-						res.setContentType(mime_from_path(idx));
 						// For GET, HttpResponse::serialize() can establish Content-Length from body.size()
 						return ;
 					}
@@ -115,7 +115,6 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 				{
 					// Large file: mark for streaming
 					res.setStatus(200, "OK");
-					res.setContentType(mime_from_path(idx));
 					res.setHeader("Content-Length", size_to_str(st.st_size));
 					// Internal hint for Server: path to stream
 					res.setHeader("X-Stream-File", idx);
@@ -133,7 +132,6 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 			if (is_head)
 			{
 				res.setStatus(200, "OK");
-				res.setContentType(mime_from_path(path));
 				// Use stat's size for Content_Length
 				res.setHeader("Content-Length", size_to_str(st.st_size));
 				return	;
@@ -148,7 +146,6 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 				{
 					res.setStatus(200, "OK");
 					res.setBody(body);
-					res.setContentType(mime_from_path(path));
 					// For GET, HttpResponse::serialize() can establish Content-Length from body.size()
 					return ;
 				}
@@ -157,7 +154,6 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 			{
 				// Large file: mark for streaming
 				res.setStatus(200, "OK");
-				res.setContentType(mime_from_path(path));
 				res.setHeader("Content-Length", size_to_str(st.st_size));
 				// Internal hint for Server: path to stream
 				res.setHeader("X-Stream-File", path);

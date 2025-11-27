@@ -49,7 +49,8 @@ class Server {
 
     public:
 	Server() : inbuf_(8192) {}
-	bool start(uint32_t ip_be, uint16_t port_be, Conf &config);
-	void run();
-	bool executeStdin();
+	bool	start(uint32_t ip_be, uint16_t port_be, Conf &config);
+	void	setConf(Conf config);
+	void	run();
+	bool	executeStdin();
 };

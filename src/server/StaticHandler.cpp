@@ -69,7 +69,7 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 	const bool	is_head = (req.method == "HEAD");
 
 	// Map the request target to a safe filesystem path under cfg.root
-	std::string	path = safe_join_under_root(cfg.servers[0].locations[0].index_files[0], req.target);
+	std::string	path = safe_join_under_root(cfg.servers[0].locations[0].root, req.target);
 
 	Logger::info("%s rooted %s%s%s -> %s%s", SERVER, GREY, req.target.c_str(), TS, GREY, path.c_str());
 
@@ -85,7 +85,7 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 
 			std::string	idx = path + cfg.servers[0].locations[0].index_files[0];
 
-
+			std::cout << "path -> " << idx << std::endl;
 			if (::stat(idx.c_str(), &st) == 0 && is_reg(st))
 			{
 				// For HEAD, we don't read the file, we just set headers

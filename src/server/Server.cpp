@@ -31,6 +31,12 @@ bool Server::start(uint32_t ip_be, uint16_t port_be, Conf &config) {
 	return (true);
 }
 
+void	Server::setConf(Conf config)
+{
+	cfg_ = config;
+	std::cout << "index: " << cfg_.servers[0].locations[0].index_files[0] << std::endl;
+}
+
 void	Server::acceptReady(void)
 {
 	if (listener_.fd() < 0) {

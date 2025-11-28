@@ -1,10 +1,10 @@
 #include "StaticHandler.hpp"
+#include "../cgi/cgi.hpp"
 #include "../config/Config.hpp"
 #include "../server/Server.hpp"
 #include "../utils/Logger.hpp"
 #include "../utils/Mime.hpp"
 #include "../utils/Path.hpp"
-#include "../cgi/cgi.hpp"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -14,12 +14,11 @@
 static bool is_dir(const struct stat &st) { return (S_ISDIR(st.st_mode)); }
 static bool is_reg(const struct stat &st) { return (S_ISREG(st.st_mode)); }
 
-static bool	read_file_small(const std::string& path, std::string& out)
-{
+static bool read_file_small(const std::string &path, std::string &out) {
 	Logger::info("GET file path: %s", path.c_str());
 	Logger::error("GET file path: %s", path.c_str());
 	Logger::warn("GET file path: %s", path.c_str());
-	int	fd = ::open(path.c_str(), O_RDONLY);
+	int fd = ::open(path.c_str(), O_RDONLY);
 	if (fd < 0)
 		return (false);
 	std::vector<char> buf(64 * 1024);

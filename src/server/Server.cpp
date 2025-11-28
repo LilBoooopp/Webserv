@@ -68,8 +68,8 @@ void Server::prepareResponse(int fd, Connection &c) {
 	}
 
 	std::string head = res.serialize(true);
-	Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd,
-		     res.getStatus() == 200 ? GREEN : RED, head.c_str());
+	// Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd,
+	// 	     res.getStatus() == 200 ? GREEN : RED, head.c_str());
 	c.out = res.serialize(head_only);
 	enableWrite(fd);
 }
@@ -86,9 +86,10 @@ void Server::handleReadable(int fd, std::time_t now) {
 			c.in.append(&inbuf_[0], r);
 			Logger::info("%s received %d bytes from fd %d", SERVER, r, fd, GREY);
 
+			HttpResponse res;
 			// Header cap defense
 			if (c.state == READING_HEADERS && c.in.size() > MAX_HANDLE_BYTES) {
-				HttpResponse res(431);
+				res.setStatus(431, "header too large");
 				res.setContentType("text/plain");
 				res.setBody("header too large");
 				c.out = res.serialize(false);
@@ -107,7 +108,7 @@ void Server::handleReadable(int fd, std::time_t now) {
 					HttpRequest req;
 					size_t endpos = 0;
 					if (!HttpParser::parse(c.in, req, endpos)) {
-						HttpResponse res(400);
+						res.setStatus(400, "bad request");
 						res.setContentType("text/plain");
 						res.setBody("bad request");
 						c.out = res.serialize(false);
@@ -158,7 +159,7 @@ void Server::handleReadable(int fd, std::time_t now) {
 							bad = true;
 
 						if (bad) {
-							HttpResponse res(400);
+							res.setStatus(400, "bad request");
 							res.setContentType("text/plain");
 							res.setBody("bad request");
 							c.out = res.serialize(false);
@@ -176,7 +177,7 @@ void Server::handleReadable(int fd, std::time_t now) {
 							if (has_cl &&
 							    c.want_body >
 								cfg_.client_max_body_size) {
-								HttpResponse res(413);
+								res.setStatus(413, "payload too large");
 								res.setContentType("text/plain");
 								res.setBody("payload too large");
 								c.out = res.serialize(false);
@@ -224,7 +225,7 @@ void Server::handleReadable(int fd, std::time_t now) {
 						if (st == ChunkedDecoder::NEED_MORE)
 							break;
 						if (st == ChunkedDecoder::ERROR) {
-							HttpResponse res(400);
+							res.setStatus(400, "bad request");
 							res.setContentType("text/plain");
 							res.setBody("bad request");
 							c.out = res.serialize(false);
@@ -235,7 +236,7 @@ void Server::handleReadable(int fd, std::time_t now) {
 						if (st == ChunkedDecoder::DONE) {
 							if (c.body.size() >
 							    cfg_.client_max_body_size) {
-								HttpResponse res(413);
+								res.setStatus(413, "payload too large");
 								res.setContentType("text/plain");
 								res.setBody("payload too large");
 								c.out = res.serialize(false);
@@ -260,8 +261,12 @@ void Server::handleReadable(int fd, std::time_t now) {
 			}
 
 			// WRITING_RESPONSE
-			if (c.state == WRITING_RESPONSE && c.out.empty() && c.has_req)
-				prepareResponse(fd, c);
+			if (c.state == WRITING_RESPONSE && c.has_req) {
+				if (c.out.empty())
+					prepareResponse(fd, c);
+				Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd,
+					     res.getStatus() == 200 ? GREEN : RED, res.serialize(false).c_str());
+			}
 
 			continue;
 		}

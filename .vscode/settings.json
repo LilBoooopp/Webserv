@@ -72,7 +72,8 @@
     "mutex": "cpp",
     "ratio": "cpp",
     "variant": "cpp",
-    "stack": "cpp"
+    "stack": "cpp",
+    "fstream": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }

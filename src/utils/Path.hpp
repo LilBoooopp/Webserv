@@ -49,3 +49,11 @@ inline std::string safe_join_under_root(const std::string &root, const std::stri
 	}
 	return (out);
 }
+
+inline std::string getExtension(const std::string &str, char separator){
+	std::string::size_type qpos = str.find(separator);
+	if (qpos == std::string::npos)
+		return "";
+	std::string extension = str.substr(qpos + 1);
+	return extension;
+}

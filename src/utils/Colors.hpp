@@ -17,7 +17,7 @@
 #define BROWN rgb(74, 51, 20)
 #define GREY rgb(137, 137, 137)
 #define SERVCLR rgb(129, 166, 192)
-#define SERVER "\033[38;2;129;166;192mServer\033[0m"
+#define SERV_CLR "\033[38;2;129;166;192mServer\033[0m"
 
 #define HTTPCLR rgb(129, 192, 129)
 

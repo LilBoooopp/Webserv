@@ -74,7 +74,7 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 	// Check mime type
 	res.setContentType(mime_from_path(path));
 
-	Logger::info("%s rooted %s%s%s -> %s%s", SERVER, GREY, req.target.c_str(), TS, GREY, path.c_str());
+	Logger::info("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(), TS, GREY, path.c_str());
 
 	struct stat st;
 	if (::stat(path.c_str(), &st) == 0)

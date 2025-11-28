@@ -24,10 +24,6 @@ bool Server::start(uint32_t ip_be, uint16_t port_be, Conf &config) {
 		return (false);
 	if (!reactor_.add(listener_.fd(), EPOLLIN))
 		return (false);
-	Logger::print_valid_levels();
-	Logger::simple(SERVER);
-	Logger::simple("  %s%-10s %d\n  %-10s %d\n", GREY, "ip", ntohl(ip_be), "port",
-		       ntohs(port_be));
 	cgiHandler_.setConfig(config);
 	return (true);
 }
@@ -113,7 +109,7 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 	} else if (req.method == "POST") // TEMP, only echo response
 	{
 		res.setContentType("text/plain");
-		Logger::info("%s received POST request of size %zu", SERVER, c.body.size());
+		Logger::info("%s received POST request of size %zu", SERV_CLR, c.body.size());
 		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
 		if (it != c.req.headers.end()) {
 			res.setBody("OK");
@@ -391,7 +387,7 @@ void Server::handleReadable(int fd) {
 				if (c.out.empty())
 					prepareResponse(fd, c, res);
 				std::string head = res.serialize(true);
-				Logger::info("%s responded to fd %d: \n%s%s\n", SERVER, fd,
+				Logger::info("%s responded to fd %d: \n%s%s\n", SERV_CLR, fd,
 					     res.getStatus() == 200 ? GREEN : RED, head.c_str());
 			}
 
@@ -565,11 +561,11 @@ void Server::run() {
 					handleWritable(fd);
 			}
 			if (logged)
-				Logger::timer("%s ready", SERVER);
+				Logger::timer("%s ready", SERV_CLR);
 			logged = false;
 		} else {
 			if (!logged)
-				Logger::timer("%s waiting...", SERVER);
+				Logger::timer("%s waiting...", SERV_CLR);
 			logged = true;
 		}
 

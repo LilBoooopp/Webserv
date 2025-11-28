@@ -55,7 +55,7 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		return;
 	}
 	std::string parseRequest = safe_join_under_root(cfg_->servers[0].root, req.target);
-	Logger::info("%s rooted %s%s%s -> %s%s", SERVER, GREY, req.target.c_str(), TS, GREY,
+	Logger::info("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(), TS, GREY,
 		     parseRequest.c_str());
 
 	std::string path, file, interpreter, queryString;
@@ -84,7 +84,7 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		       "  %-12s %s\n"
 		       "  %-12s '%s'\n"
 		       "  %-12s %d\n",
-		       SERVER, execSuccess ? GREEN : RED, execSuccess ? "Success" : "Failed", GREY,
+		       SERV_CLR, execSuccess ? GREEN : RED, execSuccess ? "Success" : "Failed", GREY,
 		       "interpreter:", data.interpreter.c_str(), "path:", data.path.c_str(),
 		       "file:", data.file.c_str(), "queryString:", data.queryString.c_str(), "pid",
 		       data.pid);

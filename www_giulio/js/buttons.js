@@ -95,9 +95,11 @@ function loopRequest() {
   }
 }
 
-function longRequest(size) {
-  const length = size; // 999M bytes
+function postBytes(size) {
+  const length = size;
   const buf = new Uint8Array(length);
+
+  for (let i = 0; i < length; i++) buf[i] = 65;
 
   const textEncoder = new TextEncoder();
   const header = textEncoder.encode("TEST ");
@@ -105,8 +107,12 @@ function longRequest(size) {
   const body = new Blob([header, buf]);
 
   const start = performance.now();
-  fetch("/huge", {
+  fetch("/uploads", {
     method: "POST",
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Filename": size + ".txt",
+    },
     body,
   })
     .then((r) => r.text().then((t) => ({ r, t })))

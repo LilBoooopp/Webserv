@@ -1,55 +1,54 @@
 function initAudioPlayer() {
   let audioIndex = 0;
   const audioPath = "../ressources/audio/";
-  const audioFiles = ["Macintosh", "Petaluma", "Forecast", "Resonance"];
+  const trackNames = ["Macintosh", "Petaluma", "Forecast", "Resonance"];
   const artits = ["Vektroid", "Cocktail Shakers Girl", "Kevin MacLeod", "HOME"];
-  const durations = new Array(audioFiles.length).fill(null);
 
-  for (let i = 0; i < audioFiles.length; i++) {
-    const audio = new Audio(audioPath + audioFiles[i] + ".mp3");
+  const audioFiles = new Array(trackNames.length);
+  for (let i = 0; i < trackNames.length; i++) {
+    const audio = new Audio(audioPath + trackNames[i] + ".mp3");
+    audioFiles[i] = { au: audio, dur: 0, name: trackNames[i], artist: artits[i] };
     audio.addEventListener("loadedmetadata", function () {
-      durations[i] = audio.duration;
+      audioFiles[i].dur = audio.duration;
     });
   }
 
   const p = [100, 50];
-  const label = addDiv(audioFiles[0], [p[0] - 40, p[1] + 50], "white", "black", null, false);
+  const label = addDiv(trackNames[0], [p[0] - 40, p[1] + 50], "white", "black", null, false);
   label.style.transform = "scale(0.8)";
   label.style.transformOrigin = "0 0";
   const artistLabel = addDiv(artits[0], [p[0] - 40, p[1] + 65], "white", "black", null, false);
   artistLabel.style.transform = "scale(0.6)";
   artistLabel.style.transformOrigin = "0 0";
-  var dur = [];
-  for (let i = 0; i < audioFiles.length; i++) {
-    var mus = new Audio(audioPath + audioFiles[i] + ".mp3");
-    mus.addEventListener("loadedmetadata", function handler() {
-      dur.push(mus.duration);
-    });
-  }
-  var mus = new Audio(audioPath + audioFiles[0] + ".mp3");
+
+  let mus = audioFiles[0];
 
   function switchTrack(dir) {
-    const wasPlaying = !mus.paused && mus.currentTime > 0 && !mus.ended;
+    const au = mus.au;
+    const wasPlaying = !au.paused && au.currentTime > 0 && !au.ended;
     audioIndex += dir;
     if (audioIndex < 0) audioIndex = audioFiles.length - 1;
     else if (audioIndex >= audioFiles.length) audioIndex = 0;
-    mus.pause();
-    mus.src = audioPath + audioFiles[audioIndex] + ".mp3";
-    mus.currentTime = 0;
-    if (wasPlaying) mus.play();
-    label.textContent = audioFiles[audioIndex];
-    artistLabel.textContent = artits[audioIndex];
+    au.pause();
+    mus = audioFiles[audioIndex];
+    if (!mus) return;
+    mus.au.currentTime = 0;
+    if (wasPlaying) mus.au.play();
+    label.textContent = mus.name;
+    artistLabel.textContent = mus.artist;
   }
 
   const playButton = initImage(30, 30, p[0] - 12, p[1], "../ressources/img/play.png");
   playButton.style.scale = 0.6;
   function toggleAudio() {
-    const isPlaying = !mus.paused && mus.currentTime > 0 && !mus.ended;
+    if (!mus) return;
+    const au = mus.au;
+    const isPlaying = !au.paused && au.currentTime > 0 && !au.ended;
     if (!isPlaying) {
-      mus.play();
+      au.play();
       playButton.src = "../ressources/img/pause.png";
     } else {
-      mus.pause();
+      au.pause();
       playButton.src = "../ressources/img/play.png";
     }
   }
@@ -77,18 +76,25 @@ function initAudioPlayer() {
   const timeBox = writeBox(80, 10, p[0] - 38, p[1] + 35, "black");
   const curBox = writeBox(0, 10, p[0] - 38, p[1] + 35, "white");
   timeBox.addEventListener("mousedown", (e) => {
-    if (mus.paused || !durations[audioIndex]) return;
+    if (!mus) return;
+    const au = mus.au;
+    const dur = mus.dur;
+    if (au.paused || !dur) return;
     const rect = timeBox.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
     const clamped = Math.max(0, Math.min(1, ratio));
-    mus.currentTime = durations[audioIndex] * clamped;
+    au.currentTime = dur * clamped;
   });
   setInterval(() => {
-    if (!mus.paused && durations[audioIndex]) {
-      const ratio = mus.currentTime / durations[audioIndex];
+    if (!mus) return;
+    const au = mus.au;
+    const dur = mus.dur;
+    if (!au.paused && dur) {
+      const ratio = au.currentTime / dur;
       curBox.style.width = ratio * timeBox.offsetWidth + "px";
     }
   }, 10);
+
   const audioLevel = writeBox(80, 5, p[0] - 38, p[1] + 80, "red");
 
   function uploadFile(files) {
@@ -97,12 +103,12 @@ function initAudioPlayer() {
       const name = file.name;
       const dot = name.lastIndexOf(".");
       if (dot <= 0) {
-        announce(`Can't upload ${name} - not an audio file`);
+        announce("Can't upload " + name + " - not an audio file");
         continue;
       }
       const ext = name.slice(dot + 1).toLowerCase();
-      if (ext !== "mp3" && ext != 'wav') {
-        announce(`Can't upload ${name} - wrong format: ${ext}`, 3000, "red");
+      if (ext !== "mp3" && ext !== "wav") {
+        announce("Can't upload " + name + " - wrong format: " + ext, 3000, "red");
         continue;
       }
       const start = performance.now();
@@ -118,14 +124,16 @@ function initAudioPlayer() {
         .then((r) => r.text())
         .then((t) => {
           const dt = Number((performance.now() - start) / 1000).toFixed(3);
-          announce(`Server received file in ${dt}s, response: ${t.trim()}`);
+          announce("Server received file in " + dt + "s, response: " + t.trim());
           const dot = name.lastIndexOf(".");
           const baseName = dot !== -1 ? name.slice(0, dot) : name;
-          audioFiles.push(baseName);
-          artits.push("");
-          const audio = new Audio(audioPath + baseName + ".mp3");
+          const audio = new Audio("../ressources/uploads/" + baseName + ".mp3");
+          const idx = audioFiles.length;
+          audioFiles.push({ au: audio, dur: 0, name: baseName, artist: "" });
           audio.addEventListener("loadedmetadata", function () {
-            durations.push(audio.duration);
+            audioFiles[idx].dur = audio.duration;
+            audioIndex = 0;
+            switchTrack(idx);
           });
         })
         .catch((err) => announce("Upload failed: " + err));
@@ -173,9 +181,9 @@ function init() {
   }
 
   var y = 1;
-  addButton("File", [postX, c[1] + 25], () => openFileDialog());
-  addButton("1 Byte", [postX, c[1] + 25 + rowSpacing], () => longRequest(1));
-  addButton("1 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => longRequest(1_000_000));
-  addButton("10 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => longRequest(10_000_000));
-  addButton("1 GB", [postX, c[1] + 25 + ++y * rowSpacing], () => longRequest(999_999_999));
+  addButton("File", [postX, c[1] + 25], () => openFileDialog(uploadFile));
+  addButton("1 Byte", [postX, c[1] + 25 + rowSpacing], () => postBytes(1));
+  addButton("1 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(1_000_000));
+  addButton("10 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(10_000_000));
+  addButton("1 GB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(999_999_999));
 }

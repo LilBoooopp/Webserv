@@ -113,13 +113,19 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 	} else if (req.method == "POST") // TEMP, only echo response
 	{
 		res.setContentType("text/plain");
-		char msg[128];
-		std::snprintf(msg, sizeof(msg), "received %zu bytes\n", c.body.size());
-		res.setBody(msg);
-
+		Logger::info("%s received POST request of size %zu", SERVER, c.body.size());
 		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
-		if (it != c.req.headers.end())
-			placeFileInDir(it->second, c.body, cfg_.servers[0].root + "ressources/uploads/audio");
+		if (it != c.req.headers.end()) {
+			res.setBody("OK");
+			res.setStatusFromCode(200);
+			placeFileInDir(it->second, c.body,
+				       cfg_.servers[0].root + "ressources/uploads");
+		} else {
+			Logger::info("x-filename not present in the request headers, the file "
+				     "won't be uploaded");
+			res.setStatusFromCode(404);
+			res.ensureDefaultBodyIfEmpty();
+		}
 	} else
 		res.setStatusFromCode(501);
 

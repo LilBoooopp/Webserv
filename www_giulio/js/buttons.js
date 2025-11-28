@@ -118,5 +118,5 @@ function longRequest(size) {
 
 function addHomeButton() {
   const c = [window.innerWidth / 2, window.innerHeight / 2];
-  cgiButton("HOME", "/cgi/printArg.py", [c[0], window.innerHeight - 40]);
+  cgiButton("HOME", "/cgi/printArg.py", [c[0], window.innerHeight - 40], "/");
 }

@@ -110,9 +110,10 @@ bool cgiHandler::handleResponses() {
 			anyProgress = true;
 			if (data.bytesRead > cfg_->servers[0].locations[0].cgi_maxOutput) {
 				err = "CGI output exceeded server limit";
-				Logger::error("cgi stopping %s execution after %lu bytes (max %lu)",
-					      data.file.c_str(), (unsigned long)data.bytesRead,
-					      (unsigned long)cfg_->servers[0].locations[0].cgi_maxOutput);
+				Logger::error(
+				    "cgi stopping %s execution after %lu bytes (max %lu)",
+				    data.file.c_str(), (unsigned long)data.bytesRead,
+				    (unsigned long)cfg_->servers[0].locations[0].cgi_maxOutput);
 				kill(data.pid, SIGKILL);
 				finished = true;
 			}
@@ -155,7 +156,8 @@ bool cgiHandler::handleResponses() {
 				Logger::info("%s%s%s execution ended after %lums - raw output "
 					     "(first 50 bytes):\n'%s'",
 					     YELLOW, data.file.c_str(), TS,
-					     (unsigned long)(nowMs - data.conn->start), preview.c_str());
+					     (unsigned long)(nowMs - data.conn->start),
+					     preview.c_str());
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;
 			}
@@ -169,4 +171,28 @@ bool cgiHandler::handleResponses() {
 	// }
 
 	return anyProgress;
+}
+
+void placeFileInDir(const std::string &name, const std::string &fileContent,
+		    const std::string &dir) {
+	struct stat st;
+	if (::stat(dir.c_str(), &st) != 0) {
+		Logger::error("Error creating file: dir %s not found", dir.c_str());
+		return;
+	}
+	std::string full = dir;
+	if (!full.empty() && full[full.size() - 1] != '/')
+		full += "/";
+	full += name;
+
+	std::ofstream file(full.c_str());
+	if (!file.is_open()) {
+		Logger::error("Error creating file: %s", full.c_str());
+		return;
+	}
+
+	file << fileContent;
+	file.close();
+
+	Logger::info("File created: %s", full.c_str());
 }

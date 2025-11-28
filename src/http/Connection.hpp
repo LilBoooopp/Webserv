@@ -1,7 +1,4 @@
 #pragma once
-#include <string>
-#include <ctime>
-#include <sys/types.h>
 #include "../http/HttpRequest.hpp"
 #include "../utils/Chrono.hpp"
 #include "../utils/Logger.hpp"
@@ -9,14 +6,9 @@
 #include <ctime>
 #include <map>
 #include <string>
+#include <sys/types.h>
 
-enum ConnState {
-	READING_HEADERS,
-	READING_BODY,
-	READY_TO_RESPOND,
-	WRITING_RESPONSE,
-	CLOSING
-};
+enum ConnState { READING_HEADERS, READING_BODY, READY_TO_RESPOND, WRITING_RESPONSE, CLOSING };
 
 class Connection {
     public:
@@ -40,10 +32,10 @@ class Connection {
 	ChunkedDecoder decoder;
 
 	// static file streaming state
-	int				file_fd;		// fd of file being streamed, -1 if none
-	off_t			file_remaining;	// bytes left to send
-	bool			streaming_file;	// true if we still need to stream body from file
-	time_t last_active; // for idle timeout
+	int file_fd;	      // fd of file being streamed, -1 if none
+	off_t file_remaining; // bytes left to send
+	bool streaming_file;  // true if we still need to stream body from file
+	time_t last_active;   // for idle timeout
 
 	void printStatus(const std::string &label) {
 		Logger::simple("%s - in: %s out: %s last: %s state: %d", label.c_str(), in.c_str(),
@@ -51,6 +43,6 @@ class Connection {
 	}
 	Connection()
 	    : headers_done(false), responded(false), peer_closed(false), close_after(false),
-	      state(READING_HEADERS), want_body(0), is_chunked(false), has_req(false),
-	      file_fd(-1), file_remaining(0), streaming_file(false) {}
+	      state(READING_HEADERS), want_body(0), is_chunked(false), has_req(false), file_fd(-1),
+	      file_remaining(0), streaming_file(false) {}
 };

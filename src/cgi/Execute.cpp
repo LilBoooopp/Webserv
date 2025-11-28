@@ -1,10 +1,4 @@
-#include "../utils/Chrono.hpp"
-#include "../utils/Path.hpp"
 #include "cgi.hpp"
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/wait.h>
-#include <stdlib.h>
 
 extern char **environ;
 
@@ -12,7 +6,7 @@ static bool execute(CgiExecutionData &data) {
 	int fds[2];
 	if (pipe(fds) == -1) {
 		Logger::error("Pipe error");
-	return "";
+		return "";
 	}
 
 	pid_t pid = fork();
@@ -52,7 +46,6 @@ static bool execute(CgiExecutionData &data) {
 	data.bytesRead = 0;
 	data.start = now_ms();
 	Logger::timer("cgi execution successfully started, added data to cgiResponses");
-
 	return true;
 }
 
@@ -62,6 +55,9 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		return;
 	}
 	std::string parseRequest = safe_join_under_root(cfg_->servers[0].root, req.target);
+	Logger::info("%s rooted %s%s%s -> %s%s", SERVER, GREY, req.target.c_str(), TS, GREY,
+		     parseRequest.c_str());
+
 	std::string path, file, interpreter, queryString;
 	parseCgiRequest(parseRequest, path, file, interpreter, queryString);
 	struct stat st;
@@ -98,8 +94,8 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 
 void cgiHandler::setConfig(const Conf &cfg) {
 	cfg_ = &cfg;
-	Logger::simple("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1),
-		       GREY, "timeout", (unsigned long)cfg_->servers[0].locations[0].cgi_timeout_ms, "maxOutput",
-		       (unsigned long)(cfg_->servers[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
-
+	Logger::simple(
+	    "%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1), GREY,
+	    "timeout", (unsigned long)cfg_->servers[0].locations[0].cgi_timeout_ms, "maxOutput",
+	    (unsigned long)(cfg_->servers[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
 }

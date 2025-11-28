@@ -15,4 +15,4 @@ print()
 for n in range(1024 * 1024):
     print(" ")
 
-print("/main/about.html")
+print("huge response sent")

@@ -31,7 +31,7 @@ std::string mime_from_path(const std::string &p) {
 					 {"tiff", "image/tiff"},
 
 					 // --- Audio ---
-					 {"mp3", "audio/mpeg"},
+					 {"mp3", "audio/mp3"},
 					 {"wav", "audio/wav"},
 					 {"ogg", "audio/ogg"},
 					 {"flac", "audio/flac"},

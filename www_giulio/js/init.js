@@ -88,7 +88,7 @@ function initAudioPlayer() {
       const ratio = mus.currentTime / durations[audioIndex];
       curBox.style.width = ratio * timeBox.offsetWidth + "px";
     }
-  }, 500);
+  }, 10);
   const audioLevel = writeBox(80, 5, p[0] - 38, p[1] + 80, "red");
 
   function uploadFile(files) {
@@ -101,7 +101,7 @@ function initAudioPlayer() {
         continue;
       }
       const ext = name.slice(dot + 1).toLowerCase();
-      if (ext !== "mp3") {
+      if (ext !== "mp3" && ext != 'wav') {
         announce(`Can't upload ${name} - wrong format: ${ext}`, 3000, "red");
         continue;
       }
@@ -119,6 +119,14 @@ function initAudioPlayer() {
         .then((t) => {
           const dt = Number((performance.now() - start) / 1000).toFixed(3);
           announce(`Server received file in ${dt}s, response: ${t.trim()}`);
+          const dot = name.lastIndexOf(".");
+          const baseName = dot !== -1 ? name.slice(0, dot) : name;
+          audioFiles.push(baseName);
+          artits.push("");
+          const audio = new Audio(audioPath + baseName + ".mp3");
+          audio.addEventListener("loadedmetadata", function () {
+            durations.push(audio.duration);
+          });
         })
         .catch((err) => announce("Upload failed: " + err));
     }
@@ -153,7 +161,7 @@ function init() {
 
   const names = ["about", "form", "somePage"];
   for (let i = 0; i < names.length; i++) {
-    cgiButton(names[i].toUpperCase(), "/cgi/printArg.py", [navX, c[1] + 25 + rowSpacing * i], "/main/" + names[i] + ".html");
+    cgiButton(names[i].toUpperCase(), "cgi/printArg.py", [navX, c[1] + 25 + rowSpacing * i], "/main/" + names[i] + ".html");
   }
 
   addButton("SPAM", [reqX, c[1] + 25], loopRequest);
@@ -161,7 +169,7 @@ function init() {
 
   const cgPaths = ["print.cgi", "printArg.py", "infinite.py", "hugeResponse.py"];
   for (let i = 0; i < cgPaths.length; i++) {
-    cgiButton(cgPaths[i], "/cgi/" + cgPaths[i], [cgiX, c[1] + 25 + rowSpacing * i], "Cool", announceResponse);
+    cgiButton(cgPaths[i], "cgi/" + cgPaths[i], [cgiX, c[1] + 25 + rowSpacing * i], "Cool", announceResponse);
   }
 
   var y = 1;

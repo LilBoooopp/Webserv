@@ -54,7 +54,7 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		Logger::error("cgiHandler used without config!");
 		return;
 	}
-	std::string parseRequest = safe_join_under_root(cfg_->servers[0].root, req.target);
+	std::string parseRequest = safe_join_under_root((*cfg_)[0].root, req.target);
 	Logger::info("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(), TS, GREY,
 		     parseRequest.c_str());
 
@@ -92,10 +92,10 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		cgiResponses_.push_back(data);
 }
 
-void cgiHandler::setConfig(const Conf &cfg) {
+void cgiHandler::setConfig(const std::vector<ServerConf> &cfg) {
 	cfg_ = &cfg;
 	Logger::simple(
 	    "%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1), GREY,
-	    "timeout", (unsigned long)cfg_->servers[0].locations[0].cgi_timeout_ms, "maxOutput",
-	    (unsigned long)(cfg_->servers[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
+	    "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms, "maxOutput",
+	    (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
 }

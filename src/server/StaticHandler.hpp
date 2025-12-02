@@ -4,7 +4,7 @@
 #include "../config/Config.hpp"
 
 struct StaticHandler : IHandler {
-	const Conf *cfg_;
-	explicit StaticHandler(const Conf *cfg) : cfg_(cfg) {}
+	const std::vector<ServerConf> *cfg_;
+	explicit StaticHandler(const std::vector<ServerConf> *cfg) : cfg_(cfg) {}
 	virtual void handle(const HttpRequest &req, HttpResponse &res);
 };

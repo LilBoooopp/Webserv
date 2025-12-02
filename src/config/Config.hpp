@@ -100,13 +100,17 @@ class Config
 		~Config();
 
 		bool parse(const std::string &filename);
-		bool Config::hasError() const { return _isError; }
-		const std::string &Config::getErrorMessage() const { return _ErrorMsg; }
-		size_t Config::getErrorLine() const { return _ErrorLine; }
+		bool hasError() const { return _isError; }
+		const std::string &getErrorMessage() const { return _ErrorMsg; }
+		size_t getErrorLine() const { return _ErrorLine; }
 		const std::vector<ServerConf> &getServers() const { return _servers; }
+		void debug_print();
 
 
 	private:
+
+		void	debug_print_server(const ServerConf &server);
+		void	debug_print_location(const LocationConf &location);
 
 		std::vector<ServerConf> _servers;
 
@@ -119,7 +123,7 @@ class Config
 		void	parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line);
 		void	parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line);
 
-		std::vector<std::string> Config::read_lines(const std::string &filename);
+		std::vector<std::string> read_lines(const std::string &filename);
 
 		bool _isError;
 		std::string	_ErrorMsg;

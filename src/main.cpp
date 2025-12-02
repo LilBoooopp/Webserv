@@ -20,70 +20,6 @@ unsigned long IP_to_long(const char *addr)
 	return (a << 24 | b << 16 | c << 8 | d);
 }
 
-void print_server(const ServerConf &s)
-{
-	Logger::print_valid_levels();
-    std::cout << SERV_CLR;
-    for (size_t i = 0; i < s.names.size(); ++i)
-        std::cout << " " << s.names[i] << (i < s.names.size() - 1 ? "," : "");
-    std::cout << "\n" << GREY;
-    std::cout << "  Hosts          " << (s.hosts.size() > 1 ? "\n" : "");
-    for (size_t i = 0; i < s.hosts.size(); ++i)
-        std::cout << "  " << s.hosts[i].host << ":" << s.hosts[i].port << "\n";
-    std::cout << "  Root             " << s.root << "\n";
-    std::cout << "  Index files   " << (s.files.size() > 1 ? "\n" : " ");
-    for (size_t i = 0; i < s.files.size(); ++i)
-        std::cout << "  " << s.files[i] << "\n";
-    std::cout << "  Error_pages   " << (s.error_pages.size() > 1 ? "\n" : "");
-    for (std::map<int,std::string>::const_iterator it = s.error_pages.begin();
-         it != s.error_pages.end(); ++it)
-        std::cout << "      " << it->first << " => " << it->second << "\n";
-    std::cout << "  Max_size    " << s.max_size << "\n";
-    std::cout << "  Locations        " << s.locations.size() << "\n" << TS;
-}
-
-void print_location(const LocationConf &loc)
-{
-    std::cout << YELLOW << "\nLocation" << TS << "   " << loc.path << "\n" << GREY;
-
-    std::cout << "  Methods         ";
-    for (size_t i = 0; i < loc.methods.size(); ++i)
-        std::cout << " " << loc.methods[i];
-    std::cout << "\n";
-
-    if (loc.redirect_enabled)
-        std::cout << "  Redirect " << loc.redirect_status
-                  << " -> " << loc.redirect_target << "\n";
-
-    if (loc.has_root)
-        std::cout << "  Root override    " << loc.root << "\n";
-
-    if (loc.has_index)
-    {
-        std::cout << "  Index override  ";
-        for (size_t i = 0; i < loc.index_files.size(); ++i)
-            std::cout << " " << loc.index_files[i];
-        std::cout << "\n";
-    }
-
-    if (loc.autoindex_set)
-        std::cout << "  Autoindex        " << (loc.autoindex ? "on" : "off") << "\n";
-
-    if (loc.upload_enabled)
-        std::cout << "  Upload store " << loc.upload_location << "\n";
-
-    if (loc.has_py)
-        std::cout << "  CGI Python       " << loc.py_path << "\n";
-
-    if (loc.has_php)
-        std::cout << "  CGI PHP          " << loc.php_path << "\n";
-
-    if (loc.has_max_size)
-        std::cout << "  Max body size override " << loc.max_size << "\n";
-    std::cout << TS;
-}
-
-
 int main(int argc, char** argv) {
 	(void)argc;
 	if (argc <= 1)
@@ -100,44 +36,37 @@ int main(int argc, char** argv) {
 	uint32_t ip_be = htonl(INADDR_LOOPBACK); // 127.0.0.1
 	// uint16_t port_be = htons(8080);
 
-	Config config_cl;
-	Conf	conf;
+	Config config;
 	Server s;
 
     if (getExtension(argv[1], '.') != "conf"){
 	    std::cout << "Invalid configuration file:  " << argv[1] << " (must be .conf)\n";
         return 0;
     }
-	conf = config_cl.parse(argv[1]);
-    if (config_cl.hasError())
+    config.parse(argv[1]);
+    if (config.hasError())
     {
-        std::cerr << "Config error at line " << config_cl.getErrorLine() << ":"
-                <<  config_cl.getErrorMessage() << std::endl;
+        std::cerr << "Config error at line " << config.getErrorLine() << ":"
+                <<  config.getErrorMessage() << std::endl;
         return (1);
     }
-	std::cout << "Parsed " << conf.servers.size() << " server(s)\n\n";
 
-    for (size_t i = 0; i < conf.servers.size(); ++i)
-    {
-        print_server(conf.servers[i]);
-        for (size_t j = 0; j < conf.servers[i].locations.size(); ++j)
-        {
-            print_location(conf.servers[i].locations[j]);
-        }
-    }
+    config.debug_print();
 
-	uint16_t port_be = htons(conf.servers[0].hosts[0].port);
+    std::vector<ServerConf> servers = config.getServers();
+
+	uint16_t port_be = htons(servers[0].hosts[0].port);
 
 	//struct sockaddr_in addr;
 	//inet_aton(conf.servers[0].hosts[0].host, &addr.sin_addr);
 	//htonl(addr.sin_addr);
 	//ip_be = IP_to_long(conf.servers[0].hosts[0].host.c_str());
 
-	if (!s.start(ip_be, port_be, conf)) {
+	if (!s.start(ip_be, port_be, servers)) {
 		std::perror("webserv: start failed (is another instance running?");
 		return (1);
 	}
-	s.setConf(conf);
+	s.setConf(servers);
 	std::cout << "started" << std::endl;
 	s.run();
 	return (0);

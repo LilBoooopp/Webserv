@@ -158,6 +158,8 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 		}
 		server.max_size = val;
 	}
+	else
+		setError(line, "Unknown directive");
 
 }
 
@@ -256,6 +258,8 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 		location.has_max_size = true;
 		location.max_size = val;
 	}
+	else
+		setError(line, "Unknown directive");
 }
 
 bool Config::parse(const std::string &filename)
@@ -272,7 +276,8 @@ bool Config::parse(const std::string &filename)
 	if (lines.empty())
 		return false;
 	
-	for (size_t i = 0; i < lines.size(); i++)
+	size_t i;
+	for (i = 0; i < lines.size(); i++)
     {
 		if (_isError)
 			break ;
@@ -332,8 +337,11 @@ bool Config::parse(const std::string &filename)
 			parse_location(tokens, location, i + 1);
     }
 	if (ctx != GLOBAL)
+	{
+		setError(i + 1, "Unclosed '{'");
 		return false;
-    return true;
+	}
+	return true;
 }
 
 // int main()

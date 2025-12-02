@@ -37,7 +37,7 @@ class Server {
 	Listener listener_;
 	std::map<int, Connection> conns_;
 	std::vector<char> inbuf_;
-	Conf cfg_;
+	std::vector<ServerConf> cfg_;
 	cgiHandler cgiHandler_;
 
 	void acceptReady();
@@ -49,8 +49,8 @@ class Server {
 
     public:
 	Server() : inbuf_(8192) {}
-	bool	start(uint32_t ip_be, uint16_t port_be, Conf &config);
-	void	setConf(Conf config);
+	bool	start(uint32_t ip_be, uint16_t port_be, std::vector<ServerConf> &config);
+	void	setConf(std::vector<ServerConf> config);
 	void	run();
 	bool	executeStdin();
 };

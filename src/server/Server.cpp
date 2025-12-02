@@ -19,7 +19,7 @@ static int set_nonblock(int fd) {
 	return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
 }
 
-bool Server::start(uint32_t ip_be, uint16_t port_be, Conf &config) {
+bool Server::start(uint32_t ip_be, uint16_t port_be, std::vector<ServerConf> &config) {
 	if (!listener_.bindAndListen(ip_be, port_be))
 		return (false);
 	if (!reactor_.add(listener_.fd(), EPOLLIN))
@@ -28,9 +28,9 @@ bool Server::start(uint32_t ip_be, uint16_t port_be, Conf &config) {
 	return (true);
 }
 
-void Server::setConf(Conf config) {
+void Server::setConf(std::vector<ServerConf> config) {
 	cfg_ = config;
-	std::cout << "index: " << cfg_.servers[0].locations[0].index_files[0] << std::endl;
+	std::cout << "index: " << cfg_[0].locations[0].index_files[0] << std::endl;
 }
 
 void Server::acceptReady(void) {
@@ -115,7 +115,7 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 			res.setBody("OK");
 			res.setStatusFromCode(200);
 			placeFileInDir(it->second, c.body,
-				       cfg_.servers[0].root + "ressources/uploads");
+				       cfg_[0].root + "ressources/uploads");
 		} else {
 			Logger::info("x-filename not present in the request headers, the file "
 				     "won't be uploaded");
@@ -261,7 +261,7 @@ void Server::handleReadable(int fd) {
 
 							// size limit for non-chunked CL bodies
 							if (has_cl &&
-							    c.want_body > cfg_.servers[0]
+							    c.want_body > cfg_[0]
 									      .locations[0]
 									      .max_size) {
 								res.setStatusFromCode(413);
@@ -341,7 +341,7 @@ void Server::handleReadable(int fd) {
 						if (st == ChunkedDecoder::DONE) {
 							// Final size check after full decoding
 							if (c.body.size() >
-							    cfg_.servers[0].locations[0].max_size) {
+							    cfg_[0].locations[0].max_size) {
 								res.setStatusFromCode(413);
 								res.ensureDefaultBodyIfEmpty();
 

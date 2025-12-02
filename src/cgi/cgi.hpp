@@ -38,12 +38,12 @@ struct CgiExecutionData {
 class cgiHandler {
     private:
 	std::vector<CgiExecutionData> cgiResponses_;
-	const Conf *cfg_;
+	const std::vector<ServerConf> *cfg_;
 
     public:
 	void runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd);
 	bool handleResponses();
-	void setConfig(const Conf &cfg);
+	void setConfig(const std::vector<ServerConf> &cfg);
 };
 
 void parseCgiRequest(const std::string &full, std::string &dir, std::string &file,

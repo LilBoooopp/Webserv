@@ -46,7 +46,9 @@ UTILS = $(addprefix $(UTILS_DIR), $(UTILS_SRC))
 CONFIG_DIR = src/config/
 CONFIG_SRC = \
 	Config.cpp \
-	Config_Debug.cpp
+	Config_Debug.cpp \
+	Config_Error.cpp \
+	Config_Helpers.cpp
 CONFIG = $(addprefix $(CONFIG_DIR), $(CONFIG_SRC))
 
 ALL_SRC = $(SRC) $(CGI) $(CORE) $(HTTP) $(SERVER) $(UTILS) $(CONFIG)

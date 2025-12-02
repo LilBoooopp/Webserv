@@ -5,93 +5,6 @@
 Config::Config() : _isError(false), _ErrorMsg(""), _ErrorLine(0) {}
 Config::~Config() {}
 
-void Config::setError(size_t line, const std::string &msg)
-{
-	if (!_isError)
-	{
-		_isError = true;
-		_ErrorLine = line;
-		_ErrorMsg = msg;
-	}
-}
-
-std::vector<std::string> Config::read_lines(const std::string &filename)
-{
-    std::vector<std::string> out;
-    std::ifstream file(filename.c_str());
-
-    if (!file.is_open())
-    {
-        std::cerr << "Error: could not open config file: " << filename << std::endl;
-        return (out);
-    }
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        out.push_back(line);
-    }
-
-    file.close();
-    return out;	
-}
-
-std::string Config::remove_coms(std::string &line)
-{
-    size_t pos = line.find('#');
-    if (pos != std::string::npos)
-        return line.substr(0, pos);
-    return line;
-}
-
-std::string Config::trim(std::string &line)
-{
-    if (line.empty())
-        return "";
-
-    size_t start = 0;
-    while (start < line.size() && std::isspace(line[start]))
-        start++;
-
-    size_t end = line.size();
-    while (end > start && std::isspace(line[end - 1]))
-        end--;
-
-    return line.substr(start, end - start);
-}
-
-std::string Config::separate(std::string &line)
-{
-	std::string res;
-
-	for (size_t i = 0; i < line.size(); ++i)
-	{
-		char c = line[i];
-
-		if (c == '{' || c == '}' || c == ';')
-		{
-			res += ' ';
-			res += c;
-			res += ' ';
-		}
-		else
-			res += c;
-	}
-	return (res);
-}
-
-std::vector<std::string> Config::tokenize(std::string &line)
-{
-	std::vector<std::string> tokens;
-	std::string newline = separate(line);
-	std::stringstream split(newline);
-	std::string token;
-
-	while (split >> token)
-		tokens.push_back(token);
-	return (tokens);
-}
-
 void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line)
 {
 	std::string	&key = tokens[0];
@@ -274,8 +187,11 @@ bool Config::parse(const std::string &filename)
 	std::vector<std::string> lines = read_lines(filename);
 
 	if (lines.empty())
-		return false;
-	
+	{
+		setError(0, "Error opening file");
+		return (false);
+	}
+
 	size_t i;
 	for (i = 0; i < lines.size(); i++)
     {
@@ -372,10 +288,3 @@ bool Config::parse(const std::string &filename)
 	}
 	return true;
 }
-
-// int main()
-// {
-//     Config parser;
-//     Conf config = parser.parse("test.conf");
-//     return 0;
-// }

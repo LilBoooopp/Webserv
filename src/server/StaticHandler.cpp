@@ -65,11 +65,11 @@ static bool	read_file_small(const std::string& path, std::string& out)
 
 void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 	// We assume: method validated (ONLY GET for now)
-	const	Conf&	cfg = *cfg_;
+	const	std::vector<ServerConf>	cfg = *cfg_;
 	const bool	is_head = (req.method == "HEAD");
 
 	// Map the request target to a safe filesystem path under cfg.root
-	std::string	path = safe_join_under_root(cfg.servers[0].locations[0].root, req.target);
+	std::string	path = safe_join_under_root(cfg[0].locations[0].root, req.target);
 	
 	// Check mime type
 	res.setContentType(mime_from_path(path));
@@ -86,7 +86,7 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 			if (path.size() == 0 || path[path.size() - 1] != '/')
 				path += '/';
 
-			std::string	idx = path + cfg.servers[0].locations[0].index_files[0];
+			std::string	idx = path + cfg[0].locations[0].index_files[0];
 
 			if (::stat(idx.c_str(), &st) == 0 && is_reg(st))
 			{

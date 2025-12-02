@@ -21,11 +21,15 @@
 # include <fstream>
 # include <sstream>
 # include <map>
+# include <arpa/inet.h>
+# include <aio.h>
 
 struct HostPort
 {
-	std::string host;
-	int			port;
+	std::string	host_str;
+	uint32_t	host;
+	int			port_int;
+	uint16_t	port;
 };
 
 struct LocationConf
@@ -69,10 +73,12 @@ struct LocationConf
 		autoindex_set(false),
 		autoindex(false),
 		upload_enabled(false),
+		has_py(false),
+		has_php(false),
 		cgi_timeout_ms(5000),
-		cgi_maxOutput(1024 * 1024 * 1024),
+		cgi_maxOutput(1024 * 1024),
 		has_max_size(false),
-		max_size(0)
+		max_size(1024*1024)
     {}
 };
 
@@ -90,7 +96,7 @@ struct ServerConf
 
 	std::vector<LocationConf>	locations;
 
-	ServerConf() : max_size(0) {}
+	ServerConf() : max_size(1024*1024) {}
 };
 
 class Config
@@ -109,27 +115,34 @@ class Config
 
 	private:
 
-		void	debug_print_server(const ServerConf &server);
-		void	debug_print_location(const LocationConf &location);
-
 		std::vector<ServerConf> _servers;
 
-		std::string remove_coms(std::string &line);
-		std::string trim(std::string &line);
-
-		std::string	separate(std::string &line);
-		std::vector<std::string> tokenize(std::string &line);
-
+		// Config
 		void	parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line);
 		void	parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line);
 
+		// Config_Debug
+		void	debug_print_server(const ServerConf &server);
+		void	debug_print_location(const LocationConf &location);
+
+		// Config_Helpers
+		std::string	remove_coms(std::string &line);
+		std::string trim(std::string &line);
+		std::string	separate(std::string &line);
+		std::vector<std::string> tokenize(std::string &line);
 		std::vector<std::string> read_lines(const std::string &filename);
 
-		bool _isError;
+		// Config_Error
+		bool	_isError;
 		std::string	_ErrorMsg;
 		size_t	_ErrorLine;
+		void	setError(size_t line, const std::string &msg);
 
-		void setError(size_t line, const std::string &msg);
+		// Config_Validation
+		bool 	valid_config();
+		bool	IP_to_long(const char *addr, uint32_t &res);
+		bool	is_num(std::string str);
+		void	apply_defaults();
 
 		enum Context
 		{

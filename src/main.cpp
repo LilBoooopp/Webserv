@@ -13,13 +13,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-unsigned long IP_to_long(const char *addr)
-{
-	unsigned char a, b, c, d;
-	sscanf(addr, "%hhu.%hhu.%hhu.%hhu", &a, &b, &c, &d);
-	return (a << 24 | b << 16 | c << 8 | d);
-}
-
 int main(int argc, char** argv) {
 	(void)argc;
 	if (argc <= 1)
@@ -33,7 +26,7 @@ int main(int argc, char** argv) {
 	}
 	signal(SIGPIPE, SIG_IGN);
 
-	uint32_t ip_be = htonl(INADDR_LOOPBACK); // 127.0.0.1
+	// uint32_t ip_be = htonl(INADDR_LOOPBACK); // 127.0.0.1
 	// uint16_t port_be = htons(8080);
 
 	Config config;
@@ -43,8 +36,7 @@ int main(int argc, char** argv) {
 	    std::cout << "Invalid configuration file:  " << argv[1] << " (must be .conf)\n";
         return 0;
     }
-    config.parse(argv[1]);
-    if (config.hasError())
+    if (!config.parse(argv[1]))
     {
         std::cerr << "Config error at line " << config.getErrorLine() << ":"
                 <<  config.getErrorMessage() << std::endl;
@@ -55,14 +47,12 @@ int main(int argc, char** argv) {
 
     std::vector<ServerConf> servers = config.getServers();
 
-	uint16_t port_be = htons(servers[0].hosts[0].port);
+	//uint16_t port_be = htons(servers[0].hosts[0].port);
 
 	//struct sockaddr_in addr;
 	//inet_aton(conf.servers[0].hosts[0].host, &addr.sin_addr);
 	//htonl(addr.sin_addr);
-	//ip_be = IP_to_long(conf.servers[0].hosts[0].host.c_str());
-
-	if (!s.start(ip_be, port_be, servers)) {
+	if (!s.start(servers[0].hosts[0].host, servers[0].hosts[0].port, servers)) {
 		std::perror("webserv: start failed (is another instance running?");
 		return (1);
 	}

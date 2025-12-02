@@ -1,7 +1,6 @@
 #include "Config.hpp"
 #include <cstdlib>
 
-
 Config::Config() : _isError(false), _ErrorMsg(""), _ErrorLine(0) {}
 Config::~Config() {}
 
@@ -21,15 +20,31 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 		size_t	pos = host_port.find(':');
 		if (pos == std::string::npos)
 		{
-			res.host = "0.0.0.0";
-			res.port = ::atoi(host_port.c_str());
+			res.host_str = "0.0.0.0";
+			if (!is_num(host_port) )
+				setError(line, "Invalid port");
+			res.port_int = ::atoi(host_port.c_str());
+			if (res.port_int < 1 || res.port_int > 65535)
+				setError(line, "Invalid port");
+			else
+				res.port = htons(res.port_int);
 		}
 		else
 		{
-			res.host = host_port.substr(0, pos);
-			res.port = ::atoi(host_port.substr(pos + 1).c_str());
+			res.host_str = host_port.substr(0, pos);
+			if (!IP_to_long(res.host_str.c_str(), res.host))
+				setError(line, "Invalid IP");
+			if (!is_num(host_port.substr(pos + 1)))
+				setError(line, "Invalid port");
+			res.port_int = std::atoi(host_port.substr(pos + 1).c_str());
+			if (res.port_int < 1 || res.port_int > 65535)
+				setError(line, "Invalid port");
+			else
+				res.port = htons(res.port_int);
 		}
 		server.hosts.push_back(res);
+		if (_isError)
+			return ;
 	}
 	else if (key == "server_name")
 	{
@@ -59,12 +74,17 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			setError(line, "Invalid error syntax, expected 'error_page CODE PATH ;'");
 			return ;
 		}
+		if (!is_num(tokens[1]) || std::atoi(tokens[1].c_str()) < 1 || std::atoi(tokens[1].c_str()) > 599)
+		{
+			setError(line, "Invalid error code");
+			return ;
+		}
 		server.error_pages[std::atoi(tokens[1].c_str())] = tokens[2];
 	}
 	else if (key == "client_max_body_size")
 	{
 		int val	= std::atoi(tokens[1].c_str());
-		if (val < 0)
+		if (val < 0 || !is_num(tokens[1]))
 		{
 			setError(line, "Invalid body size value, expected positive number");
 			return ;
@@ -89,7 +109,14 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	{
 		location.methods.clear();
 		for (size_t i = 1; (i + 1) < tokens.size(); ++i)
+		{
 			location.methods.push_back(tokens[i]);
+			if (tokens[i] != "GET" && tokens[i] != "POST" && tokens[i] != "DELETE")
+			{
+				setError(line, "Invalid method, allowed methods: GET, POST, DELETE");
+				return ;
+			}
+		}
 	}
 	else if (key == "return")
 	{
@@ -101,6 +128,11 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 		location.redirect_enabled = true;
 		location.redirect_status = std::atoi(tokens[1].c_str());
 		location.redirect_target = tokens[2];
+		if (location.redirect_status < 300 || location.redirect_status > 308 || !is_num(tokens[1]))
+		{
+			setError(line, "Redirect code should be between 300-308");
+			return ;
+		}
 	}
 	else if (key == "root")
 	{
@@ -163,7 +195,7 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	else if (key == "client_max_body_size")
 	{
 		int val	= std::atoi(tokens[1].c_str());
-		if (val < 0)
+		if (val < 0 || !is_num(tokens[1]))
 		{
 			setError(line, "Invalid body size value, expected positive number");
 			return ;
@@ -286,5 +318,6 @@ bool Config::parse(const std::string &filename)
 		setError(i + 1, "Unclosed '{'");
 		return false;
 	}
-	return true;
+	apply_defaults();
+	return (valid_config());
 }

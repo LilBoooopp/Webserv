@@ -48,7 +48,8 @@ CONFIG_SRC = \
 	Config.cpp \
 	Config_Debug.cpp \
 	Config_Error.cpp \
-	Config_Helpers.cpp
+	Config_Helpers.cpp \
+	Config_Validation.cpp
 CONFIG = $(addprefix $(CONFIG_DIR), $(CONFIG_SRC))
 
 ALL_SRC = $(SRC) $(CGI) $(CORE) $(HTTP) $(SERVER) $(UTILS) $(CONFIG)

@@ -9,7 +9,7 @@ void	Config::debug_print_location(const LocationConf &location)
 	std::cout << std::endl;
 
 	if (location.redirect_enabled)
-		std::cout << "            Redirect: " << location.redirect_status << location.redirect_target << std::endl;
+		std::cout << "            Redirect: " << location.redirect_status << " " << location.redirect_target << std::endl;
 	if (location.has_root)
 		std::cout << "            Root override: " << location.root << std::endl;
 	if (location.has_index)

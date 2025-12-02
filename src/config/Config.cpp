@@ -288,19 +288,34 @@ bool Config::parse(const std::string &filename)
             continue;
 
 		std::vector<std::string> tokens = tokenize(line);
-        if (ctx == GLOBAL && tokens[0] == "server")
+        if (tokens[0] == "server")
 		{
+			if (ctx != GLOBAL)
+			{
+				setError(i + 1, "server block declared in wrong scope");
+				return (false);
+			}
 			if (tokens.size() >= 2 && tokens[1] == "{")
 			{
 				ctx = SERVER;
 				server = ServerConf();
 				creating_server = true;
 			}
+			else
+			{
+				setError(i + 1, "missing opening brace '{' or missing tokens");
+				return (false);
+			}
 			continue;
 		}
 
-		if (ctx == SERVER && tokens[0] == "location")
+		if (tokens[0] == "location")
 		{
+			if (ctx != SERVER)
+			{
+				setError(i + 1, "location block declared in wrong scope");
+				return (false);
+			}
 			if (tokens.size() >= 3 && tokens[2] == "{")
 			{
 				std::string path = tokens[1];
@@ -309,9 +324,13 @@ bool Config::parse(const std::string &filename)
 				location.path = path;
 				creating_location = true;
 			}
+			else
+			{
+				setError(i + 1, "missing opening brace '{' or missing tokens");
+				return (false);
+			}
 			continue;
 		}
-
 		if (tokens.size() == 1 && tokens[0] == "}")
 		{
 			if (ctx == LOCATION)
@@ -328,6 +347,11 @@ bool Config::parse(const std::string &filename)
 				creating_server = false;
 				ctx = GLOBAL;
 			}
+			else
+			{
+				setError(i + 1, "Unexpected '}'");
+				return (false);
+			}
 			continue;
 		}
 
@@ -335,6 +359,11 @@ bool Config::parse(const std::string &filename)
 			parse_server(tokens, server, i + 1);
 		else if (ctx == LOCATION)
 			parse_location(tokens, location, i + 1);
+		else
+		{
+			setError(i + 1, "Global directives not yet supported");
+			return (false);
+		}
     }
 	if (ctx != GLOBAL)
 	{

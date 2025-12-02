@@ -105,10 +105,16 @@ int main(int argc, char** argv) {
 	Server s;
 
     if (getExtension(argv[1], '.') != "conf"){
-	    std::cout << "Unvalid configuration file:  " << argv[1] << " (must be .conf)\n";
+	    std::cout << "Invalid configuration file:  " << argv[1] << " (must be .conf)\n";
         return 0;
     }
 	conf = config_cl.parse(argv[1]);
+    if (config_cl.hasError())
+    {
+        std::cerr << "Config error at line " << config_cl.getErrorLine() << ":"
+                <<  config_cl.getErrorMessage() << std::endl;
+        return (1);
+    }
 	std::cout << "Parsed " << conf.servers.size() << " server(s)\n\n";
 
     for (size_t i = 0; i < conf.servers.size(); ++i)

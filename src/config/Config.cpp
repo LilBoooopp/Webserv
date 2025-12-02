@@ -2,10 +2,20 @@
 #include <cstdlib>
 
 
-Config::Config() {}
+Config::Config() : _isError(false), _ErrorMsg(""), _ErrorLine(0) {}
 Config::~Config() {}
 
-std::vector<std::string> read_lines(const std::string &filename)
+void Config::setError(size_t line, const std::string &msg)
+{
+	if (!_isError)
+	{
+		_isError = true;
+		_ErrorLine = line;
+		_ErrorMsg = msg;
+	}
+}
+
+std::vector<std::string> Config::read_lines(const std::string &filename)
 {
     std::vector<std::string> out;
     std::ifstream file(filename.c_str());
@@ -82,12 +92,15 @@ std::vector<std::string> Config::tokenize(std::string &line)
 	return (tokens);
 }
 
-void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server)
+void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line)
 {
 	std::string	&key = tokens[0];
 
 	if (tokens.size() < 3 || tokens[tokens.size() - 1] != ";")
+	{
+		setError(line, "Invalid syntax, expected at least 'DIRECTIVE ARG ;'");
 		return ;
+	}
 	else if (key == "listen")
 	{
 		std::string host_port = tokens[1];
@@ -112,8 +125,15 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server)
 			server.names.push_back(tokens[i]);
 	}
 	else if (key == "root")
+	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid root syntax, expected 'root PATH ;'");
+			return ;
+		}
 		server.root = tokens[1];
-	else if (key == "index")
+	}
+		else if (key == "index")
 	{
 		server.files.clear();
 		for (size_t i = 1; (i + 1) < tokens.size(); ++i)
@@ -122,25 +142,34 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server)
 	else if (key == "error_page")
 	{
 		if (tokens.size() != 4)
-        	return;
+		{
+			setError(line, "Invalid error syntax, expected 'error_page CODE PATH ;'");
+			return ;
+		}
 		server.error_pages[std::atoi(tokens[1].c_str())] = tokens[2];
 	}
 	else if (key == "client_max_body_size")
 	{
 		int val	= std::atoi(tokens[1].c_str());
 		if (val < 0)
+		{
+			setError(line, "Invalid body size value, expected positive number");
 			return ;
+		}
 		server.max_size = val;
 	}
 
 }
 
-void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &location)
+void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line)
 {
 	std::string	&key = tokens[0];
 
 	if (tokens.size() < 3 || tokens[tokens.size() - 1] != ";")
+	{
+		setError(line, "Invalid syntax, expected at least 'DIRECTIVE ARG ;'");
 		return ;
+	}
 	else if (key == "allowed_methods")
 	{
 		location.methods.clear();
@@ -150,7 +179,10 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	else if (key == "return")
 	{
 		if (tokens.size() != 4)
+		{
+			setError(line, "Invalid redirection syntax, expected 'return CODE URL ;'");
 			return ;
+		}
 		location.redirect_enabled = true;
 		location.redirect_status = std::atoi(tokens[1].c_str());
 		location.redirect_target = tokens[2];
@@ -158,7 +190,10 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	else if (key == "root")
 	{
 		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid root syntax, expected 'root PATH ;'");
 			return ;
+		}
 		location.has_root = true;
 		location.root = tokens[1];
 	}
@@ -172,7 +207,10 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	else if (key == "autoindex")
 	{
 		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid autoindex syntax, expected 'autoindex ON|OFF ;'");
 			return ;
+		}
 		location.autoindex_set = true;
 		if (tokens[1] == "on")
 			location.autoindex = true;
@@ -182,14 +220,20 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	else if (key == "upload_store")
 	{
 		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid upload syntax, expected 'upload_store PATH ;'");
 			return ;
+		}
 		location.upload_enabled = true;
 		location.upload_location = tokens[1];
 	}
 	else if (key == "cgi")
 	{
 		if (tokens.size() != 4)
+		{
+			setError(line, "Invalid cgi syntax, expected 'cgi EXT PATH ;'");
 			return ;
+		}
 		else if (tokens[1] == ".py")
 		{
 			location.has_py = true;
@@ -205,25 +249,33 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	{
 		int val	= std::atoi(tokens[1].c_str());
 		if (val < 0)
+		{
+			setError(line, "Invalid body size value, expected positive number");
 			return ;
+		}
 		location.has_max_size = true;
 		location.max_size = val;
 	}
 }
 
-Conf Config::parse(const std::string &filename)
+bool Config::parse(const std::string &filename)
 {
-	Conf	conf;
 	ServerConf server;
 	LocationConf location;
 	bool	creating_server = false;
 	bool	creating_location = false;
+	_servers.clear();
 
 	Context ctx = GLOBAL;
 	std::vector<std::string> lines = read_lines(filename);
+
+	if (lines.empty())
+		return false;
 	
 	for (size_t i = 0; i < lines.size(); i++)
     {
+		if (_isError)
+			break ;
         std::string line = remove_coms(lines[i]);
         line = trim(line);
 
@@ -235,7 +287,6 @@ Conf Config::parse(const std::string &filename)
 		{
 			if (tokens.size() >= 2 && tokens[1] == "{")
 			{
-				std::cout << "Entered server on line " << i + 1 << "\n";
 				ctx = SERVER;
 				server = ServerConf();
 				creating_server = true;
@@ -248,7 +299,6 @@ Conf Config::parse(const std::string &filename)
 			if (tokens.size() >= 3 && tokens[2] == "{")
 			{
 				std::string path = tokens[1];
-				std::cout << "Entered location on line " << i + 1 << "\n";
 				ctx = LOCATION;
 				location = LocationConf();
 				location.path = path;
@@ -261,7 +311,6 @@ Conf Config::parse(const std::string &filename)
 		{
 			if (ctx == LOCATION)
 			{
-				std::cout << "Exit location on line " << i + 1 << "\n";
 				if (creating_server && creating_location)
 					server.locations.push_back(location);
 				creating_location = false;
@@ -269,9 +318,8 @@ Conf Config::parse(const std::string &filename)
 			}
 			else if (ctx == SERVER)
 			{
-				std::cout << "Exit server on line " << i + 1 << "\n";
 				if (creating_server)
-					conf.servers.push_back(server);
+					_servers.push_back(server);
 				creating_server = false;
 				ctx = GLOBAL;
 			}
@@ -279,12 +327,13 @@ Conf Config::parse(const std::string &filename)
 		}
 
 		if (ctx == SERVER)
-			parse_server(tokens, server);
+			parse_server(tokens, server, i + 1);
 		else if (ctx == LOCATION)
-			parse_location(tokens, location);
+			parse_location(tokens, location, i + 1);
     }
-
-    return conf;
+	if (ctx != GLOBAL)
+		return false;
+    return true;
 }
 
 // int main()

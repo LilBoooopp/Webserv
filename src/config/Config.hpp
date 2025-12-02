@@ -93,20 +93,22 @@ struct ServerConf
 	ServerConf() : max_size(0) {}
 };
 
-struct Conf
-{
-	std::vector<ServerConf> servers;
-};
-
 class Config
 {
 	public:
 		Config();
 		~Config();
 
-		Conf parse(const std::string &filename);
+		bool parse(const std::string &filename);
+		bool Config::hasError() const { return _isError; }
+		const std::string &Config::getErrorMessage() const { return _ErrorMsg; }
+		size_t Config::getErrorLine() const { return _ErrorLine; }
+		const std::vector<ServerConf> &getServers() const { return _servers; }
+
 
 	private:
+
+		std::vector<ServerConf> _servers;
 
 		std::string remove_coms(std::string &line);
 		std::string trim(std::string &line);
@@ -114,8 +116,16 @@ class Config
 		std::string	separate(std::string &line);
 		std::vector<std::string> tokenize(std::string &line);
 
-		void	parse_server(std::vector<std::string> &tokens, ServerConf &server);
-		void	parse_location(std::vector<std::string> &tokens, LocationConf &location);
+		void	parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line);
+		void	parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line);
+
+		std::vector<std::string> Config::read_lines(const std::string &filename);
+
+		bool _isError;
+		std::string	_ErrorMsg;
+		size_t	_ErrorLine;
+
+		void setError(size_t line, const std::string &msg);
 
 		enum Context
 		{

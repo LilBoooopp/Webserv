@@ -15,6 +15,11 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 	}
 	else if (key == "listen")
 	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid listen syntax, expected 'Listen IP:PORT ;'");
+			return ;
+		}
 		std::string host_port = tokens[1];
 		HostPort	res;
 		size_t	pos = host_port.find(':');
@@ -83,6 +88,11 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 	}
 	else if (key == "client_max_body_size")
 	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid max size syntax, expected 'client_max_body_size SIZE ;'");
+			return ;
+		}
 		int val	= std::atoi(tokens[1].c_str());
 		if (val < 0 || !is_num(tokens[1]))
 		{
@@ -194,6 +204,11 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	}
 	else if (key == "client_max_body_size")
 	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid max size syntax, expected 'client_max_body_size SIZE ;'");
+			return ;
+		}
 		int val	= std::atoi(tokens[1].c_str());
 		if (val < 0 || !is_num(tokens[1]))
 		{

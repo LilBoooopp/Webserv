@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     }
     if (!config.parse(argv[1]))
     {
-        std::cerr << "Config error at line " << config.getErrorLine() << ":"
+        std::cerr << "Config error at line " << config.getErrorLine() << ": "
                 <<  config.getErrorMessage() << std::endl;
         return (1);
     }

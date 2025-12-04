@@ -5,6 +5,7 @@
 #include "../utils/Logger.hpp"
 #include "Router.hpp"
 #include "StaticHandler.hpp"
+#include <ctime>
 #include <fcntl.h>
 #include <iostream>
 #include <sstream>
@@ -59,6 +60,12 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 	res.setVersion(req.version);
 	bool head_only = (req.method == "HEAD");
 
+	Logger::info("%s is preparing to request:\n  %smethod: %s\n  target: %s\n  body: \'%s\'",
+		     SERV_CLR, GREY, req.method.c_str(), req.target.c_str(), c.body.c_str());
+
+	std::map<std::string, std::string>::iterator it = c.req.headers.find("cookie");
+	if (it != c.req.headers.end())
+		Logger::simple("%s  Cookie: \'%s\'", GREY, it->second.c_str());
 	if (req.method == "GET" || req.method == "HEAD") {
 		if (is_cgi(req.target)) {
 			cgiHandler_.runCgi(req, res, c, fd);
@@ -68,10 +75,28 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 		Router router(&StaticHandler);
 		router.route(req.target)->handle(req, res);
 
+		if (req.target == "/account" || req.target == "/main/account.html") {
+			bool valid = false;
+			std::string cookieHeader;
+			std::map<std::string, std::string>::iterator it =
+			    c.req.headers.find("cookie");
+			if (it != c.req.headers.end())
+				valid = sessionManager_.hasSession(it->second);
+			if (valid) {
+				res.setStatusFromCode(302);
+				res.setHeader("Location", "/main/login.html");
+			} else {
+				res.setStatusFromCode(401);
+				res.setBody("Invalid session");
+			}
+			c.out = res.serialize(head_only);
+			enableWrite(fd);
+			return;
+		}
+
 		// Detect large static file streaming case for GET
 		if (req.method == "GET") {
 			const std::string kStreamHeader = "X-Stream-File";
-
 			if (res.hasHeader(kStreamHeader)) {
 				std::string file_path = res.getHeader(kStreamHeader);
 
@@ -106,21 +131,53 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 				}
 			}
 		}
-	} else if (req.method == "POST") // TEMP, only echo response
-	{
+	} else if (req.method == "POST") {
 		res.setContentType("text/plain");
-		Logger::info("%s received POST request of size %zu", SERV_CLR, c.body.size());
-		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
-		if (it != c.req.headers.end()) {
-			res.setBody("OK");
-			res.setStatusFromCode(200);
-			placeFileInDir(it->second, c.body,
-				       cfg_[0].root + "ressources/uploads");
+		if (req.target == "/login") {
+			std::unordered_map<std::string, std::string> form = parseUrlEncoded(c.body);
+			std::string username = form["user"];
+			std::string password = form["pass"];
+			if (username.empty() || password.empty()) {
+				res.setStatusFromCode(400);
+				res.setBody("Missing username or password");
+			} else if (!sessionManager_.authorize(username, password)) {
+				res.setStatusFromCode(401);
+				res.setBody("Invalid credentials");
+			} else {
+				std::string sessionId =
+				    sessionManager_.createSessionForUser(username);
+				res.setStatusFromCode(200);
+				res.setHeader("Set-Cookie",
+					      "sessionId=" + sessionId +
+						  "; HttpOnly; Path=/; SameSite=Strict");
+				res.setBody("OK");
+			}
+		} else if (req.target == "/newLogin") {
+			const std::string sessionId = sessionManager_.createSession(c.body);
+			if (!sessionId.empty()) {
+				res.setStatusFromCode(200);
+				res.setHeader("Set-Cookie",
+					      "sessionId=" + sessionId +
+						  "; HttpOnly; Path=/; SameSite=Strict");
+			} else {
+				res.setStatusFromCode(400);
+				res.setBody("Missing username or password");
+			}
 		} else {
-			Logger::info("x-filename not present in the request headers, the file "
-				     "won't be uploaded");
-			res.setStatusFromCode(404);
-			res.ensureDefaultBodyIfEmpty();
+			std::map<std::string, std::string>::iterator it =
+			    c.req.headers.find("x-filename");
+			if (it != c.req.headers.end()) {
+				res.setBody("OK");
+				res.setStatusFromCode(200);
+				placeFileInDir(it->second, c.body,
+					       cfg_[0].root + "ressources/uploads");
+			} else {
+				Logger::info(
+				    "x-filename not present in the request headers, the file "
+				    "won't be uploaded");
+				res.setStatusFromCode(404);
+				res.ensureDefaultBodyIfEmpty();
+			}
 		}
 	} else
 		res.setStatusFromCode(501);
@@ -261,9 +318,8 @@ void Server::handleReadable(int fd) {
 
 							// size limit for non-chunked CL bodies
 							if (has_cl &&
-							    c.want_body > cfg_[0]
-									      .locations[0]
-									      .max_size) {
+							    c.want_body >
+								cfg_[0].locations[0].max_size) {
 								res.setStatusFromCode(413);
 								res.setVersion(req.version);
 								res.ensureDefaultBodyIfEmpty();
@@ -500,25 +556,36 @@ bool Server::executeStdin() {
 		return false;
 	} else if (std::strcmp(buff, "quit") == 0) {
 		return true;
-	} else if (!buff[1] && buff[0] >= '0' && buff[0] <= '9') {
-		Logger::set_level((LogLevel)(buff[0] - '0'));
-		Logger::print_valid_levels();
 	} else if (std::strcmp(buff, "buff") == 0) {
 		std::cout.write(&inbuf_[0], 200);
 		std::cout << std::endl;
 	} else if (std::strcmp(buff, "list") == 0) {
+		sessionManager_.listSessions();
 		unsigned long n = conns_.size();
-		if (!n) {
-			Logger::timer("No connections");
-			return false;
-		}
-		Logger::info("Listing previous connections [%u]", n);
+		Logger::timer("%u %sconnection%c", n, YELLOW, n > 1 ? 's' : ' ');
 		for (unsigned long i = 0; i < n; i++) {
 			std::ostringstream oss;
 			oss << PURPLE << " Conn[" << i << "]" << TS;
 			std::string label = oss.str();
 			conns_[i].printStatus(label);
 		}
+	} else if (std::strncmp(buff, "log", 3) == 0) {
+		if (buff[3]) {
+			std::string level = buff + 4;
+			for (int i = 0; i < loggerLevelsCount; i++) {
+				if (level == LoggerLevels[i]) {
+					Logger::set_level(LOG_NONE);
+					Logger::set_exclusiveLevel((LogLevel)i);
+					break;
+				}
+				if (toUpper(level) == LoggerLevels[i]) {
+					Logger::set_exclusiveLevel(LOG_NONE);
+					Logger::set_level((LogLevel)i);
+					break;
+				}
+			}
+		}
+		Logger::print_valid_levels();
 	}
 	return false;
 }

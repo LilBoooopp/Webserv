@@ -84,8 +84,8 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		       "  %-12s %s\n"
 		       "  %-12s '%s'\n"
 		       "  %-12s %d\n",
-		       SERV_CLR, execSuccess ? GREEN : RED, execSuccess ? "Success" : "Failed", GREY,
-		       "interpreter:", data.interpreter.c_str(), "path:", data.path.c_str(),
+		       SERV_CLR, execSuccess ? GREEN : RED, execSuccess ? "Success" : "Failed",
+		       GREY, "interpreter:", data.interpreter.c_str(), "path:", data.path.c_str(),
 		       "file:", data.file.c_str(), "queryString:", data.queryString.c_str(), "pid",
 		       data.pid);
 	if (execSuccess)
@@ -94,8 +94,8 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 
 void cgiHandler::setConfig(const std::vector<ServerConf> &cfg) {
 	cfg_ = &cfg;
-	Logger::simple(
-	    "%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1), GREY,
-	    "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms, "maxOutput",
-	    (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
+	Logger::simple("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1),
+		       GREY, "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms,
+		       "maxOutput",
+		       (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
 }

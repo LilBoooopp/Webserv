@@ -10,13 +10,15 @@
     <div id="ui-root"></div>
 
     <script src="/js/buttons.js"></script>
-    <script src="/js/inputField.js"></script>
-
+    <script src="/js/div.js"></script>
     <script>
       function init() {
         const c = [window.innerWidth / 2, window.innerHeight / 2];
-        addDiv("FORM", [c[0], c[1] - 150], 3);
-        addFormulary([c[0], c[1] - 120]);
+        addDiv("ACCOUNT", [c[0], c[1] - 150], 3);
+        const names = ["about", "login", "somePage"];
+        for (let i = 0; i < names.length; i++) {
+          cgiButton(names[i].toUpperCase(), "cgi/printArg.py", [c[0], c[1] - 50 + 50 * i], "/main/" + names[i] + ".html");
+        }
         addHomeButton();
       }
       init();

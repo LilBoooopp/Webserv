@@ -146,7 +146,6 @@ function initAudioPlayer() {
 
 function init() {
   initAudioPlayer();
-
   const c = [window.innerWidth / 2, window.innerHeight * 0.4];
   const colSpacing = 200;
   const rowSpacing = 50;
@@ -167,10 +166,7 @@ function init() {
   const cgiX = colX[2];
   const postX = colX[3];
 
-  const names = ["about", "form", "somePage"];
-  for (let i = 0; i < names.length; i++) {
-    cgiButton(names[i].toUpperCase(), "cgi/printArg.py", [navX, c[1] + 25 + rowSpacing * i], "/main/" + names[i] + ".html");
-  }
+  cgiButton("LOGIN", "cgi/printArg.py", [navX, c[1] + 25], "/main/" + "login.html");
 
   addButton("SPAM", [reqX, c[1] + 25], loopRequest);
   cgiButton("not found", "notFound", [reqX, c[1] + 25 + rowSpacing]);

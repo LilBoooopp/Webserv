@@ -10,3 +10,19 @@ body {
   width: auto;
   height: auto;
 }
+
+.infoBox {
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.infoBox.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.infoBox.hide {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}

@@ -15,6 +15,10 @@ class Connection {
 	std::string in;	  // head + maybe more
 	std::string out;  // response bytes to send
 	std::string body; // request body as we accumulate it
+	std::string id;	  // session id stored in browser after /login, used to id requests
+	std::string user;
+	std::string password;
+	bool isAuthentified;
 
 	bool headers_done;
 	bool responded;
@@ -38,8 +42,9 @@ class Connection {
 	time_t last_active;   // for idle timeout
 
 	void printStatus(const std::string &label) {
-		Logger::simple("%s - in: %s out: %s last: %s state: %d", label.c_str(), in.c_str(),
-			       out.c_str(), formatTime(last_active).c_str(), (int)state);
+		Logger::simple("%s - in: %s out: %s last: %s state: %d id: %s", label.c_str(),
+			       in.c_str(), out.c_str(), formatTime(last_active).c_str(), (int)state,
+			       id.c_str());
 	}
 	Connection()
 	    : headers_done(false), responded(false), peer_closed(false), close_after(false),

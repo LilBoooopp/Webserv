@@ -34,6 +34,7 @@ SERVER_DIR = src/server/
 SERVER_SRC =  \
 	Listener.cpp \
 	Server.cpp \
+	SessionManager.cpp \
 	StaticHandler.cpp
 SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 

@@ -1,8 +1,7 @@
 #pragma once
-#include "HttpRequest.hpp"
-#include <string>
+#include "Connection.hpp"
 
 class HttpParser {
 public:
-	static bool	parse(const std::string& buf, HttpRequest& req, size_t& endpos);
+  static bool parse(Connection &c, size_t &endpos);
 };

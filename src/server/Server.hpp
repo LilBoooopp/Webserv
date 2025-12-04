@@ -4,7 +4,6 @@
 #include "../config/Config.hpp"
 #include "../core/EpollReactor.hpp"
 #include "../http/Connection.hpp"
-#include "../http/HttpResponse.hpp"
 #include "../http/ResponseWriter.hpp"
 #include "Listener.hpp"
 
@@ -33,12 +32,12 @@ class Server {
   void handleWritable(int fd);
   void enableWrite(int fd);
   void disableWrite(int fd);
-  void prepareResponse(int fd, Connection &c, HttpResponse &res);
+  void prepareResponse(int fd, Connection &c);
 
 public:
   Server() : inbuf_(8192) {}
   bool start(uint32_t ip_be, uint16_t port_be, std::vector<ServerConf> &config);
-  void setConf(std::vector<ServerConf> config, int index);
+  void setConf(std::vector<ServerConf> config);
   void run();
   bool executeStdin();
 };

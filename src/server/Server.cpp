@@ -20,6 +20,14 @@ static int set_nonblock(int fd) {
   return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
 }
 
+/**
+ * @brief Starts the server by bind and listening on the host and ports
+ *
+ * @param ip_be
+ * @param port_be
+ * @param config
+ * @return true if started successfully, false if not
+ */
 bool Server::start(uint32_t ip_be, uint16_t port_be,
                    std::vector<ServerConf> &config) {
   if (!listener_.bindAndListen(ip_be, port_be))
@@ -31,12 +39,14 @@ bool Server::start(uint32_t ip_be, uint16_t port_be,
   return (true);
 }
 
-void Server::setConf(std::vector<ServerConf> config, int index) {
+void Server::setConf(std::vector<ServerConf> config) {
   cfg_ = config;
-  std::cout << "index: " << cfg_[index].locations[0].index_files[0]
-            << std::endl;
+  std::cout << "index: " << cfg_[0].locations[0].index_files[0] << std::endl;
 }
 
+/**
+ * @brief Assigns incomming connections' fds to the previously bound listeners
+ */
 void Server::acceptReady(void) {
   if (listener_.fd() < 0) {
     Logger::debug("unvalid fd %d", listener_.fd());
@@ -56,6 +66,11 @@ void Server::acceptReady(void) {
   }
 }
 
+/**
+ * @brief Reads the bytes sent by the client as a whole or chunked if necessary
+ *
+ * @param fd of the socket associated with the current client being handled
+ */
 void Server::handleReadable(int fd) {
   Connection &c = conns_[fd];
 
@@ -246,7 +261,7 @@ void Server::handleReadable(int fd) {
       // WRITING_RESPONSE
       if (c.state == WRITING_RESPONSE) {
         if (c.out.empty())
-          prepareResponse(fd, c, c.res);
+          prepareResponse(fd, c);
         std::string head = c.res.serialize(true);
         Logger::info("%s responded to fd %d: \n%s%s\n", SERV_CLR, fd,
                      c.res.getStatus() == 200 ? GREEN : RED, head.c_str());
@@ -265,27 +280,27 @@ void Server::handleReadable(int fd) {
 }
 
 // Build and serialize a response once the request/body are ready
-void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
+void Server::prepareResponse(int fd, Connection &c) {
   const HttpRequest &req = c.req;
 
-  res.setVersion(req.version);
+  c.res.setVersion(req.version);
   bool head_only = (req.method == "HEAD");
 
   if (req.method == "GET" || req.method == "HEAD") {
     if (is_cgi(req.target)) {
-      cgiHandler_.runCgi(req, res, c, fd);
+      cgiHandler_.runCgi(req, c.res, c, fd);
       return;
     }
     StaticHandler StaticHandler(&cfg_);
     Router router(&StaticHandler);
-    router.route(req.target)->handle(req, res);
+    router.route(req.target)->handle(req, c.res);
 
     // Detect large static file streaming case for GET
     if (req.method == "GET") {
       const std::string kStreamHeader = "X-Stream-File";
 
-      if (res.hasHeader(kStreamHeader)) {
-        std::string file_path = res.getHeader(kStreamHeader);
+      if (c.res.hasHeader(kStreamHeader)) {
+        std::string file_path = c.res.getHeader(kStreamHeader);
 
         // Try to open the file now, in non-streaming, blocking mode.
         // We will only read it in small chunks later form handleWritable.
@@ -295,7 +310,7 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
           c.streaming_file = true;
 
           // Initialize remaining bytes from Content-Length
-          std::string cl = res.getHeader("Content-Length");
+          std::string cl = c.res.getHeader("Content-Length");
           off_t remaining = 0;
           if (!cl.empty()) {
             std::istringstream iss(cl);
@@ -304,11 +319,11 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
           c.file_remaining = remaining;
 
           // Remove the internal header so the client doesn't see it.
-          if (res.hasHeader(kStreamHeader))
-            res.eraseHeader(kStreamHeader);
+          if (c.res.hasHeader(kStreamHeader))
+            c.res.eraseHeader(kStreamHeader);
         } else {
           // If open fails, fall back to a 404
-          res.setStatusFromCode(404);
+          c.res.setStatusFromCode(404);
 
           // ensure no streaming
           c.streaming_file = false;
@@ -319,24 +334,24 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
     }
   } else if (req.method == "POST") // TEMP, only echo response
   {
-    res.setContentType("text/plain");
+    c.res.setContentType("text/plain");
     Logger::info("%s received POST request of size %zu", SERV_CLR,
                  c.body.size());
     std::map<std::string, std::string>::iterator it =
         c.req.headers.find("x-filename");
     if (it != c.req.headers.end()) {
-      res.setBody("OK");
-      res.setStatusFromCode(200);
+      c.res.setBody("OK");
+      c.res.setStatusFromCode(200);
       placeFileInDir(it->second, c.body, cfg_[0].root + "ressources/uploads");
     } else {
       Logger::info("x-filename not present in the request headers, the file "
                    "won't be uploaded");
-      res.setStatusFromCode(404);
+      c.res.setStatusFromCode(404);
     }
   } else
-    res.setStatusFromCode(501);
+    c.res.setStatusFromCode(501);
 
-  c.out = res.serialize(head_only);
+  c.out = c.res.serialize(head_only);
   enableWrite(fd);
 }
 

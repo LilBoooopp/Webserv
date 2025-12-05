@@ -33,10 +33,12 @@ static int set_nonblock(int fd) {
  * @return true if started successfully, false if not
  */
 bool Server::start(std::vector<ServerConf> &config) {
-  listener_.resize(config.size());
+  listener_.reserve(config.size());
+  std::cout << "size " << config.size() << std::endl;
   uint32_t ip_be = config[0].hosts[0].host;
   for (size_t i = 0; i < config.size(); i++) {
-    std::cout << "port: " << config[i].hosts[0].port_int << std::endl;
+    listener_.push_back(Listener());
+    std::cout << "port: " << config[i].hosts[0].port << std::endl;
     if (!listener_[i].bindAndListen(ip_be, config[i].hosts[0].port))
       return (false);
     if (!reactor_.add(listener_[i].fd(), EPOLLIN))

@@ -13,6 +13,7 @@ static int set_nonblock(int fd) {
 
 Listener::Listener() : fd_(-1) {
   fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
+  std::cout << "Listener constructor called fd: " << fd_ << std::endl;
   int on = 1;
   ::setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 }
@@ -20,6 +21,22 @@ Listener::Listener() : fd_(-1) {
 Listener::~Listener() {
   if (fd_ >= 0)
     ::close(fd_);
+}
+
+Listener::Listener(const Listener &other) {
+  this->fd_ = other.fd_;
+  other.fd_ = -1;
+}
+
+Listener &Listener::operator=(const Listener &other) {
+  if (this != &other) {
+    if (fd_ >= 0)
+      ::close(fd_);
+
+    this->fd_ = other.fd_;
+    other.fd_ = -1;
+  }
+  return (*this);
 }
 
 bool Listener::operator==(const int other) const {
@@ -34,7 +51,7 @@ bool Listener::bindAndListen(uint32_t ip_be, uint16_t port_be, int backlog) {
   sa.sin_port = port_be;
   std::cout << "fd: " << fd_ << std::endl;
   if (::bind(fd_, (sockaddr *)&sa, sizeof(sa)) < 0)
-    return (perror("bind"), false);
+    return (false);
   if (::listen(fd_, backlog) < 0)
     return (false);
   return (set_nonblock(fd_) == 0);

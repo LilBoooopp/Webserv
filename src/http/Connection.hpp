@@ -1,7 +1,6 @@
 #pragma once
-#include "../http/HttpRequest.hpp"
-#include "../http/HttpResponse.hpp"
 #include "ChunkedDecoder.hpp"
+#include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 #include <ctime>
 #include <string>

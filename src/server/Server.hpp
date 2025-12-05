@@ -21,7 +21,7 @@
 
 class Server {
   EpollReactor reactor_;
-  Listener listener_;
+  std::vector<Listener> listener_;
   std::map<int, Connection> conns_;
   std::vector<char> inbuf_;
   std::vector<ServerConf> cfg_;
@@ -36,7 +36,7 @@ class Server {
 
 public:
   Server() : inbuf_(8192) {}
-  bool start(uint32_t ip_be, uint16_t port_be, std::vector<ServerConf> &config);
+  bool start(std::vector<ServerConf> &config);
   void setConf(std::vector<ServerConf> config);
   void run();
   bool executeStdin();

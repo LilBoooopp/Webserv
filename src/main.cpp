@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   // struct sockaddr_in addr;
   // inet_aton(conf.servers[0].hosts[0].host, &addr.sin_addr);
   // htonl(addr.sin_addr);
-  if (!s.start(servers[0].hosts[0].host, servers[0].hosts[0].port, servers)) {
+  if (!s.start(servers)) {
     std::perror("webserv: start failed (is another instance running?");
     return (1);
   }

@@ -4,10 +4,14 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../utils/Logger.hpp"
+#include "Listener.hpp"
 #include "Router.hpp"
 #include "StaticHandler.hpp"
+#include <algorithm>
+#include <cstddef>
 #include <fcntl.h>
 #include <iostream>
+#include <list>
 #include <sstream>
 #include <sys/types.h>
 #include <unistd.h>
@@ -28,12 +32,16 @@ static int set_nonblock(int fd) {
  * @param config
  * @return true if started successfully, false if not
  */
-bool Server::start(uint32_t ip_be, uint16_t port_be,
-                   std::vector<ServerConf> &config) {
-  if (!listener_.bindAndListen(ip_be, port_be))
-    return (false);
-  if (!reactor_.add(listener_.fd(), EPOLLIN))
-    return (false);
+bool Server::start(std::vector<ServerConf> &config) {
+  listener_.resize(config.size());
+  uint32_t ip_be = config[0].hosts[0].host;
+  for (size_t i = 0; i < config.size(); i++) {
+    std::cout << "port: " << config[i].hosts[0].port_int << std::endl;
+    if (!listener_[i].bindAndListen(ip_be, config[i].hosts[0].port))
+      return (false);
+    if (!reactor_.add(listener_[i].fd(), EPOLLIN))
+      return (false);
+  }
   cgiHandler_.setConfig(config);
 
   return (true);
@@ -48,21 +56,23 @@ void Server::setConf(std::vector<ServerConf> config) {
  * @brief Assigns incomming connections' fds to the previously bound listeners
  */
 void Server::acceptReady(void) {
-  if (listener_.fd() < 0) {
-    Logger::debug("unvalid fd %d", listener_.fd());
-    return;
-  }
-  for (;;) {
-    int cfd = ::accept(listener_.fd(), 0, 0);
-    if (cfd < 0) {
-      break;
+  for (size_t i = 0; i < listener_.size(); i++) {
+    if (listener_[i].fd() < 0) {
+      Logger::debug("unvalid fd %d", listener_[i].fd());
+      return;
     }
-    set_nonblock(cfd);
-    Connection c;
-    c.start = now_ms();
-    conns_[cfd] = c;
-    reactor_.add(cfd, EPOLLIN);
-    Logger::debug("Connection from fd %d%s accepted", cfd, GREEN);
+    for (;;) {
+      int cfd = ::accept(listener_[i].fd(), 0, 0);
+      if (cfd < 0) {
+        break;
+      }
+      set_nonblock(cfd);
+      Connection c;
+      c.start = now_ms();
+      conns_[cfd] = c;
+      reactor_.add(cfd, EPOLLIN);
+      Logger::debug("Connection from fd %d%s accepted", cfd, GREEN);
+    }
   }
 }
 
@@ -259,7 +269,7 @@ void Server::handleReadable(int fd) {
       }
 
       // WRITING_RESPONSE
-      else if (c.state == WRITING_RESPONSE) {
+      if (c.state == WRITING_RESPONSE) {
         if (c.out.empty())
           prepareResponse(fd, c);
         std::string head = c.res.serialize(true);
@@ -494,7 +504,8 @@ void Server::run() {
         }
         uint32_t ev = events[i].events;
 
-        if (fd == listener_.fd()) {
+        if (std::find(listener_.begin(), listener_.end(), fd) !=
+            listener_.end()) {
           if (ev & EPOLLIN)
             acceptReady();
           continue;

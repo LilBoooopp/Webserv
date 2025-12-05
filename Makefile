@@ -12,11 +12,20 @@ SRC_SRC =  \
 SRC = $(addprefix $(SRC_DIR), $(SRC_SRC))
 
 CGI_DIR = src/cgi/
-CGI_SRC = \
+CGI_SRC =  \
 	Execute.cpp \
 	ParseRequest.cpp \
 	Respond.cpp
 CGI = $(addprefix $(CGI_DIR), $(CGI_SRC))
+
+CONFIG_DIR = src/config/
+CONFIG_SRC =  \
+	Config.cpp \
+	Config_Debug.cpp \
+	Config_Error.cpp \
+	Config_Helpers.cpp \
+	Config_Validation.cpp
+CONFIG = $(addprefix $(CONFIG_DIR), $(CONFIG_SRC))
 
 CORE_DIR = src/core/
 CORE_SRC =  \
@@ -26,6 +35,7 @@ CORE = $(addprefix $(CORE_DIR), $(CORE_SRC))
 HTTP_DIR = src/http/
 HTTP_SRC =  \
 	ChunkedDecoder.cpp \
+	Connection.cpp \
 	HttpParser.cpp \
 	HttpResponse.cpp
 HTTP = $(addprefix $(HTTP_DIR), $(HTTP_SRC))
@@ -39,21 +49,12 @@ SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 
 UTILS_DIR = src/utils/
 UTILS_SRC =  \
-	Logger.cpp \
-	Chrono.cpp
+	Chrono.cpp \
+	Logger.cpp
 UTILS = $(addprefix $(UTILS_DIR), $(UTILS_SRC))
 
-CONFIG_DIR = src/config/
-CONFIG_SRC = \
-	Config.cpp \
-	Config_Debug.cpp \
-	Config_Error.cpp \
-	Config_Helpers.cpp \
-	Config_Validation.cpp
-CONFIG = $(addprefix $(CONFIG_DIR), $(CONFIG_SRC))
-
-ALL_SRC = $(SRC) $(CGI) $(CORE) $(HTTP) $(SERVER) $(UTILS) $(CONFIG)
-vpath %.cpp src src/core src/http src/server src/utils src/cgi src/config
+ALL_SRC = $(SRC) $(CGI) $(CONFIG) $(CORE) $(HTTP) $(SERVER) $(UTILS)
+vpath %.cpp src src/cgi src/config src/core src/http src/server src/utils
 #--------------------------------------OBJECTS----------------------------------#
 OBJ_DIR = Objects/
 # Generate object files with same names but in Objects directory

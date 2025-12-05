@@ -259,7 +259,7 @@ void Server::handleReadable(int fd) {
       }
 
       // WRITING_RESPONSE
-      if (c.state == WRITING_RESPONSE) {
+      else if (c.state == WRITING_RESPONSE) {
         if (c.out.empty())
           prepareResponse(fd, c);
         std::string head = c.res.serialize(true);

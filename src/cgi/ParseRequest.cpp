@@ -1,7 +1,5 @@
 #include "cgi.hpp"
 
-bool is_cgi(const std::string &req_target) { return req_target.rfind("/cgi/", 0) == 0; }
-
 static std::string getInterpreter(const std::string &path) {
 	size_t pos = path.rfind('.');
 	if (pos == std::string::npos)
@@ -10,8 +8,15 @@ static std::string getInterpreter(const std::string &path) {
 	if (ext == "py")
 		return "/usr/bin/python3";
 	if (ext == "php")
-		return "/usr/bin/php-cgi";
+		return "/opt/homebrew/bin/php-cgi";
 	return "";
+}
+
+bool is_cgi(const std::string &req_target) {
+	std::string interpreter = getInterpreter(req_target);
+	if (!interpreter.empty())
+		return true;
+	return req_target.rfind("/cgi/", 0) == 0;
 }
 
 static std::string extractArguments(std::string &pathToCgi) {

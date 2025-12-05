@@ -66,33 +66,14 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 	std::map<std::string, std::string>::iterator it = c.req.headers.find("cookie");
 	if (it != c.req.headers.end())
 		Logger::simple("%s  Cookie: \'%s\'", GREY, it->second.c_str());
+	if (is_cgi(req.target)) {
+		cgiHandler_.runCgi(req, res, c, fd);
+		return;
+	}
 	if (req.method == "GET" || req.method == "HEAD") {
-		if (is_cgi(req.target)) {
-			cgiHandler_.runCgi(req, res, c, fd);
-			return;
-		}
 		StaticHandler StaticHandler(&cfg_);
 		Router router(&StaticHandler);
 		router.route(req.target)->handle(req, res);
-
-		if (req.target == "/account" || req.target == "/main/account.html") {
-			bool valid = false;
-			std::string cookieHeader;
-			std::map<std::string, std::string>::iterator it =
-			    c.req.headers.find("cookie");
-			if (it != c.req.headers.end())
-				valid = sessionManager_.hasSession(it->second);
-			if (valid) {
-				res.setStatusFromCode(302);
-				res.setHeader("Location", "/main/login.html");
-			} else {
-				res.setStatusFromCode(401);
-				res.setBody("Invalid session");
-			}
-			c.out = res.serialize(head_only);
-			enableWrite(fd);
-			return;
-		}
 
 		// Detect large static file streaming case for GET
 		if (req.method == "GET") {
@@ -133,51 +114,16 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 		}
 	} else if (req.method == "POST") {
 		res.setContentType("text/plain");
-		if (req.target == "/login") {
-			std::unordered_map<std::string, std::string> form = parseUrlEncoded(c.body);
-			std::string username = form["user"];
-			std::string password = form["pass"];
-			if (username.empty() || password.empty()) {
-				res.setStatusFromCode(400);
-				res.setBody("Missing username or password");
-			} else if (!sessionManager_.authorize(username, password)) {
-				res.setStatusFromCode(401);
-				res.setBody("Invalid credentials");
-			} else {
-				std::string sessionId =
-				    sessionManager_.createSessionForUser(username);
-				res.setStatusFromCode(200);
-				res.setHeader("Set-Cookie",
-					      "sessionId=" + sessionId +
-						  "; HttpOnly; Path=/; SameSite=Strict");
-				res.setBody("OK");
-			}
-		} else if (req.target == "/newLogin") {
-			const std::string sessionId = sessionManager_.createSession(c.body);
-			if (!sessionId.empty()) {
-				res.setStatusFromCode(200);
-				res.setHeader("Set-Cookie",
-					      "sessionId=" + sessionId +
-						  "; HttpOnly; Path=/; SameSite=Strict");
-			} else {
-				res.setStatusFromCode(400);
-				res.setBody("Missing username or password");
-			}
+		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
+		if (it != c.req.headers.end()) {
+			res.setBody("OK");
+			res.setStatusFromCode(200);
+			placeFileInDir(it->second, c.body, cfg_[0].root + "ressources/uploads");
 		} else {
-			std::map<std::string, std::string>::iterator it =
-			    c.req.headers.find("x-filename");
-			if (it != c.req.headers.end()) {
-				res.setBody("OK");
-				res.setStatusFromCode(200);
-				placeFileInDir(it->second, c.body,
-					       cfg_[0].root + "ressources/uploads");
-			} else {
-				Logger::info(
-				    "x-filename not present in the request headers, the file "
-				    "won't be uploaded");
-				res.setStatusFromCode(404);
-				res.ensureDefaultBodyIfEmpty();
-			}
+			Logger::info("x-filename not present in the request headers, the file "
+				     "won't be uploaded");
+			res.setStatusFromCode(404);
+			res.ensureDefaultBodyIfEmpty();
 		}
 	} else
 		res.setStatusFromCode(501);
@@ -545,9 +491,8 @@ bool Server::executeStdin() {
 	if (sr <= 0)
 		return false;
 	buff[sr] = '\0';
-	while (sr > 0 && (buff[sr - 1] == '\n' || buff[sr - 1] == '\r')) {
+	while (sr > 0 && (buff[sr - 1] == '\n' || buff[sr - 1] == '\r'))
 		buff[--sr] = '\0';
-	}
 	if (sr == 0)
 		return false;
 	if (std::strcmp(buff, "clear") == 0) {
@@ -560,7 +505,6 @@ bool Server::executeStdin() {
 		std::cout.write(&inbuf_[0], 200);
 		std::cout << std::endl;
 	} else if (std::strcmp(buff, "list") == 0) {
-		sessionManager_.listSessions();
 		unsigned long n = conns_.size();
 		Logger::timer("%u %sconnection%c", n, YELLOW, n > 1 ? 's' : ' ');
 		for (unsigned long i = 0; i < n; i++) {

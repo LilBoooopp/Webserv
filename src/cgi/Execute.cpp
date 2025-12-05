@@ -1,7 +1,5 @@
 #include "cgi.hpp"
 
-extern char **environ;
-
 static bool execute(CgiExecutionData &data) {
 	int fds[2];
 	if (pipe(fds) == -1) {
@@ -22,20 +20,51 @@ static bool execute(CgiExecutionData &data) {
 			_exit(1);
 		close(fds[0]);
 		close(fds[1]);
-
 		chdir(data.path.c_str());
-		setenv("QUERY_STRING", data.queryString.c_str(), 1);
+		std::vector<std::string> envStrings;
+		envStrings.push_back("REDIRECT_STATUS=200");
+		envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
+		envStrings.push_back("SERVER_PROTOCOL=HTTP/1.1");
+		envStrings.push_back("SERVER_SOFTWARE=webserv/1.0");
+		envStrings.push_back("SERVER_NAME=127.0.0.1");
+		envStrings.push_back("SERVER_PORT=8080");
+		envStrings.push_back("REQUEST_URI=" + data.requestUri);
+		envStrings.push_back("REQUEST_METHOD=" + data.method);
+		envStrings.push_back("QUERY_STRING=" + data.queryString);
+		envStrings.push_back("CONTENT_LENGTH=" + data.contentLength);
+		envStrings.push_back("CONTENT_TYPE=" + data.contentType);
+		envStrings.push_back("SCRIPT_NAME=" + data.file);
+		envStrings.push_back("SCRIPT_FILENAME=" + data.file);
+
+		for (std::map<std::string, std::string>::iterator it = data.headers.begin();
+		     it != data.headers.end(); ++it) {
+			std::string key = "HTTP_";
+			for (size_t i = 0; i < it->first.size(); ++i) {
+				char c = it->first[i];
+				if (c == '-')
+					key += '_';
+				else
+					key += std::toupper(static_cast<unsigned char>(c));
+			}
+			envStrings.push_back(key + "=" + it->second);
+		}
+
+		std::vector<char *> envp;
+		for (size_t i = 0; i < envStrings.size(); ++i)
+			envp.push_back(const_cast<char *>(envStrings[i].c_str()));
+		envp.push_back(NULL);
+
 		if (!data.interpreter.empty()) {
 			char *argv[3];
 			argv[0] = const_cast<char *>(data.interpreter.c_str());
 			argv[1] = const_cast<char *>(data.file.c_str());
 			argv[2] = NULL;
-			execve(data.interpreter.c_str(), argv, environ);
+			execve(data.interpreter.c_str(), argv, &envp[0]);
 		} else {
 			char *argv[2];
 			argv[0] = const_cast<char *>(data.file.c_str());
 			argv[1] = NULL;
-			execve(data.file.c_str(), argv, environ);
+			execve(data.file.c_str(), argv, &envp[0]);
 		}
 		_exit(1);
 	}
@@ -71,12 +100,15 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 		return;
 	}
 	CgiExecutionData data;
+	data.method = req.method;
+	data.requestUri = req.target;
 	data.interpreter = interpreter;
 	data.path = path;
 	data.file = file;
 	data.queryString = queryString;
 	data.conn = &c;
 	data.fd = fd;
+	data.headers = c.req.headers;
 	bool execSuccess = execute(data);
 	Logger::simple("%s CGI execution Data - %s%s%s:\n"
 		       "  %-12s %s\n"

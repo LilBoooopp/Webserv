@@ -1,3 +1,28 @@
+function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true) {
+  let div = document.createElement("div");
+  div.textContent = text;
+
+  div.style.position = "absolute";
+
+  div.style.left = (pos[0] / window.innerWidth) * 100 + "%";
+  div.style.top = (pos[1] / window.innerHeight) * 100 + "%";
+
+  if (centered) {
+    div.style.transform = "translate(-50%, -50%) scale(" + size + ")";
+  } else {
+    div.style.transform = "scale(" + size + ")";
+  }
+
+  div.style.transformOrigin = "center center";
+
+  div.style.userSelect = "none";
+  if (clr) div.style.color = clr;
+  if (bgrClr) div.style.backgroundColor = bgrClr;
+
+  document.body.appendChild(div);
+  return div;
+}
+
 function initImage(w, h, x, y, src) {
   const imgDiv = document.createElement("img");
   imgDiv.src = src;

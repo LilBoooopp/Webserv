@@ -152,9 +152,9 @@ bool cgiHandler::handleResponses() {
 				}
 				bool head_only = (conn->req.method == "HEAD");
 				std::string head = res.serialize(true);
-				std::string preview = data.out.substr(0, 50);
+				std::string preview = data.out.substr(0, 300);
 				Logger::info("%s%s%s execution ended after %lums - raw output "
-					     "(first 50 bytes):\n'%s'",
+					     "(first 300 bytes):\n'%s'",
 					     YELLOW, data.file.c_str(), TS,
 					     (unsigned long)(nowMs - data.conn->start),
 					     preview.c_str());

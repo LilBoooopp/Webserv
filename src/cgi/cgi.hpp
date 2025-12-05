@@ -21,10 +21,15 @@
 #include <vector>
 
 struct CgiExecutionData {
-	std::string interpreter;
-	std::string path;
-	std::string file;
+	std::string method;
+	std::string requestUri;
 	std::string queryString;
+	std::string contentLength;
+	std::string contentType;
+	std::string interpreter;
+	std::string file;
+	std::string path;
+	std::map<std::string, std::string> headers;
 	Connection *conn;
 	int fd;
 	int readFd;

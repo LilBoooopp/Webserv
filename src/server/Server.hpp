@@ -3,7 +3,6 @@
 #include "Listener.hpp"
 #include "Router.hpp"
 #include "StaticHandler.hpp"
-#include "SessionManager.hpp"
 
 #include "../cgi/cgi.hpp"
 #include "../core/EpollReactor.hpp"
@@ -38,7 +37,6 @@ class Server {
 	std::vector<char> inbuf_;
 	std::vector<ServerConf> cfg_;
 	cgiHandler cgiHandler_;
-	SessionManager sessionManager_;
 
 	void acceptReady();
 	void handleReadable(int fd);

@@ -1,8 +1,8 @@
 <?php
 
 $user = $_SERVER['HTTP_USERNAME'] ?? null;
+if (!$user) {echo "USERNAME MISSING\n"; exit;}
 $pass = $_SERVER['HTTP_PASSWORD'] ?? null;
-if (!$user) { echo "USERNAME MISSING\n"; exit;}
 if (!$pass) {echo "PASSWORD MISSING\n"; exit;}
 
 try {

@@ -53,86 +53,6 @@ void Server::acceptReady(void) {
 	}
 }
 
-// Build and serialize a response once the request/body are ready
-void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
-	const HttpRequest &req = c.req;
-
-	res.setVersion(req.version);
-	bool head_only = (req.method == "HEAD");
-
-	Logger::info("%s is preparing to request:\n  %smethod: %s\n  target: %s\n  body: \'%s\'",
-		     SERV_CLR, GREY, req.method.c_str(), req.target.c_str(), c.body.c_str());
-
-	std::map<std::string, std::string>::iterator it = c.req.headers.find("cookie");
-	if (it != c.req.headers.end())
-		Logger::simple("%s  Cookie: \'%s\'", GREY, it->second.c_str());
-	if (is_cgi(req.target)) {
-		cgiHandler_.runCgi(req, res, c, fd);
-		return;
-	}
-	if (req.method == "GET" || req.method == "HEAD") {
-		StaticHandler StaticHandler(&cfg_);
-		Router router(&StaticHandler);
-		router.route(req.target)->handle(req, res);
-
-		// Detect large static file streaming case for GET
-		if (req.method == "GET") {
-			const std::string kStreamHeader = "X-Stream-File";
-			if (res.hasHeader(kStreamHeader)) {
-				std::string file_path = res.getHeader(kStreamHeader);
-
-				// Try to open the file now, in non-streaming, blocking mode.
-				// We will only read it in small chunks later form handleWritable.
-				int ffd = ::open(file_path.c_str(), O_RDONLY);
-				if (ffd >= 0) {
-					c.file_fd = ffd;
-					c.streaming_file = true;
-
-					// Initialize remaining bytes from Content-Length
-					std::string cl = res.getHeader("Content-Length");
-					off_t remaining = 0;
-					if (!cl.empty()) {
-						std::istringstream iss(cl);
-						iss >> remaining;
-					}
-					c.file_remaining = remaining;
-
-					// Remove the internal header so the client doesn't see it.
-					if (res.hasHeader(kStreamHeader))
-						res.eraseHeader(kStreamHeader);
-				} else {
-					// If open fails, fall back to a 404
-					res.setStatusFromCode(404);
-					res.ensureDefaultBodyIfEmpty();
-
-					// ensure no streaming
-					c.streaming_file = false;
-					c.file_fd = -1;
-					c.file_remaining = 0;
-				}
-			}
-		}
-	} else if (req.method == "POST") {
-		res.setContentType("text/plain");
-		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
-		if (it != c.req.headers.end()) {
-			res.setBody("OK");
-			res.setStatusFromCode(200);
-			placeFileInDir(it->second, c.body, cfg_[0].root + "ressources/uploads");
-		} else {
-			Logger::info("x-filename not present in the request headers, the file "
-				     "won't be uploaded");
-			res.setStatusFromCode(404);
-			res.ensureDefaultBodyIfEmpty();
-		}
-	} else
-		res.setStatusFromCode(501);
-
-	// res.ensureDefaultBodyIfEmpty();
-	c.out = res.serialize(head_only);
-	enableWrite(fd);
-}
-
 void Server::handleReadable(int fd) {
 	Connection &c = conns_[fd];
 
@@ -405,6 +325,86 @@ void Server::handleReadable(int fd) {
 		// Subject does not allow checking errno so just stop and wait for epoll
 		break;
 	}
+}
+
+// Build and serialize a response once the request/body are ready
+void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
+	const HttpRequest &req = c.req;
+
+	res.setVersion(req.version);
+	bool head_only = (req.method == "HEAD");
+
+	Logger::info("%s is preparing to request:\n  %smethod: %s\n  target: %s\n  body: \'%s\'",
+		     SERV_CLR, GREY, req.method.c_str(), req.target.c_str(), c.body.c_str());
+
+	std::map<std::string, std::string>::iterator it = c.req.headers.find("cookie");
+	if (it != c.req.headers.end())
+		Logger::simple("%s  Cookie: \'%s\'", GREY, it->second.c_str());
+	if (is_cgi(req.target)) {
+		cgiHandler_.runCgi(req, res, c, fd);
+		return;
+	}
+	if (req.method == "GET" || req.method == "HEAD") {
+		StaticHandler StaticHandler(&cfg_);
+		Router router(&StaticHandler);
+		router.route(req.target)->handle(req, res);
+
+		// Detect large static file streaming case for GET
+		if (req.method == "GET") {
+			const std::string kStreamHeader = "X-Stream-File";
+			if (res.hasHeader(kStreamHeader)) {
+				std::string file_path = res.getHeader(kStreamHeader);
+
+				// Try to open the file now, in non-streaming, blocking mode.
+				// We will only read it in small chunks later form handleWritable.
+				int ffd = ::open(file_path.c_str(), O_RDONLY);
+				if (ffd >= 0) {
+					c.file_fd = ffd;
+					c.streaming_file = true;
+
+					// Initialize remaining bytes from Content-Length
+					std::string cl = res.getHeader("Content-Length");
+					off_t remaining = 0;
+					if (!cl.empty()) {
+						std::istringstream iss(cl);
+						iss >> remaining;
+					}
+					c.file_remaining = remaining;
+
+					// Remove the internal header so the client doesn't see it.
+					if (res.hasHeader(kStreamHeader))
+						res.eraseHeader(kStreamHeader);
+				} else {
+					// If open fails, fall back to a 404
+					res.setStatusFromCode(404);
+					res.ensureDefaultBodyIfEmpty();
+
+					// ensure no streaming
+					c.streaming_file = false;
+					c.file_fd = -1;
+					c.file_remaining = 0;
+				}
+			}
+		}
+	} else if (req.method == "POST") {
+		res.setContentType("text/plain");
+		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
+		if (it != c.req.headers.end()) {
+			res.setBody("OK");
+			res.setStatusFromCode(200);
+			placeFileInDir(it->second, c.body, cfg_[0].root + "ressources/uploads");
+		} else {
+			Logger::info("x-filename not present in the request headers, the file "
+				     "won't be uploaded");
+			res.setStatusFromCode(404);
+			res.ensureDefaultBodyIfEmpty();
+		}
+	} else
+		res.setStatusFromCode(501);
+
+	// res.ensureDefaultBodyIfEmpty();
+	c.out = res.serialize(head_only);
+	enableWrite(fd);
 }
 
 void Server::handleWritable(int fd) {

@@ -5,8 +5,10 @@ if (empty($_SESSION["user_id"])) {
 	header("Location: /main/login.html");
 	exit;
 }
-?>
 
+$user = $_SESSION["username"] ?? null;
+
+?>
 <!DOCTYPE html>
 <html>
   <head>
@@ -23,8 +25,11 @@ if (empty($_SESSION["user_id"])) {
     <script src="/js/auth.js"></script>
 
     <script>
+		window.CURRENT_USER = <?php echo json_encode($user); ?>;
+
       function init() {
         const c = [window.innerWidth / 2, window.innerHeight / 2];
+		addDiv(window.CURRENT_USER, [window.innerWidth - 60, 40], 1);
         addDiv("SOME PAGE", [c[0], c[1] - 150], 3);
 		const names = ["about", "account"];
         for (let i = 0; i < names.length; i++) {

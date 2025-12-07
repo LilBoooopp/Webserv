@@ -43,11 +43,6 @@ int main(int argc, char **argv) {
 
   std::vector<ServerConf> servers = config.getServers();
 
-  // uint16_t port_be = htons(servers[0].hosts[0].port);
-
-  // struct sockaddr_in addr;
-  // inet_aton(conf.servers[0].hosts[0].host, &addr.sin_addr);
-  // htonl(addr.sin_addr);
   if (!s.start(servers)) {
     std::perror("webserv: start failed (is another instance running?");
     return (1);

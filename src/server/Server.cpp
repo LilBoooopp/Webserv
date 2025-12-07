@@ -72,6 +72,8 @@ void Server::acceptReady(void) {
       Connection c;
       c.start = now_ms();
       conns_[cfd] = c;
+      c.serverIdx = i;
+      std::cout << "serverIdx: " << i << std::endl;
       reactor_.add(cfd, EPOLLIN);
       Logger::debug("Connection from fd %d%s accepted", cfd, GREEN);
     }

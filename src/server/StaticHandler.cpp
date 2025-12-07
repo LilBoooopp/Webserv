@@ -1,6 +1,6 @@
 #include "StaticHandler.hpp"
 #include "../config/Config.hpp"
-#include "../server/Server.hpp"
+#include "../utils/Colors.hpp"
 #include "../utils/Logger.hpp"
 #include "../utils/Mime.hpp"
 #include "../utils/Path.hpp"
@@ -55,13 +55,15 @@ static bool read_file_small(const std::string &path, std::string &out) {
   return (got_any);
 }
 
-void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
+void StaticHandler::handle(Connection &c, const HttpRequest &req,
+                           HttpResponse &res) {
   // We assume: method validated (ONLY GET for now)
   const std::vector<ServerConf> cfg = *cfg_;
   const bool is_head = (req.method == "HEAD");
 
   // Map the request target to a safe filesystem path under cfg.root
-  std::string path = safe_join_under_root(cfg[0].locations[0].root, req.target);
+  std::string path =
+      safe_join_under_root(cfg[c.serverIdx].locations[0].root, req.target);
 
   // Check mime type
   res.setContentType(mime_from_path(path));
@@ -77,7 +79,7 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
       if (path.size() == 0 || path[path.size() - 1] != '/')
         path += '/';
 
-      std::string idx = path + cfg[0].locations[0].index_files[0];
+      std::string idx = path + cfg[c.serverIdx].locations[0].index_files[0];
 
       if (::stat(idx.c_str(), &st) == 0 && is_reg(st)) {
         // For HEAD, we don't read the file, we just set headers

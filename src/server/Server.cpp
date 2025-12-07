@@ -70,9 +70,8 @@ void Server::acceptReady(void) {
       set_nonblock(cfd);
       Connection c;
       c.start = now_ms();
-      conns_[cfd] = c;
       c.serverIdx = i;
-      std::cout << "serverIdx: " << i << std::endl;
+      conns_[cfd] = c;
       reactor_.add(cfd, EPOLLIN);
       Logger::debug("Connection from fd %d%s accepted", cfd, GREEN);
     }
@@ -306,7 +305,7 @@ void Server::prepareResponse(int fd, Connection &c) {
     }
     StaticHandler StaticHandler(&cfg_);
     Router router(&StaticHandler);
-    router.route(req.target)->handle(req, c.res);
+    router.route(req.target)->handle(c, req, c.res);
 
     // Detect large static file streaming case for GET
     if (req.method == "GET") {

@@ -13,7 +13,6 @@ static int set_nonblock(int fd) {
 
 Listener::Listener() : fd_(-1) {
   fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
-  std::cout << "Listener constructor called fd: " << fd_ << std::endl;
   int on = 1;
   ::setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 }
@@ -49,7 +48,6 @@ bool Listener::bindAndListen(uint32_t ip_be, uint16_t port_be, int backlog) {
   sa.sin_family = AF_INET;
   sa.sin_addr.s_addr = ip_be;
   sa.sin_port = port_be;
-  std::cout << "fd: " << fd_ << std::endl;
   if (::bind(fd_, (sockaddr *)&sa, sizeof(sa)) < 0)
     return (false);
   if (::listen(fd_, backlog) < 0)

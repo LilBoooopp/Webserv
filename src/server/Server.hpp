@@ -4,7 +4,6 @@
 #include "../config/Config.hpp"
 #include "../core/EpollReactor.hpp"
 #include "../http/Connection.hpp"
-#include "../http/ResponseWriter.hpp"
 #include "Listener.hpp"
 
 #include <cstdio>

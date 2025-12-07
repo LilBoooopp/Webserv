@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <fcntl.h>
 #include <iostream>
-#include <list>
 #include <sstream>
 #include <sys/types.h>
 #include <unistd.h>

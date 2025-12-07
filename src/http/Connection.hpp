@@ -1,10 +1,10 @@
 #pragma once
-#include "../http/HttpRequest.hpp"
 #include "../utils/Chrono.hpp"
 #include "../utils/Logger.hpp"
 #include "ChunkedDecoder.hpp"
+#include "HttpRequest.hpp"
+#include "HttpResponse.hpp"
 #include <ctime>
-#include <map>
 #include <string>
 #include <sys/types.h>
 
@@ -13,8 +13,8 @@ enum ConnState { READING_HEADERS, READING_BODY, READY_TO_RESPOND, WRITING_RESPON
 class Connection {
     public:
 	std::string in;	  // head + maybe more
-	std::string out;  // response bytes to send
 	std::string body; // request body as we accumulate it
+	std::string out;  // response bytes to send
 	std::string id;	  // session id stored in browser after /login, used to id requests
 	std::string user;
 	std::string password;
@@ -31,7 +31,9 @@ class Connection {
 
 	size_t start;
 	HttpRequest req;
-	bool has_req;
+
+	HttpResponse res;
+	int serverIdx; // index for different server confs
 
 	ChunkedDecoder decoder;
 
@@ -41,13 +43,6 @@ class Connection {
 	bool streaming_file;  // true if we still need to stream body from file
 	time_t last_active;   // for idle timeout
 
-	void printStatus(const std::string &label) {
-		Logger::simple("%s - in: %s out: %s last: %s state: %d id: %s", label.c_str(),
-			       in.c_str(), out.c_str(), formatTime(last_active).c_str(), (int)state,
-			       id.c_str());
-	}
-	Connection()
-	    : headers_done(false), responded(false), peer_closed(false), close_after(false),
-	      state(READING_HEADERS), want_body(0), is_chunked(false), has_req(false), file_fd(-1),
-	      file_remaining(0), streaming_file(false) {}
+	Connection(void);
+	void printStatus(const std::string &label);
 };

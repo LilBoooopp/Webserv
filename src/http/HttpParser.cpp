@@ -71,32 +71,33 @@ static bool	parse_headers_block(const std::string& block, HttpRequest& req) {
 }
 
 // public API
-bool	HttpParser::parse(const std::string& buf, HttpRequest& req, size_t& endpos) {
+bool	HttpParser::parse(Connection& c, size_t& endpos) {
 	// Find end of head (CRLF CRLF)
-	size_t	sep = buf.find("\r\n\r\n");
+	size_t	sep = c.in.find("\r\n\r\n");
 	if (sep == std::string::npos)
 		return (false);
 
 	// First line
-	size_t	eol = buf.find("\r\n");
+	size_t	eol = c.in.find("\r\n");
 	if (eol == std::string::npos)
 		return (false);
 
-	std::string	start_line = buf.substr(0, eol);
+	std::string	start_line = c.in.substr(0, eol);
 	rstrip_cr(start_line);
-	if (!parse_start_line(start_line, req))
+	if (!parse_start_line(start_line, c.req))
 		return (false);
 
 	// Headers (no trailing blank line here)
 	std::string	headers;
 	if (eol + 2 < sep)
-		headers = buf.substr(eol + 2, sep - (eol + 2));
+		headers = c.in.substr(eol + 2, sep - (eol + 2));
 	else
 		headers.clear();
 
-	if (!parse_headers_block(headers, req))
+	if (!parse_headers_block(headers, c.req))
 		return (false);
 	
 	endpos = sep + 4;
 	return (true);
 }
+

@@ -3,25 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="/css/style.css" />
   </head>
 
   <body>
-    <script src="../js/buttons.js"></script>
+    <body style="margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh">
+      <div style="color: black">Not Found</div>
+    </body>
+
+    <script src="/js/buttons.js"></script>
+    <script src="/js/div.js"></script>
 
     <script>
-      var dv = [];
-      function init() {
-        const c = [window.innerWidth / 2, window.innerHeight / 2];
-        dv.push(addDiv("404 NOT FOUND", [c[0], c[1] - 150], 3));
-        addHomeButton();
-      }
-      init();
-      window.addEventListener("resize", () => {
-        for (const d of dv) d.remove();
-        dv = [];
-        init();
-      });
+      const c = [window.innerWidth / 2, window.innerHeight / 2];
+      addDiv("404", [c[0], c[1] - 150], 5);
+      addHomeButton();
     </script>
   </body>
 </html>

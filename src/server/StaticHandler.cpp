@@ -99,7 +99,6 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 					return	;
 				}
 
-				// Decide between small read vs streaming
 				if (st.st_size <= STREAM_THRESHOLD)
 				{
 					std::string	body;
@@ -107,7 +106,6 @@ void StaticHandler::handle(const HttpRequest &req, HttpResponse &res) {
 					{
 						res.setStatus(200, "OK");
 						res.setBody(body);
-						// For GET, HttpResponse::serialize() can establish Content-Length from body.size()
 						return ;
 					}
 				}

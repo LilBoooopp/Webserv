@@ -7,15 +7,16 @@
   </head>
 
   <body>
+    <body style="margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh">
+      <div style="color: black">Service Unavailable</div>
+    </body>
+
     <script src="/js/buttons.js"></script>
     <script src="/js/div.js"></script>
 
-    <body style="margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh">
-      <div style="color: black">Internal Server Error</div>
-    </body>
     <script>
       const c = [window.innerWidth / 2, window.innerHeight / 2];
-      addDiv("500", [c[0], c[1] - 150], 5);
+      addDiv("503", [c[0], c[1] - 150], 5);
       addHomeButton();
     </script>
   </body>

@@ -401,8 +401,6 @@ void Server::prepareResponse(int fd, Connection &c, HttpResponse &res) {
 		}
 	} else
 		res.setStatusFromCode(501);
-
-	// res.ensureDefaultBodyIfEmpty();
 	c.out = res.serialize(head_only);
 	enableWrite(fd);
 }

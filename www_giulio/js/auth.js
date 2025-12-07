@@ -22,7 +22,6 @@ function handleAuth(e) {
       const msg = await res.text();
 
       if (res.ok && msg.trim() === "OK") {
-        announce(action === "login" ? "Welcome back!" : "Account created!");
         if (action === "login") window.location.href = "/cgi/auth/securePage/account.php";
       } else {
         console.warn("Auth failed:", res.status, msg);

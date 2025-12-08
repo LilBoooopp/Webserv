@@ -128,7 +128,7 @@ IHandler *Router::route(Connection &c, const HttpRequest &req,
       return (new RedirectHandler(loc.redirect_status, loc.redirect_target));
     }
 
-    Logger::debug("Router: Using StaticHandler with location %s.",
+    Logger::debug("Router: Using StaticHandler with location %s",
                   loc.path.c_str());
     return (new StaticHandler(server_conf_, matched_loc));
   }

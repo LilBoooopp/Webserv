@@ -3,6 +3,8 @@
 #include "../http/HttpParser.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
+#include "../utils/Chrono.hpp"
+#include "../utils/Colors.hpp"
 #include "../utils/Logger.hpp"
 #include "IHandler.hpp"
 #include "Listener.hpp"

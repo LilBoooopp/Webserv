@@ -7,7 +7,6 @@
 #include "IHandler.hpp"
 #include "Listener.hpp"
 #include "Router.hpp"
-#include "StaticHandler.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <fcntl.h>

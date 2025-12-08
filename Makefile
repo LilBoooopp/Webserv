@@ -43,6 +43,7 @@ HTTP = $(addprefix $(HTTP_DIR), $(HTTP_SRC))
 SERVER_DIR = src/server/
 SERVER_SRC =  \
 	Listener.cpp \
+	Router.cpp \
 	Server.cpp \
 	StaticHandler.cpp
 SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))

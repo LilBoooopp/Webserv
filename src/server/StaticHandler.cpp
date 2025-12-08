@@ -58,12 +58,31 @@ static bool read_file_small(const std::string &path, std::string &out) {
 void StaticHandler::handle(Connection &c, const HttpRequest &req,
                            HttpResponse &res) {
   // We assume: method validated (ONLY GET for now)
-  const std::vector<ServerConf> cfg = *cfg_;
   const bool is_head = (req.method == "HEAD");
+  (void)c;
+
+  std::string request_path = req.target;
+  std::string root_dir = server_conf_.root;
+  const std::vector<std::string> *index_files =
+      &server_conf_.files; // WARNING: index list??
+
+  if (location_conf_) {
+    size_t loc_path_len = location_conf_->path.size();
+    if (loc_path_len > 0) {
+      request_path.erase(0, loc_path_len);
+    }
+    if (!request_path.empty() && request_path[0] == '/')
+      request_path.erase(0, 1);
+
+    if (location_conf_->has_root)
+      root_dir = location_conf_->root;
+
+    if (location_conf_->has_index)
+      index_files = &location_conf_->index_files;
+  }
 
   // Map the request target to a safe filesystem path under cfg.root
-  std::string path =
-      safe_join_under_root(cfg[c.serverIdx].locations[0].root, req.target);
+  std::string path = safe_join_under_root(root_dir, request_path);
 
   // Check mime type
   res.setContentType(mime_from_path(path));
@@ -79,39 +98,36 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
       if (path.size() == 0 || path[path.size() - 1] != '/')
         path += '/';
 
-      std::string idx = path + cfg[c.serverIdx].locations[0].index_files[0];
+      if (!index_files->empty()) {
+        std::string idx = path + index_files->at(0);
 
-      if (::stat(idx.c_str(), &st) == 0 && is_reg(st)) {
-        // For HEAD, we don't read the file, we just set headers
-        if (is_head) {
-          res.setStatus(200, "OK");
-          // Use stat's size for Content_Length
-          res.setHeader("Content-Length", size_to_str(st.st_size));
-          return;
-        }
-
-        // Decide between small read vs streaming
-        if (st.st_size <= STREAM_THRESHOLD) {
-          std::string body;
-          if (read_file_small(idx, body)) {
+        if (::stat(idx.c_str(), &st) == 0 && is_reg(st)) {
+          if (is_head) {
             res.setStatus(200, "OK");
-            res.setBody(body);
-            // For GET, HttpResponse::serialize() can establish Content-Length
-            // from body.size()
+            res.setHeader("Content_Length", size_to_str(st.st_size));
             return;
           }
-        } else {
-          // Large file: mark for streaming
-          res.setStatus(200, "OK");
-          res.setHeader("Content-Length", size_to_str(st.st_size));
-          // Internal hint for Server: path to stream
-          res.setHeader("X-Stream-File", idx);
-          return;
+
+          if (st.st_size <= STREAM_THRESHOLD) {
+            std::string body;
+            if (read_file_small(idx, body)) {
+              res.setStatus(200, "OK");
+              res.setBody(body);
+              return;
+            }
+          } else {
+            res.setStatus(200, "OK");
+            res.setHeader("Content_Length", size_to_str(st.st_size));
+            res.setHeader("X-Stream-File", idx);
+            return;
+          }
         }
       }
+
       res.setStatusFromCode(404);
       res.ensureDefaultBodyIfEmpty();
       return;
+
     }
     // Is a Regular File
     else if (is_reg(st)) {

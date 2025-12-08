@@ -4,6 +4,7 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../utils/Logger.hpp"
+#include "IHandler.hpp"
 #include "Listener.hpp"
 #include "Router.hpp"
 #include "StaticHandler.hpp"
@@ -301,9 +302,16 @@ void Server::prepareResponse(int fd, Connection &c) {
       cgiHandler_.runCgi(req, c.res, c, fd);
       return;
     }
-    StaticHandler StaticHandler(&cfg_);
-    Router router(&StaticHandler);
-    router.route(req.target)->handle(c, req, c.res);
+
+    const ServerConf &serverConf = cfg_[c.serverIdx];
+
+    Router router(serverConf);
+
+    IHandler *handler = router.route(c, req, c.res);
+
+    handler->handle(c, req, c.res);
+
+    delete handler;
 
     // Detect large static file streaming case for GET
     if (req.method == "GET") {

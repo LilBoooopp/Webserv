@@ -84,9 +84,6 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
   // Map the request target to a safe filesystem path under cfg.root
   std::string path = safe_join_under_root(root_dir, request_path);
 
-  // Check mime type
-  res.setContentType(mime_from_path(path));
-
   Logger::info("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(),
                TS, GREY, path.c_str());
 
@@ -102,6 +99,7 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
         std::string idx = path + index_files->at(0);
 
         if (::stat(idx.c_str(), &st) == 0 && is_reg(st)) {
+          res.setContentType(mime_from_path(idx));
           if (is_head) {
             res.setStatus(200, "OK");
             res.setHeader("Content_Length", size_to_str(st.st_size));
@@ -131,6 +129,7 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
     }
     // Is a Regular File
     else if (is_reg(st)) {
+      res.setContentType(mime_from_path(path));
       // For HEAD, we don't read the file, we just set headers
       if (is_head) {
         res.setStatus(200, "OK");

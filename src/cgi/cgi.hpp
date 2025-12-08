@@ -8,7 +8,6 @@
 #include "../utils/Colors.hpp"
 #include "../utils/Logger.hpp"
 #include "../utils/Path.hpp"
-#include "../utils/Path.hpp"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -46,14 +45,15 @@ class cgiHandler {
 	const std::vector<ServerConf> *cfg_;
 
     public:
-	void runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd);
+	bool runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd);
 	bool handleResponses();
 	void setConfig(const std::vector<ServerConf> &cfg);
 };
 
-void parseCgiRequest(const std::string &full, std::string &dir, std::string &file,
-		     std::string &interpreter, std::string &queryString);
-bool is_cgi(const std::string &req_target);
+void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,
+		     std::string &queryString, const ServerConf &conf);
+bool is_cgi(const std::string &req_target, const ServerConf &cfg);
 
 void placeFileInDir(const std::string &name, const std::string &fileContent,
 		    const std::string &dir);
+std::string getInterpreter(const std::string &path, const ServerConf &conf);

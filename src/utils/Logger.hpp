@@ -1,31 +1,49 @@
 #pragma once
+#include "iostream"
 #include <cstdarg>
 #include <cstdio>
 #include <string>
 
-enum LogLevel {
-	LOG_NONE = 0,
-	LOG_ERROR = 1,
-	LOG_WARN = 2,
-	LOG_INFO = 3,
-	LOG_DEBUG = 4,
-	LOG_AUTH = 5,
-	LOG_ALL = 6
+enum LogChannel {
+	LOG_NONE,
+	LOG_ERROR,
+	LOG_WARN,
+	LOG_INFO,
+	LOG_DEBUG,
+	LOG_SERVER,
+	LOG_CONNECTION,
+	LOG_CGI,
+	LOG_REQUEST,
+	LOG_RESPONSE,
+	LOG_HEADER,
+	LOG_ALL,
 };
-const int loggerLevelsCount = LOG_ALL + 1;
-const std::string LoggerLevels[loggerLevelsCount] = {"NONE",  "ERROR", "WARN", "INFO",
-						     "DEBUG", "AUTH",  "ALL"};
+
+const int loggerChannelsCount = LOG_ALL + 1;
+const std::string LoggerLevels[LOG_ALL + 1] = {
+    "NONE", "ERROR", "WARN", "INFO", "DEBUG", "SERVER", "CONNECTION", "CGI", "REQUEST", "RESPONSE", "HEADER", "ALL"};
 
 struct Logger {
-	static LogLevel level;
-	static LogLevel exclusive;
+	static bool channels[loggerChannelsCount];
 
-	static void print_valid_levels();
-	static void set_level(LogLevel lv) {
-		level = (lv <= LOG_NONE ? LOG_NONE : lv >= loggerLevelsCount ? LOG_ALL : lv);
+	static void printChannels();
+	static void setChannel(LogChannel lv) {
+		if (lv == LOG_ALL || lv == LOG_NONE) {
+			for (int i = 0; i < LOG_ALL; i++)
+				channels[i] = (lv == LOG_ALL);
+		} else if (lv >= LOG_NONE && lv < LOG_ALL)
+			channels[lv] = !channels[lv];
 	}
-	static void set_exclusiveLevel(LogLevel lv) {
-		exclusive = (lv <= LOG_NONE ? LOG_NONE : lv >= loggerLevelsCount ? LOG_ALL : lv);
+	static void unsetChannel(LogChannel lv) {
+		if (lv == LOG_ALL) {
+			for (int i = 0; i < LOG_ALL; i++)
+				channels[i] = false;
+		} else if (lv >= LOG_NONE && lv < LOG_ALL)
+			channels[lv] = false;
+	}
+	static void setUntilChannel(LogChannel lv) {
+		for (int i = 0; i < LOG_ALL; i++)
+			channels[i] = (i <= lv);
 	}
 
 	static void error(const char *fmt, ...);
@@ -34,7 +52,12 @@ struct Logger {
 	static void debug(const char *fmt, ...);
 	static void simple(const char *fmt, ...);
 	static void timer(const char *fmt, ...);
-	static void auth(const char *fmt, ...);
+	static void server(const char *fmt, ...);
+	static void connection(const char *fmt, ...);
+	static void cgi(const char *fmt, ...);
+	static void request(const char *fmt, ...);
+	static void response(const char *fmt, ...);
+	static void header(const char *fmt, ...);
 	static void action(const char *fmt, ...);
 };
 

@@ -4,6 +4,7 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../utils/Logger.hpp"
+#include "../utils/Path.hpp"
 #include "Listener.hpp"
 #include "Router.hpp"
 #include "StaticHandler.hpp"
@@ -17,6 +18,33 @@
 
 void Server::enableWrite(int fd) { reactor_.mod(fd, EPOLLIN | EPOLLOUT); }
 void Server::disableWrite(int fd) { reactor_.mod(fd, EPOLLIN); }
+
+void Server::redirectError(Connection &c) {
+	const std::map<int, std::string> &pages = cfg_[c.serverIdx].error_pages;
+	std::map<int, std::string>::const_iterator it = pages.find(c.res.getStatus());
+	if (it != pages.end()) {
+		const ServerConf &srv = cfg_[c.serverIdx];
+
+		std::string rel = it->second; // ex: "/errors/404.html"
+		std::string fullPath =
+		    safe_join_under_root(srv.root, rel); // genre "www/errors/404.html"
+
+		int fd = ::open(fullPath.c_str(), O_RDONLY);
+		if (fd >= 0) {
+			std::string body;
+			char buf[4096];
+			ssize_t r;
+			while ((r = ::read(fd, buf, sizeof(buf))) > 0)
+				body.append(buf, r);
+			::close(fd);
+			c.res.setBody(body);
+			c.res.setContentType("text/html");
+		} else {
+			Logger::response("error_page configured for %d but file '%s' not found",
+					 c.res.getStatus(), fullPath.c_str());
+		}
+	}
+}
 
 static int set_nonblock(int fd) {
 	int flags = fcntl(fd, F_GETFL, 0);
@@ -71,7 +99,7 @@ void Server::acceptReady(void) {
 			c.serverIdx = i;
 			conns_[cfd] = c;
 			reactor_.add(cfd, EPOLLIN);
-			Logger::debug("Connection from fd %d%s accepted", cfd, GREEN);
+			Logger::connection("fd %d%s accepted", cfd, GREEN);
 		}
 	}
 }
@@ -301,8 +329,14 @@ void Server::handleReadable(int fd) {
 				if (c.out.empty())
 					prepareResponse(fd, c);
 				std::string head = c.res.serialize(true);
-				Logger::info("%s responded to fd %d: \n%s%s\n", SERV_CLR, fd,
-					     c.res.getStatus() == 200 ? GREEN : RED, head.c_str());
+				Logger::response("%s responded to fd %d: \n%s%s\n", SERV_CLR, fd,
+						 c.res.getStatus() == 200 ? GREEN : RED,
+						 head.c_str());
+				for (std::map<std::string, std::string>::const_iterator it =
+					 c.req.headers.begin();
+				     it != c.req.headers.end(); it++) {
+					Logger::header("%s", it->second.c_str());
+				}
 			}
 
 			// Continue reading (if handled < MAX_HANDLE_BYTES) or exit the loop when
@@ -324,11 +358,11 @@ void Server::prepareResponse(int fd, Connection &c) {
 	c.res.setVersion(req.version);
 	bool head_only = (req.method == "HEAD");
 
-	if (req.method == "GET" || req.method == "HEAD") {
-		if (is_cgi(req.target)) {
-			cgiHandler_.runCgi(req, c.res, c, fd);
+	if (is_cgi(req.target, cfg_[c.serverIdx])) {
+		if (cgiHandler_.runCgi(req, c.res, c, fd))
 			return;
-		}
+	}
+	else if (req.method == "GET" || req.method == "HEAD") {
 		StaticHandler StaticHandler(&cfg_);
 		Router router(&StaticHandler);
 		router.route(req.target)->handle(c, req, c.res);
@@ -373,20 +407,21 @@ void Server::prepareResponse(int fd, Connection &c) {
 	} else if (req.method == "POST") // TEMP, only echo response
 	{
 		c.res.setContentType("text/plain");
-		Logger::info("%s received POST request of size %zu", SERV_CLR, c.body.size());
+		Logger::request("%s received POST request of size %zu", SERV_CLR, c.body.size());
 		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
 		if (it != c.req.headers.end()) {
 			c.res.setBody("OK");
 			c.res.setStatusFromCode(200);
 			placeFileInDir(it->second, c.body, cfg_[0].root + "ressources/uploads");
 		} else {
-			Logger::info("x-filename not present in the request headers, the file "
-				     "won't be uploaded");
+			Logger::request("x-filename not present in the request headers, the file "
+					"won't be uploaded");
 			c.res.setStatusFromCode(404);
 		}
 	} else
 		c.res.setStatusFromCode(501);
 
+	redirectError(c);
 	c.out = c.res.serialize(head_only);
 	enableWrite(fd);
 }
@@ -460,7 +495,7 @@ void Server::handleWritable(int fd) {
 		// No data left to send an no more file to stream
 		if (!c.responded)
 			c.responded = true;
-		Logger::debug("fd %d closed", fd);
+		Logger::connection("fd %d closed", fd);
 
 		reactor_.del(fd);
 		::close(fd);
@@ -499,21 +534,35 @@ bool Server::executeStdin() {
 		}
 	} else if (std::strncmp(buff, "log", 3) == 0) {
 		if (buff[3]) {
-			std::string level = buff + 4;
-			for (int i = 0; i < loggerLevelsCount; i++) {
-				if (level == LoggerLevels[i]) {
-					Logger::set_level(LOG_NONE);
-					Logger::set_exclusiveLevel((LogLevel)i);
-					break;
+			std::string str = buff + 4;
+			std::vector<std::string> arr;
+			split(str, ' ', arr);
+			for (size_t j = 0; j < arr.size(); j++) {
+				std::string level = arr[j];
+				size_t x = 0;
+				while (level[x] >= '0' && level[x] <= '9' && x < level.size()) {
+					Logger::setChannel((LogChannel)(level[x] - '0'));
+					x++;
 				}
-				if (toUpper(level) == LoggerLevels[i]) {
-					Logger::set_exclusiveLevel(LOG_NONE);
-					Logger::set_level((LogLevel)i);
-					break;
+				if (x)
+					continue;
+
+				std::string uLevel = toUpper(level);
+				for (int i = 0; i < LOG_ALL + 1; i++) {
+					if (!std::strncmp(level.c_str(), LoggerLevels[i].c_str(),
+							  3)) {
+						Logger::setUntilChannel((LogChannel)i);
+						break;
+					}
+					if (!std::strncmp(uLevel.c_str(), LoggerLevels[i].c_str(),
+							  3)) {
+						Logger::setChannel((LogChannel)i);
+						break;
+					}
 				}
 			}
 		}
-		Logger::print_valid_levels();
+		Logger::printChannels();
 	}
 	return false;
 }
@@ -557,11 +606,11 @@ void Server::run() {
 					handleWritable(fd);
 			}
 			if (logged)
-				Logger::timer("%s ready", SERV_CLR);
+				Logger::server("ready");
 			logged = false;
 		} else {
 			if (!logged)
-				Logger::timer("%s waiting...", SERV_CLR);
+				Logger::server("waiting...");
 			logged = true;
 		}
 

@@ -151,13 +151,11 @@ bool cgiHandler::handleResponses() {
 					res.setBody(err);
 				}
 				bool head_only = (conn->req.method == "HEAD");
-				std::string head = res.serialize(true);
 				std::string preview = data.out.substr(0, 300);
-				Logger::cgi("%s%s%s execution ended after %lums - raw output "
-					    "(first 300 bytes):\n'%s'",
-					    YELLOW, data.file.c_str(), TS,
-					    (unsigned long)(nowMs - data.conn->start),
-					    preview.c_str());
+				Logger::cgi("%s%s%s execution ended after %lums", YELLOW,
+					    data.file.c_str(), TS,
+					    (unsigned long)(nowMs - data.conn->start));
+				res.printResponse(data.fd);
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;
 			}

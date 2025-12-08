@@ -74,7 +74,7 @@ static bool execute(CgiExecutionData &data) {
 	data.pid = pid;
 	data.bytesRead = 0;
 	data.start = now_ms();
-	Logger::timer("cgi execution successfully started, added data to cgiResponses");
+	Logger::cgi("execution successfully started, added data to cgiResponses");
 	return true;
 }
 

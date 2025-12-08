@@ -133,10 +133,54 @@ function postBytes(size) {
     .then(({ r, t }) => {
       const responseText = t.trim();
       announce(`Server received package in ${Number((performance.now() - start) / 1000).toFixed(3)}s, response: ${responseText}`);
+    })
+    .catch((e) => {
+      console.warn("Upload error:", e);
+      announce("Upload failed: " + (e.message || "Network error"));
     });
 }
 
 function addHomeButton() {
   const c = [window.innerWidth / 2, window.innerHeight / 2];
   addButton("HOME", [c[0], window.innerHeight - 40], () => (window.location.href = "/"));
+}
+
+function addToggleButton(label, p, active, onClick) {
+  p[0] += 50;
+  const clrs = ["rgba(255, 0, 0, .4)", "rgba(0, 255, 4, 0.4)"];
+  const div = addButton(
+    "",
+    p,
+    () => {
+      div.active = !div.active;
+      div.style.backgroundColor = clrs[div.active === true ? 1 : 0];
+      onClick(div.active);
+    },
+    null,
+    clrs[active === true ? 1 : 0]
+  );
+  div.active = active;
+  let labelDiv = addDiv(label, [p[0] - 70, p[1]], 1, "grey");
+  document.body.appendChild(labelDiv);
+  document.body.appendChild(div);
+  return div;
+}
+
+function addDeleteAccountButton(p) {
+  addButton("Delete Account", [p[0], p[1]], () => {
+    fetch("/cgi/auth/delete.php", {
+      method: "POST",
+    })
+      .then(async (res) => {
+        const msg = await res.text();
+        if (res.ok && msg.trim() === "OK") {
+          window.location.href = "/login.html";
+        } else {
+          announce(msg || "account deletion failed");
+        }
+      })
+      .catch(() => {
+        announce("error while deleting account");
+      });
+  });
 }

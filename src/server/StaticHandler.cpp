@@ -66,15 +66,9 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &
 	// Check mime type
 	res.setContentType(mime_from_path(path));
 
-	Logger::request("%sMethod%s %s, %starget%s %s, %sversion%s %s", GREY, TS,
-			req.method.c_str(), GREY, TS, req.target.c_str(), GREY, TS,
-			req.version.c_str());
-	std::map<std::string, std::string>::const_iterator it;
-	for (it = req.headers.begin(); it != req.headers.end(); it++)
-		Logger::header("%s", it->second.c_str());
-	Logger::simple("");
+	logRequest(req);
 	Logger::request("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(), TS, GREY,
-		     path.c_str());
+			path.c_str());
 
 	struct stat st;
 	if (::stat(path.c_str(), &st) == 0) {

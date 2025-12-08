@@ -85,7 +85,7 @@ void Server::setConf(std::vector<ServerConf> config) {
 void Server::acceptReady(void) {
 	for (size_t i = 0; i < listener_.size(); i++) {
 		if (listener_[i].fd() < 0) {
-			Logger::debug("unvalid fd %d", listener_[i].fd());
+			Logger::connection("unvalid fd %d", listener_[i].fd());
 			return;
 		}
 		for (;;) {
@@ -286,8 +286,9 @@ void Server::handleReadable(int fd) {
 						}
 						if (st == ChunkedDecoder::DONE) {
 							// Final size check after full decoding
-							if (c.body.size() >
-							    cfg_[0].locations[0].max_size) {
+							if (c.body.size() > cfg_[c.serverIdx]
+										.locations[0]
+										.max_size) {
 								c.res.setStatusFromCode(413);
 								c.state = WRITING_RESPONSE;
 							} else
@@ -328,15 +329,7 @@ void Server::handleReadable(int fd) {
 			if (c.state == WRITING_RESPONSE) {
 				if (c.out.empty())
 					prepareResponse(fd, c);
-				std::string head = c.res.serialize(true);
-				Logger::response("%s responded to fd %d: \n%s%s\n", SERV_CLR, fd,
-						 c.res.getStatus() == 200 ? GREEN : RED,
-						 head.c_str());
-				for (std::map<std::string, std::string>::const_iterator it =
-					 c.req.headers.begin();
-				     it != c.req.headers.end(); it++) {
-					Logger::header("%s", it->second.c_str());
-				}
+				c.res.printResponse(fd);
 			}
 
 			// Continue reading (if handled < MAX_HANDLE_BYTES) or exit the loop when
@@ -361,8 +354,7 @@ void Server::prepareResponse(int fd, Connection &c) {
 	if (is_cgi(req.target, cfg_[c.serverIdx])) {
 		if (cgiHandler_.runCgi(req, c.res, c, fd))
 			return;
-	}
-	else if (req.method == "GET" || req.method == "HEAD") {
+	} else if (req.method == "GET" || req.method == "HEAD") {
 		StaticHandler StaticHandler(&cfg_);
 		Router router(&StaticHandler);
 		router.route(req.target)->handle(c, req, c.res);
@@ -412,7 +404,8 @@ void Server::prepareResponse(int fd, Connection &c) {
 		if (it != c.req.headers.end()) {
 			c.res.setBody("OK");
 			c.res.setStatusFromCode(200);
-			placeFileInDir(it->second, c.body, cfg_[0].root + "ressources/uploads");
+			placeFileInDir(it->second, c.body,
+				       cfg_[c.serverIdx].root + "ressources/uploads");
 		} else {
 			Logger::request("x-filename not present in the request headers, the file "
 					"won't be uploaded");
@@ -551,7 +544,8 @@ bool Server::executeStdin() {
 				for (int i = 0; i < LOG_ALL + 1; i++) {
 					if (!std::strncmp(level.c_str(), LoggerLevels[i].c_str(),
 							  3)) {
-						Logger::setUntilChannel((LogChannel)i);
+						Logger::setChannel(LOG_NONE);
+						Logger::setChannel((LogChannel)i);
 						break;
 					}
 					if (!std::strncmp(uLevel.c_str(), LoggerLevels[i].c_str(),
@@ -609,8 +603,10 @@ void Server::run() {
 				Logger::server("ready");
 			logged = false;
 		} else {
-			if (!logged)
+			if (!logged) {
+				std::cout << std::endl;
 				Logger::server("waiting...");
+			}
 			logged = true;
 		}
 

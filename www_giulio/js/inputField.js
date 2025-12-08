@@ -89,3 +89,23 @@ function addScrollerMenu(label, p, options, onClick) {
     }, 100);
   });
 }
+
+function addInputField(label, p, clr, bgrClr) {
+  let div = document.createElement("input");
+  div.placeholder = label;
+
+  div.style.position = "absolute";
+
+  div.style.left = (p[0] / window.innerWidth) * 100 + "%";
+  div.style.top = (p[1] / window.innerHeight) * 100 + "%";
+  div.style.transform = "translate(-50%, -50%) scale(" + 1 + ")";
+
+  div.style.transformOrigin = "center center";
+
+  div.style.userSelect = "none";
+  if (clr) div.style.color = clr;
+  if (bgrClr) div.style.backgroundColor = bgrClr;
+
+  document.body.appendChild(div);
+  return div;
+}

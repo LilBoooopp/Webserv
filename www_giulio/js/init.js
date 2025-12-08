@@ -142,6 +142,8 @@ function initAudioPlayer() {
 
   const button = addButton("Upload", [p[0], p[1] + 120], () => openFileDialog(uploadFile), "black", "rgba(255, 255, 255, 0.24)");
   button.style.scale = 0.8;
+  button.addEventListener("mouseenter", () => (button.style.scale = 1));
+  button.addEventListener("mouseleave", () => (button.style.scale = 0.8));
 }
 
 function init() {
@@ -170,6 +172,7 @@ function init() {
 
   addButton("SPAM", [reqX, c[1] + 25], loopRequest);
   addButton("not found", [reqX, c[1] + 25 + rowSpacing], () => (window.location.href = "/notfound"));
+  addButton("bad url", [reqX, c[1] + 25 + rowSpacing * 2], () => (window.location.href = "awfin/qwq1||//#"));
 
   const cgPaths = ["print.cgi", "printArg.py", "infinite.py", "hugeResponse.py"];
   for (let i = 0; i < cgPaths.length; i++) {

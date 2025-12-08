@@ -6,6 +6,7 @@ function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true) {
 
   div.style.left = (pos[0] / window.innerWidth) * 100 + "%";
   div.style.top = (pos[1] / window.innerHeight) * 100 + "%";
+  div.style.whiteSpace = "pre";
 
   if (centered) {
     div.style.transform = "translate(-50%, -50%) scale(" + size + ")";

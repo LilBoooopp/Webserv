@@ -20,7 +20,23 @@ try {
 	$db = new PDO("sqlite:auth.db");
 	$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-	$stmt = $db->prepare("SELECT password FROM users WHERE username = ?");
+	// Ensure columns exist for profile and darkmode
+	$alterStatements = array(
+	    "ALTER TABLE users ADD COLUMN name TEXT",
+	    "ALTER TABLE users ADD COLUMN tel TEXT",
+	    "ALTER TABLE users ADD COLUMN email TEXT",
+	    "ALTER TABLE users ADD COLUMN secret TEXT",
+	    "ALTER TABLE users ADD COLUMN darkmode TEXT DEFAULT '0'"
+	);
+	foreach ($alterStatements as $sql) {
+	    try {
+	        $db->exec($sql);
+	    } catch (PDOException $e) {
+	        // Ignore if column already exists
+	    }
+	}
+
+	$stmt = $db->prepare("SELECT password, name, tel, email, secret, darkmode FROM users WHERE username = ?");
 	$stmt->execute([$user]);
 	$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -40,6 +56,11 @@ try {
 	$_SESSION["user_id"] = $user;
 	$_SESSION["username"] = $user;
 	$_SESSION["logged_in"] = true;
+	$_SESSION["name"] = $row['name'] ?? '';
+	$_SESSION["tel"] = $row['tel'] ?? '';
+	$_SESSION["email"] = $row['email'] ?? '';
+	$_SESSION["secret"] = $row['secret'] ?? '';
+	$_SESSION["darkmode"] = $row['darkmode'] ?? '0';
 	echo "OK\n";
 
 } catch (PDOException $e) {

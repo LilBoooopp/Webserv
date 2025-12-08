@@ -7,21 +7,21 @@
 enum LogChannel {
 	LOG_NONE,
 	LOG_ERROR,
-	LOG_WARN,
 	LOG_INFO,
-	LOG_DEBUG,
 	LOG_SERVER,
 	LOG_CONNECTION,
 	LOG_CGI,
 	LOG_REQUEST,
 	LOG_RESPONSE,
 	LOG_HEADER,
+	LOG_BODY,
 	LOG_ALL,
 };
 
 const int loggerChannelsCount = LOG_ALL + 1;
-const std::string LoggerLevels[LOG_ALL + 1] = {
-    "NONE", "ERROR", "WARN", "INFO", "DEBUG", "SERVER", "CONNECTION", "CGI", "REQUEST", "RESPONSE", "HEADER", "ALL"};
+const std::string LoggerLevels[LOG_ALL + 1] = {"NONE",	     "ERROR", "INFO",	 "SERVER",
+					       "CONNECTION", "CGI",   "REQUEST", "RESPONSE",
+					       "HEADER",     "BODY",  "ALL"};
 
 struct Logger {
 	static bool channels[loggerChannelsCount];
@@ -47,9 +47,7 @@ struct Logger {
 	}
 
 	static void error(const char *fmt, ...);
-	static void warn(const char *fmt, ...);
 	static void info(const char *fmt, ...);
-	static void debug(const char *fmt, ...);
 	static void simple(const char *fmt, ...);
 	static void timer(const char *fmt, ...);
 	static void server(const char *fmt, ...);

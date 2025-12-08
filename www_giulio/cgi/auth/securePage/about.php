@@ -6,6 +6,11 @@ if (empty($_SESSION["user_id"])) {
 	exit;
 }
 $user = $_SESSION["username"] ?? null;
+$darkmode = $_SESSION["darkmode"] ?? null;
+$name = $_SESSION["name"] ?? null;
+$tel = $_SESSION["tel"] ?? null;
+$email = $_SESSION["email"] ?? null;
+$secret = $_SESSION["secret"] ?? null;
 
 ?>
 <!DOCTYPE html>
@@ -26,14 +31,62 @@ $user = $_SESSION["username"] ?? null;
 
     <script>
 		window.CURRENT_USER = <?php echo json_encode($user); ?>;
+		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
 		window.PAGE_NAME = "about";
+		var data = {
+			"name": <?php echo json_encode($name); ?>,
+			"tel": <?php echo json_encode($tel); ?>,
+			"email": <?php echo json_encode($email); ?>,
+			"secret": <?php echo json_encode($secret); ?>,
+		}
 
-      function init() {
-        const c = [window.innerWidth / 2, window.innerHeight / 2];
-        addDiv(window.PAGE_NAME, [c[0], c[1] - 150], 3);
+		applyBackground();
+
+		const c = [window.innerWidth / 2, window.innerHeight / 2];
+		addDiv(window.PAGE_NAME.toUpperCase(), [c[0], c[1] - 150], 3);
+
+		const formFields = {};
+		const formLabels = ["name", "email", "secret", "tel"];
+		const w = 25;
+
+		for (let i = 0; i < formLabels.length; i++) {
+			const label = formLabels[i];
+			const input = addInputField(label, [c[0], c[1] + w * i]);
+			const value = data[label];
+				if (value != null && value !== "")
+				input.value = value;
+			formFields[label] = input;
+		}
+
+		addButton("Send", [c[0], c[1] + w * (formLabels.length + 1)], () => {
+		const data = new URLSearchParams();
+		const headerData = {};
+		for (const label of formLabels) {
+			const input = formFields[label];
+			data.append(label, input.value);
+			headerData[label] = input.value;
+			console.log(label, "=>", input.value);
+		}
+		fetch("/cgi/auth/setAbout.php", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+				"X-Name": headerData.name ?? "",
+				"X-Tel": headerData.tel ?? "",
+				"X-Email": headerData.email ?? "",
+				"X-Secret": headerData.secret ?? "",
+			},
+			body: data.toString(),
+		})
+			.then((res) => res.text().then((t) => ({ res, t })))
+			.then(({ res, t }) => {
+			if (res.ok && t.trim() === "OK") announce("Saved");
+				else announce(t || "Error saving");
+			})
+			.catch(() => announce("Can't save data"));
+		});
+
 		addScrollerProfileMenu();
-      }
-      init();
     </script>
   </body>
 </html>

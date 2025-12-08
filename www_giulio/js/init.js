@@ -166,10 +166,10 @@ function init() {
   const cgiX = colX[2];
   const postX = colX[3];
 
-  cgiButton("LOGIN", "cgi/printArg.py", [navX, c[1] + 25], "/main/" + "login.html");
+  cgiButton("LOGIN", "cgi/printArg.py", [navX, c[1] + 25], "login.html");
 
   addButton("SPAM", [reqX, c[1] + 25], loopRequest);
-  cgiButton("not found", "notFound", [reqX, c[1] + 25 + rowSpacing]);
+  addButton("not found", [reqX, c[1] + 25 + rowSpacing], () => (window.location.href = "/notfound"));
 
   const cgPaths = ["print.cgi", "printArg.py", "infinite.py", "hugeResponse.py"];
   for (let i = 0; i < cgPaths.length; i++) {

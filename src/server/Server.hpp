@@ -19,24 +19,25 @@
 #define MAX_WRITE 1024 * 16
 
 class Server {
-  EpollReactor reactor_;
-  std::vector<Listener> listener_;
-  std::map<int, Connection> conns_;
-  std::vector<char> inbuf_;
-  std::vector<ServerConf> cfg_;
-  cgiHandler cgiHandler_;
+	EpollReactor reactor_;
+	std::vector<Listener> listener_;
+	std::map<int, Connection> conns_;
+	std::vector<char> inbuf_;
+	std::vector<ServerConf> cfg_;
+	cgiHandler cgiHandler_;
 
-  void acceptReady();
-  void handleReadable(int fd);
-  void handleWritable(int fd);
-  void enableWrite(int fd);
-  void disableWrite(int fd);
-  void prepareResponse(int fd, Connection &c);
+	void acceptReady();
+	void handleReadable(int fd);
+	void handleWritable(int fd);
+	void enableWrite(int fd);
+	void disableWrite(int fd);
+	void prepareResponse(int fd, Connection &c);
+	void redirectError(Connection &c);
 
-public:
-  Server() : inbuf_(8192) {}
-  bool start(std::vector<ServerConf> &config);
-  void setConf(std::vector<ServerConf> config);
-  void run();
-  bool executeStdin();
+    public:
+	Server() : inbuf_(8192) {}
+	bool start(std::vector<ServerConf> &config);
+	void setConf(std::vector<ServerConf> config);
+	void run();
+	bool executeStdin();
 };

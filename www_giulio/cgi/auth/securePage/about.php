@@ -2,7 +2,7 @@
 session_start();
 
 if (empty($_SESSION["user_id"])) {
-	header("Location: /main/login.html");
+	header("Location: /login.html");
 	exit;
 }
 $user = $_SESSION["username"] ?? null;
@@ -22,18 +22,16 @@ $user = $_SESSION["username"] ?? null;
     <script src="/js/div.js"></script>
     <script src="/js/buttons.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/inputField.js"></script>
+
     <script>
 		window.CURRENT_USER = <?php echo json_encode($user); ?>;
+		window.PAGE_NAME = "about";
 
       function init() {
         const c = [window.innerWidth / 2, window.innerHeight / 2];
-		addDiv(window.CURRENT_USER, [window.innerWidth - 60, 40], 1);
-        addDiv("ABOUT", [c[0], c[1] - 150], 3);
-		const names = ["somePage", "account"];
-        for (let i = 0; i < names.length; i++) {
-          addRedirectButton(names[i].toUpperCase(), "/cgi/auth/securePage/" + names[i] + ".php", [c[0], c[1] - 50 + 50 * i]);
-        }
-        addLogoutButton();
+        addDiv(window.PAGE_NAME, [c[0], c[1] - 150], 3);
+		addScrollerProfileMenu();
       }
       init();
     </script>

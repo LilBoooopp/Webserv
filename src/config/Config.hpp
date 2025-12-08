@@ -86,6 +86,10 @@ struct ServerConf
 {
 	std::vector<HostPort>	hosts;
 	std::vector<std::string>	names;
+	bool	has_py;
+	std::string	py_path;
+	bool	has_php;
+	std::string	php_path;
 
 	std::string	root;
 	std::vector<std::string>	files;
@@ -122,8 +126,8 @@ class Config
 		void	parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line);
 
 		// Config_Debug
-		void	debug_print_server(const ServerConf &server);
-		void	debug_print_location(const LocationConf &location);
+		void	debug_print_server(const ServerConf &server, const char *clr);
+		void	debug_print_location(const LocationConf &location, const char *clr);
 
 		// Config_Helpers
 		std::string	remove_coms(std::string &line);

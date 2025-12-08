@@ -1,9 +1,20 @@
 <?php
 
 $user = $_SERVER['HTTP_USERNAME'] ?? null;
-if (!$user) {echo "USERNAME MISSING\n"; exit;}
+if (!$user) {
+    header('Content-Type: text/plain');
+    http_response_code(400);
+    echo "USERNAME MISSING\n";
+    exit;
+}
+
 $pass = $_SERVER['HTTP_PASSWORD'] ?? null;
-if (!$pass) {echo "PASSWORD MISSING\n"; exit;}
+if (!$pass) {
+    header('Content-Type: text/plain');
+    http_response_code(400);
+    echo "PASSWORD MISSING\n";
+    exit;
+}
 
 $hash = password_hash($pass, PASSWORD_DEFAULT);
 
@@ -22,8 +33,12 @@ try {
 	echo "OK\n";
 } catch (PDOException $e) {
 	if ($e->getCode() === "23000") {
+		http_response_code(409);
+    	header('Content-Type: text/plain');
 		echo "USERNAME_TAKEN\n";
 	} else {
+		http_response_code(401);
+   		header('Content-Type: text/plain');
 		echo "ERROR\n";
 	}
 }

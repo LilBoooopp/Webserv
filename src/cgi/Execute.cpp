@@ -78,26 +78,30 @@ static bool execute(CgiExecutionData &data) {
 	return true;
 }
 
-void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd) {
-	if (!cfg_) {
-		Logger::error("cgiHandler used without config!");
-		return;
-	}
-	std::string parseRequest = safe_join_under_root((*cfg_)[0].root, req.target);
-	Logger::info("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(), TS, GREY,
-		     parseRequest.c_str());
+bool cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd) {
+	const ServerConf &cfg = (*cfg_)[c.serverIdx];
 
 	std::string path, file, interpreter, queryString;
-	parseCgiRequest(parseRequest, path, file, interpreter, queryString);
+	interpreter = getInterpreter(req.target, cfg);
+	if (interpreter.empty()) {
+		Logger::cgi("No Interpreter found for cgi request's target \'%s\'",
+			    req.target.c_str());
+		res.setStatus(500, "No Interpreter");
+		res.setBody("no interpreter");
+		res.setContentType("text/plain");
+		return false;
+	}
+	parseCgiRequest(req.target, path, file, queryString, cfg);
 	struct stat st;
 	std::string full = path + file;
 	if (::stat(full.c_str(), &st) != 0) {
+		Logger::cgi("file not found: \'%s\' target: \'%s', returning 404", full.c_str(),
+			    req.target.c_str());
 		res.setStatus(404, "Not Found");
 		res.setBody("not found");
 		res.setContentType("text/plain");
-		Logger::debug("cgi file not found: \'%s\' target: \'%s', returning 404",
-			      full.c_str(), req.target.c_str());
-		return;
+
+		return false;
 	}
 	CgiExecutionData data;
 	data.method = req.method;
@@ -110,24 +114,24 @@ void cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 	data.fd = fd;
 	data.headers = c.req.headers;
 	bool execSuccess = execute(data);
-	Logger::simple("%s CGI execution Data - %s%s%s:\n"
-		       "  %-12s %s\n"
-		       "  %-12s %s\n"
-		       "  %-12s %s\n"
-		       "  %-12s '%s'\n"
-		       "  %-12s %d\n",
-		       SERV_CLR, execSuccess ? GREEN : RED, execSuccess ? "Success" : "Failed",
-		       GREY, "interpreter:", data.interpreter.c_str(), "path:", data.path.c_str(),
-		       "file:", data.file.c_str(), "queryString:", data.queryString.c_str(), "pid",
-		       data.pid);
+	Logger::cgi("%s CGI execution Data - %s%s%s:\n"
+		    "  %-12s %s\n"
+		    "  %-12s %s\n"
+		    "  %-12s %s\n"
+		    "  %-12s '%s'\n"
+		    "  %-12s %d\n",
+		    SERV_CLR, execSuccess ? GREEN : RED, execSuccess ? "Success" : "Failed", GREY,
+		    "interpreter:", data.interpreter.c_str(), "path:", data.path.c_str(),
+		    "file:", data.file.c_str(), "queryString:", data.queryString.c_str(), "pid",
+		    data.pid);
 	if (execSuccess)
 		cgiResponses_.push_back(data);
+	return true;
 }
 
 void cgiHandler::setConfig(const std::vector<ServerConf> &cfg) {
 	cfg_ = &cfg;
-	Logger::simple("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1),
-		       GREY, "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms,
-		       "maxOutput",
-		       (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
+	Logger::cgi("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1), GREY,
+		    "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms, "maxOutput",
+		    (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
 }

@@ -98,22 +98,22 @@ bool cgiHandler::handleResponses() {
 	size_t i = 0;
 	while (i < cgiResponses_.size()) {
 		CgiExecutionData &data = cgiResponses_[i];
+		const ServerConf &resCfg = (*cfg_)[data.conn->serverIdx];
 		char buf[4096];
 		bool finished = false;
 
 		std::string err;
 		ssize_t n = read(data.readFd, buf, sizeof(buf));
 		if (n > 0) {
-			Logger::info("%d bytes read from fd %d", n, data.readFd);
+			Logger::cgi("%d bytes read from fd %d", n, data.readFd);
 			data.out.append(buf, n);
 			data.bytesRead += n;
 			anyProgress = true;
-			if (data.bytesRead > (*cfg_)[0].locations[0].cgi_maxOutput) {
+			if (data.bytesRead > resCfg.locations[0].cgi_maxOutput) {
 				err = "CGI output exceeded server limit";
-				Logger::error(
-				    "cgi stopping %s execution after %lu bytes (max %lu)",
-				    data.file.c_str(), (unsigned long)data.bytesRead,
-				    (unsigned long)(*cfg_)[0].locations[0].cgi_maxOutput);
+				Logger::error("cgi stopping %s execution after %lu bytes (max %lu)",
+					      data.file.c_str(), (unsigned long)data.bytesRead,
+					      (unsigned long)resCfg.locations[0].cgi_maxOutput);
 				kill(data.pid, SIGKILL);
 				finished = true;
 			}
@@ -122,8 +122,8 @@ bool cgiHandler::handleResponses() {
 		else if (errno != EAGAIN && errno != EWOULDBLOCK)
 			finished = true;
 		unsigned long nowMs = now_ms();
-		if (!finished && (*cfg_)[0].locations[0].cgi_timeout_ms > 0 &&
-		    nowMs - data.conn->start >= (*cfg_)[0].locations[0].cgi_timeout_ms) {
+		if (!finished && resCfg.locations[0].cgi_timeout_ms > 0 &&
+		    nowMs - data.conn->start >= resCfg.locations[0].cgi_timeout_ms) {
 			unsigned long elapsed = nowMs - data.conn->start;
 			err = "CGI timed out";
 			Logger::error("stopping \'%s%s%s\' execution - timed out after %lums",
@@ -153,11 +153,11 @@ bool cgiHandler::handleResponses() {
 				bool head_only = (conn->req.method == "HEAD");
 				std::string head = res.serialize(true);
 				std::string preview = data.out.substr(0, 300);
-				Logger::info("%s%s%s execution ended after %lums - raw output "
-					     "(first 300 bytes):\n'%s'",
-					     YELLOW, data.file.c_str(), TS,
-					     (unsigned long)(nowMs - data.conn->start),
-					     preview.c_str());
+				Logger::cgi("%s%s%s execution ended after %lums - raw output "
+					    "(first 300 bytes):\n'%s'",
+					    YELLOW, data.file.c_str(), TS,
+					    (unsigned long)(nowMs - data.conn->start),
+					    preview.c_str());
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;
 			}
@@ -166,10 +166,6 @@ bool cgiHandler::handleResponses() {
 			++i;
 		}
 	}
-	// if (anyProgress) {
-	// 	Logger::info("cgiResponses: %zu cgi currently running", cgiResponses_.size());
-	// }
-
 	return anyProgress;
 }
 

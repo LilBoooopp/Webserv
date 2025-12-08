@@ -34,7 +34,7 @@ function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = nul
   return div;
 }
 
-function moveToUrl(_response, text) {
+function moveToUrl(text) {
   console.warn("moving to " + text);
   window.location.href = text;
 }
@@ -45,18 +45,57 @@ function announceResponse(response, _text) {
 
 function cgiButton(label, scriptPath, pos = [0, 0], arg = null, onEnd = moveToUrl) {
   const but = addButton(label, pos);
+
   but.addEventListener("mousedown", () => {
     let url = scriptPath;
     if (arg != null) url += "?arg=" + encodeURIComponent(arg);
+
     fetch(url)
-      .then((r) => r.text().then((t) => ({ r, t })))
-      .then(({ r, t }) => {
-        const responseText = t.trim();
-        if (onEnd) onEnd(r, responseText);
+      .then(async (res) => {
+        const body = await res.text();
+        const ct = res.headers.get("Content-Type") || "";
+
+        // ✅ Si le serveur renvoie du HTML → affichage direct
+        if (!res.ok && ct.includes("text/html")) {
+          document.open();
+          document.write(body);
+          document.close();
+          return;
+        }
+
+        const responseText = body.trim();
+
+        // ✅ Cas succès logique
+        if (res.ok && onEnd) {
+          onEnd(responseText, res);
+        } else {
+          // ✅ Erreur applicative (401, 403, 500 en text/plain)
+          announce(responseText || `Error ${res.status}`);
+        }
+      })
+      .catch((e) => {
+        console.warn("Network error:", e);
+        announce("Network / server unreachable");
       });
   });
+
   return but;
 }
+
+// function cgiButton(label, scriptPath, pos = [0, 0], arg = null, onEnd = moveToUrl) {
+//   const but = addButton(label, pos);
+//   but.addEventListener("mousedown", () => {
+//     let url = scriptPath;
+//     if (arg != null) url += "?arg=" + encodeURIComponent(arg);
+//     fetch(url)
+//       .then((r) => r.text().then((t) => ({ r, t })))
+//       .then(({ r, t }) => {
+//         const responseText = t.trim();
+//         if (onEnd) onEnd(responseText);
+//       });
+//   });
+//   return but;
+// }
 
 function loopRequest() {
   const counter = 9999;
@@ -99,5 +138,5 @@ function postBytes(size) {
 
 function addHomeButton() {
   const c = [window.innerWidth / 2, window.innerHeight / 2];
-  cgiButton("HOME", "/cgi/printArg.py", [c[0], window.innerHeight - 40], "/");
+  addButton("HOME", [c[0], window.innerHeight - 40], () => (window.location.href = "/"));
 }

@@ -19,12 +19,25 @@ function handleAuth(e) {
     },
   })
     .then(async (res) => {
-      const msg = await res.text();
+      const body = await res.text();
+      const msg = body.trim();
 
-      if (res.ok && msg.trim() === "OK") {
-        if (action === "login") window.location.href = "/cgi/auth/securePage/account.php";
+      if (res.ok && msg === "OK") {
+        if (action === "login") {
+          window.location.href = "/cgi/auth/securePage/account.php";
+        } else {
+          announce("Account created");
+        }
+        return;
+      }
+
+      const ct = res.headers.get("Content-Type") || "";
+      if (ct.includes("text/html")) {
+        document.open();
+        document.write(body);
+        document.close();
       } else {
-        console.warn("Auth failed:", res.status, msg);
+        console.warn("Auth failed:", res.status, body);
         announce(msg || "Authentication failed");
       }
     })
@@ -34,25 +47,26 @@ function handleAuth(e) {
     });
 }
 
+function logout() {
+  const url = "/cgi/auth/logout.php";
+  fetch(url, {
+    method: "POST",
+    credentials: "include",
+  })
+    .then(async (res) => {
+      const msg = await res.text();
+      if (res.ok && msg.trim() === "OK") {
+        window.location.href = "/login.html";
+      } else {
+        announce("Logout failed");
+      }
+    })
+    .catch(() => announce("Server error"));
+}
+
 function addLogoutButton() {
   const c = [window.innerWidth / 2, window.innerHeight - 40];
-  const url = "/cgi/auth/logout.php";
 
-  function logout() {
-    fetch(url, {
-      method: "POST",
-      credentials: "include",
-    })
-      .then(async (res) => {
-        const msg = await res.text();
-        if (res.ok && msg.trim() === "OK") {
-          window.location.href = "/main/login.html";
-        } else {
-          announce("Logout failed");
-        }
-      })
-      .catch(() => announce("Server error"));
-  }
   const b = addButton("LOGOUT", c, logout);
 }
 
@@ -61,4 +75,15 @@ function addRedirectButton(label, url, p) {
     window.location.href = url;
   }
   const b = addButton(label, p, go);
+}
+
+function addScrollerProfileMenu() {
+  const pageNames = ["account", "param", "about", "logout"];
+  const fs = [() => (window.location.href = "/cgi/auth/securePage/account.php"), () => (window.location.href = "/cgi/auth/securePage/param.php"), () => (window.location.href = "/cgi/auth/securePage/about.php"), () => logout()];
+  let pi = pageNames.indexOf(window.PAGE_NAME);
+  if (pi != -1) {
+    pageNames.splice(pi, 1);
+    fs.splice(pi, 1);
+  }
+  addScrollerMenu(window.CURRENT_USER, [window.innerWidth - 60, 40], pageNames, fs);
 }

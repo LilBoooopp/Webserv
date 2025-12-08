@@ -3,7 +3,6 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "IHandler.hpp"
-#include "StaticHandler.hpp"
 
 class Router {
 private:

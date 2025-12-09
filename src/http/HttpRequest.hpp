@@ -20,5 +20,5 @@ inline static void logRequest(const HttpRequest &req) {
 			req.version.c_str());
 	std::map<std::string, std::string>::const_iterator it;
 	for (it = req.headers.begin(); it != req.headers.end(); it++)
-		Logger::header("%s%-20s -> %s", clr, it->first.c_str(), it->second.c_str());
+		Logger::header("%s%-20s > %s", clr, it->first.c_str(), it->second.c_str());
 }

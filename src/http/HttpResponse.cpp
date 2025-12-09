@@ -138,7 +138,7 @@ void HttpResponse::printResponse(int fd) {
 			 getStatus() == 200 ? GREEN : RED, getHead().c_str());
 	for (std::map<std::string, std::string>::const_iterator it = this->headers_.begin();
 	     it != this->headers_.end(); it++) {
-		Logger::header("%s%-20s -> %s", clr, it->first.c_str(), it->second.c_str());
+		Logger::header("%s%-20s < %s", clr, it->first.c_str(), it->second.c_str());
 	}
 	if (Logger::channels[LOG_BODY]) {
 		std::string preview = this->body_.substr(0, 100).c_str();

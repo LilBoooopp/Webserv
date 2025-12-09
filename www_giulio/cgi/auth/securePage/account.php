@@ -37,27 +37,24 @@ echo "\nEND_SESSION_DUMP -->";
     <script>
 		window.CURRENT_USER = <?php echo json_encode($user); ?>;
 		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
+		window.PAGE_NAME = window.CURRENT_USER;
 		var data = {
 			"name": <?php echo json_encode($name); ?>,
 			"tel": <?php echo json_encode($tel); ?>,
 			"email": <?php echo json_encode($email); ?>,
 			"secret": <?php echo json_encode($secret); ?>,
 		}
-
-    applyBackground();
-		window.PAGE_NAME = "account";
-      function init() {
-        const c = [window.innerWidth / 2, window.innerHeight / 2];
-        addDiv(window.CURRENT_USER, [c[0], c[1] - 150], 3);
-
+		applyBackground();
+		const c = [window.innerWidth / 2, window.innerHeight / 2];
+		addTitle();
 		const labels = ["name", "email", "secret", "tel"];
 		const w = 25;
-		for (let i = 0; i < labels.length; i++)
-			addDiv(labels[i] + ": " + (data[labels[i]] === null ? "?" : data[labels[i]]), [c[0], c[1] + w * i]);
+		for (let i = 0; i < labels.length; i++){
+			addDiv(labels[i] + ": ", [c[0] - 75, c[1] + w * i], null, 'grey');
+			addDiv((data[labels[i]] === null ? "?" : data[labels[i]]), [c[0] + 20, c[1] + w * i], null, 'rgba(216, 216, 216, 1)');
+		}
 		addDeleteAccountButton([c[0], window.innerHeight - 40])
 		addScrollerProfileMenu();
-      }
-      init();
     </script>
   </body>
 </html>

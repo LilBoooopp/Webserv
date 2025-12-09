@@ -13,11 +13,12 @@ $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 // Ensure columns exist
 $alterStatements = array(
-	"ALTER TABLE users ADD COLUMN name TEXT",
-	"ALTER TABLE users ADD COLUMN tel TEXT",
-	"ALTER TABLE users ADD COLUMN email TEXT",
-	"ALTER TABLE users ADD COLUMN secret TEXT",
-	"ALTER TABLE users ADD COLUMN darkmode TEXT DEFAULT '0'"
+    "ALTER TABLE users ADD COLUMN name TEXT",
+    "ALTER TABLE users ADD COLUMN tel TEXT",
+    "ALTER TABLE users ADD COLUMN email TEXT",
+    "ALTER TABLE users ADD COLUMN secret TEXT",
+    "ALTER TABLE users ADD COLUMN darkmode INTEGER DEFAULT 0",
+	"ALTER TABLE users ADD COLUMN snakeHighScore INTEGER DEFAULT 0",
 );
 foreach ($alterStatements as $sql) {
 	try {

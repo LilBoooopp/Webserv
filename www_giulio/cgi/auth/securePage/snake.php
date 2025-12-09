@@ -8,8 +8,9 @@ if (empty($_SESSION["user_id"])) {
 
 $user = $_SESSION["username"] ?? null;
 $darkmode = $_SESSION["darkmode"] ?? false;
-
+$snakeHighScore = $_SESSION["snakeHighScore"] ?? false;
 ?>
+
 <!DOCTYPE html>
 <html>
   <head>
@@ -24,30 +25,18 @@ $darkmode = $_SESSION["darkmode"] ?? false;
     <script src="/js/div.js"></script>
     <script src="/js/buttons.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/snake.js"></script>
     <script src="/js/inputField.js"></script>
 
     <script>
 		window.CURRENT_USER = <?php echo json_encode($user); ?>;
 		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
-		window.PAGE_NAME = "settings";
+		window.HIGH_SCORE = <?php echo json_encode($snakeHighScore); ?>;
+		window.PAGE_NAME = "Snake";
 
 		addTitle();
 		applyBackground();
-		const c = [window.innerWidth / 2, window.innerHeight / 2];
-		addToggleButton("DarkMode", [c[0], c[1]], window.DARKMODE === 1, (value) => {
-		const body = new URLSearchParams({ darkmode: value ? 1 : 0 });
-		fetch("/cgi/auth/setDarkmode.php", {
-				method: "POST",
-				credentials: "same-origin",
-				headers: {
-				"Content-Type": "application/x-www-form-urlencoded",
-				"X-Darkmode": value ? "1" : "0",
-			},
-			body: body.toString(),
-			}).catch(() => announce("Can't save darkmode"));
-			applyBackground();
-			window.location.href = "/cgi/auth/securePage/settings.php";
-		});
+		initSnakeGame();
 		addScrollerProfileMenu();
     </script>
   </body>

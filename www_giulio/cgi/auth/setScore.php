@@ -47,15 +47,15 @@ foreach ($alterStatements as $sql) {
 	}
 }
 
-$darkMode = $_POST['darkmode'] ?? '';
-$darkMode = $darkMode !== '' ? $darkMode : ($headersLower['x-darkmode'] ?? '');
-$darkMode = ($darkMode === '1' || strtolower($darkMode) === 'true') ? 1 : 0;
+$snakeHighScore = $_POST['snakeHighScore'] ?? '';
+$snakeHighScore = $snakeHighScore !== '' ? $snakeHighScore : ($headersLower['x-snakehighscore'] ?? '');
+$snakeHighScore = (int)$snakeHighScore;
 
 // Persist user preference
-$stmt = $db->prepare("UPDATE users SET darkmode = ? WHERE username = ?");
-$stmt->execute(array($darkMode, $_SESSION['user_id']));
+$stmt = $db->prepare("UPDATE users SET snakeHighScore = ? WHERE username = ?");
+$stmt->execute(array($snakeHighScore, $_SESSION['user_id']));
 
-$_SESSION['darkmode'] = $darkMode;
+$_SESSION['snakeHighScore'] = $snakeHighScore;
 
 // Ensure session persistence before exiting
 session_write_close();

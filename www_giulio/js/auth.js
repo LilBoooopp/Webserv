@@ -78,8 +78,8 @@ function addRedirectButton(label, url, p) {
 }
 
 function addScrollerProfileMenu() {
-  const pageNames = ["account", "settings", "about", "logout"];
-  const fs = [() => (window.location.href = "/cgi/auth/securePage/account.php"), () => (window.location.href = "/cgi/auth/securePage/settings.php"), () => (window.location.href = "/cgi/auth/securePage/about.php"), () => logout()];
+  const pageNames = ["account", "settings", "about", "games", "logout"];
+  const fs = [() => (window.location.href = "/cgi/auth/securePage/account.php"), () => (window.location.href = "/cgi/auth/securePage/settings.php"), () => (window.location.href = "/cgi/auth/securePage/about.php"), () => (window.location.href = "/cgi/auth/securePage/games.php"), () => logout()];
   let pi = pageNames.indexOf(window.PAGE_NAME);
   if (pi != -1) {
     pageNames.splice(pi, 1);
@@ -88,6 +88,6 @@ function addScrollerProfileMenu() {
   addScrollerMenu("menu", [window.innerWidth - 60, 40], pageNames, fs);
 }
 
-function applyBackground(flag = window.DARKMODE === "1") {
+function applyBackground(flag = window.DARKMODE === 1) {
   document.documentElement.style.setProperty("background-color", flag ? "rgba(34, 34, 34, 1)" : "", "important");
 }

@@ -26,7 +26,8 @@ try {
 	    "ALTER TABLE users ADD COLUMN tel TEXT",
 	    "ALTER TABLE users ADD COLUMN email TEXT",
 	    "ALTER TABLE users ADD COLUMN secret TEXT",
-	    "ALTER TABLE users ADD COLUMN darkmode TEXT DEFAULT '0'"
+	    "ALTER TABLE users ADD COLUMN darkmode INTEGER DEFAULT 0",
+	    "ALTER TABLE users ADD COLUMN snakeHighScore INTEGER DEFAULT 0",
 	);
 	foreach ($alterStatements as $sql) {
 	    try {
@@ -36,7 +37,7 @@ try {
 	    }
 	}
 
-	$stmt = $db->prepare("SELECT password, name, tel, email, secret, darkmode FROM users WHERE username = ?");
+	$stmt = $db->prepare("SELECT password, name, tel, email, secret, darkmode, snakeHighScore FROM users WHERE username = ?");
 	$stmt->execute([$user]);
 	$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -60,7 +61,8 @@ try {
 	$_SESSION["tel"] = $row['tel'] ?? '';
 	$_SESSION["email"] = $row['email'] ?? '';
 	$_SESSION["secret"] = $row['secret'] ?? '';
-	$_SESSION["darkmode"] = $row['darkmode'] ?? '0';
+	$_SESSION["darkmode"] = $row['darkmode'] ?? 0;
+	$_SESSION["snakeHighScore"] = $row['snakeHighScore'] ?? 0;
 	echo "OK\n";
 
 } catch (PDOException $e) {

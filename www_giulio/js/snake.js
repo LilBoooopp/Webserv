@@ -51,11 +51,25 @@ function initSnakeGame() {
   }, 300);
 }
 
+function spawnFruit(cells, isMega = false) {
+  var food = cells[Math.round(Math.random() * cells.length)];
+  while (food.style.backgroundColor !== "white") food = cells[Math.round(Math.random() * cells.length)];
+  food.style.backgroundColor = isMega ? "red" : "green";
+  food.isFood = true;
+  food.isMega = isMega;
+  if (isMega) {
+    setTimeout(() => {
+      food.isMega = false;
+      food.isFood = false;
+      food.style.backgroundColor = "white";
+    }, 20000);
+  } else if (Math.round(Math.random() * 10) <= 2) spawnFruit(cells, true);
+}
+
 function loop(cells, w, h, plr) {
   const curCrd = plr.body[plr.body.length - 1].cord;
   var newX = curCrd[0] + (plr.snakeDir === "left" ? -1 : plr.snakeDir === "right" ? 1 : 0);
   var newY = curCrd[1] + (plr.snakeDir === "up" ? -1 : plr.snakeDir === "down" ? 1 : 0);
-
   const halfW = w / 2;
   const halfH = h / 2;
 
@@ -68,13 +82,11 @@ function loop(cells, w, h, plr) {
 
   const newCell = cells[idx];
   if (newCell.isFood) {
-    newCell.isFood = false;
-    score += 50;
+    score += newCell.isMega ? 200 : 50;
     scoreDiv.textContent = "Score " + score;
-    var food = cells[Math.round(Math.random() * cells.length)];
-    while (food.style.backgroundColor !== "white") food = cells[Math.round(Math.random() * cells.length)];
-    food.style.backgroundColor = "green";
-    food.isFood = true;
+    newCell.isFood = false;
+    newCell.isMega = false;
+    spawnFruit(cells, false);
   } else if (newCell.style.backgroundColor === "black") {
     if (window.HIGH_SCORE === undefined || score > window.HIGH_SCORE) {
       window.HIGH_SCORE = score;

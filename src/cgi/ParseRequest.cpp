@@ -1,3 +1,4 @@
+#include "../utils/Logger.hpp"
 #include "cgi.hpp"
 
 std::string getInterpreter(const std::string &path, const ServerConf &conf) {
@@ -27,15 +28,15 @@ bool is_cgi(const std::string &req_target, const ServerConf &cfg) {
 }
 
 static std::string extractArguments(std::string &pathToCgi) {
-	std::string queryString = "";
-	std::string::size_type qpos = pathToCgi.find('?');
-	if (qpos == std::string::npos)
-		return queryString;
-	queryString = pathToCgi.substr(qpos + 1);
-	pathToCgi = pathToCgi.substr(0, qpos);
-	// Logger::info("args %s\"%s\"%s extracted from %s", GREY, queryString.c_str(), TS,
-	// 	     pathToCgi.c_str());
-	return queryString;
+  std::string queryString = "";
+  std::string::size_type qpos = pathToCgi.find('?');
+  if (qpos == std::string::npos)
+    return queryString;
+  queryString = pathToCgi.substr(qpos + 1);
+  pathToCgi = pathToCgi.substr(0, qpos);
+  // Logger::info("args %s\"%s\"%s extracted from %s", GREY,
+  // queryString.c_str(), TS, 	     pathToCgi.c_str());
+  return queryString;
 }
 
 void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,

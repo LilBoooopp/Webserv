@@ -3,15 +3,7 @@
 #include "../http/Connection.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
-
-#include "../utils/Chrono.hpp"
-#include "../utils/Colors.hpp"
-#include "../utils/Logger.hpp"
-#include "../utils/Path.hpp"
-
-#include <errno.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/time.h>

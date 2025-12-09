@@ -1,5 +1,6 @@
 #include "../utils/Colors.hpp"
 #include "Config.hpp"
+#include <iostream>
 
 void Config::debug_print_location(const LocationConf &location, const char *clr) {
 	std::cout << "        " << TS << location.path << std::endl;

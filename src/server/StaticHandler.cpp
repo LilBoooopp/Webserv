@@ -22,9 +22,9 @@ static const off_t STREAM_THRESHOLD = 256 * 1024; // 256 KB
  * @brief Convert a file size (off_t) to std::string
  */
 static std::string size_to_str(off_t n) {
-	std::ostringstream oss;
-	oss << n;
-	return (oss.str());
+  std::ostringstream oss;
+  oss << n;
+  return (oss.str());
 }
 
 /**
@@ -32,27 +32,27 @@ static std::string size_to_str(off_t n) {
  * @return true on sucess, false on any open/read failure.
  */
 static bool read_file_small(const std::string &path, std::string &out) {
-	Logger::request("GET file path: %s", path.c_str());
+  Logger::request("GET file path: %s", path.c_str());
 
-	int fd = ::open(path.c_str(), O_RDONLY);
-	if (fd < 0)
-		return (false);
+  int fd = ::open(path.c_str(), O_RDONLY);
+  if (fd < 0)
+    return (false);
 
-	std::vector<char> buf(64 * 1024);
-	out.clear();
+  std::vector<char> buf(64 * 1024);
+  out.clear();
 
-	bool got_any = false;
+  bool got_any = false;
 
-	for (;;) {
-		ssize_t r = ::read(fd, &buf[0], buf.size());
-		if (r > 0) {
-			got_any = true;
-			out.append(&buf[0], r);
-		} else
-			break;
-	}
-	::close(fd);
-	return (got_any);
+  for (;;) {
+    ssize_t r = ::read(fd, &buf[0], buf.size());
+    if (r > 0) {
+      got_any = true;
+      out.append(&buf[0], r);
+    } else
+      break;
+  }
+  ::close(fd);
+  return (got_any);
 }
 
 void StaticHandler::handle(Connection &c, const HttpRequest &req,
@@ -84,17 +84,17 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
   // Map the request target to a safe filesystem path under cfg.root
   std::string path = safe_join_under_root(root_dir, request_path);
 
-	logRequest(req);
-	Logger::request("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(), TS, GREY,
-			path.c_str());
+  logRequest(req);
+  Logger::request("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY,
+                  req.target.c_str(), TS, GREY, path.c_str());
 
-	struct stat st;
-	if (::stat(path.c_str(), &st) == 0) {
-		// Is a Directory
-		if (is_dir(st)) {
-			// try index file: root/target[/] + cfg.index
-			if (path.size() == 0 || path[path.size() - 1] != '/')
-				path += '/';
+  struct stat st;
+  if (::stat(path.c_str(), &st) == 0) {
+    // Is a Directory
+    if (is_dir(st)) {
+      // try index file: root/target[/] + cfg.index
+      if (path.size() == 0 || path[path.size() - 1] != '/')
+        path += '/';
 
       if (!index_files->empty()) {
         std::string idx = path + index_files->at(0);
@@ -127,9 +127,7 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
       res.ensureDefaultBodyIfEmpty();
       return;
 
-    }
-    // Is a Regular File
-    else if (is_reg(st)) {
+    } else if (is_reg(st)) {
       res.setContentType(mime_from_path(path));
       // For HEAD, we don't read the file, we just set headers
       if (is_head) {
@@ -139,26 +137,26 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
         return;
       }
 
-			// Decide between small read vs streaming
-			if (st.st_size <= STREAM_THRESHOLD) {
-				std::string body;
-				if (read_file_small(path, body)) {
-					res.setStatus(200, "OK");
-					res.setBody(body);
-					// For GET, HttpResponse::serialize() can establish
-					// Content-Length from body.size()
-					return;
-				}
-			} else {
-				// Large file: mark for streaming
-				res.setStatus(200, "OK");
-				res.setHeader("Content-Length", size_to_str(st.st_size));
-				// Internal hint for Server: path to stream
-				res.setHeader("X-Stream-File", path);
-				return;
-			}
-		}
-	}
-	res.setStatusFromCode(404);
-	res.ensureDefaultBodyIfEmpty();
+      // Decide between small read vs streaming
+      if (st.st_size <= STREAM_THRESHOLD) {
+        std::string body;
+        if (read_file_small(path, body)) {
+          res.setStatus(200, "OK");
+          res.setBody(body);
+          // For GET, HttpResponse::serialize() can establish
+          // Content-Length from body.size()
+          return;
+        }
+      } else {
+        // Large file: mark for streaming
+        res.setStatus(200, "OK");
+        res.setHeader("Content-Length", size_to_str(st.st_size));
+        // Internal hint for Server: path to stream
+        res.setHeader("X-Stream-File", path);
+        return;
+      }
+    }
+  }
+  res.setStatusFromCode(404);
+  res.ensureDefaultBodyIfEmpty();
 }

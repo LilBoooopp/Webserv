@@ -27,53 +27,45 @@ inline static const LocationConf *findLocation(const ServerConf &conf,
   return best;
 }
 
-inline static void split(const std::string &s, char sep,
-                         std::vector<std::string> &out) {
-  out.clear();
-  size_t i = 0;
-  while (i <= s.size()) {
-    size_t j = s.find(sep, i);
-    if (j == std::string::npos)
-      j = s.size();
-    out.push_back(s.substr(i, j - i)); // <-- FIX ICI
-    i = j + 1;
+static std::vector<std::string> split(const std::string &s, char sep) {
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream tokenStream(s);
+  while (std::getline(tokenStream, token, sep)) {
+    tokens.push_back(token);
   }
+  return (tokens);
+}
+
+static std::string sanitize_path(const std::string &path) {
+  std::vector<std::string> parts = split(path, '/');
+  std::vector<std::string> stack;
+
+  for (size_t i = 0; i < parts.size(); ++i) {
+    if (parts[i] == ".." && !stack.empty()) {
+      stack.pop_back();
+    } else if (parts[i] != "." && parts[i] != ".." && !parts[i].empty()) {
+      stack.push_back(parts[i]);
+    }
+  }
+
+  std::string result = "";
+  for (size_t i = 0; i < stack.size(); ++i) {
+    result += "/" + stack[i];
+  }
+
+  return (result.empty() ? "/" : result);
 }
 
 inline std::string safe_join_under_root(const std::string &root,
                                         const std::string &target) {
-  // Assume target starts with '/'
-  if (target == "/")
-    return (root + "index.html");
+  std::string clean_req = sanitize_path(target);
 
-  std::string targ(target);
-  if (!targ.empty() && targ[0] == '/')
-    targ = targ.substr(1);
-
-  std::vector<std::string> parts;
-  split(targ, '/', parts);
-  std::vector<std::string> clean;
-  for (size_t k = 0; k < parts.size(); ++k) {
-    const std::string &p = parts[k];
-    if (p.empty() || p == ".")
-      continue;
-    if (p == "..") {
-      if (!clean.empty()) {
-        clean.pop_back();
-        continue;
-      }
-    }
-    clean.push_back(p);
+  std::string clean_root = root;
+  if (!clean_root.empty() && clean_root[clean_root.size() - 1] == '/') {
+    clean_root.erase(clean_root.size() - 1);
   }
-  std::string out = root;
-  if (!out.empty() && out[out.size() - 1] != '/')
-    out += '/';
-  for (size_t k = 0; k < clean.size(); ++k) {
-    out += clean[k];
-    if (k + 1 < clean.size())
-      out += '/';
-  }
-  return (out);
+  return (clean_root + clean_req);
 }
 
 inline std::string getExtension(const std::string &str, char separator) {

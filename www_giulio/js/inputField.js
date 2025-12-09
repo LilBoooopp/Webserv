@@ -1,50 +1,3 @@
-function addInputDiv(label, pos, onEnd = null) {
-  let input = document.createElement("input");
-  input.type = "text";
-
-  input.id = label;
-  addDiv(label, [pos[0] - 30, pos[1] + 10], 1);
-
-  input.style.position = "absolute";
-  input.style.left = (pos[0] / window.innerWidth) * 100 + "%";
-  input.style.top = (pos[1] / window.innerHeight) * 100 + "%";
-
-  document.body.appendChild(input);
-
-  if (!onEnd) return input;
-  input.addEventListener("change", () => {
-    onEnd();
-    input.blur();
-  });
-  return input;
-}
-
-function addFormulary(pos = [50, 50]) {
-  const inputFields = ["name", "age"];
-
-  pos[0] -= 60;
-  function sendFormulary(okButton) {
-    const l = [];
-    for (const field of okButton.fields) {
-      l.push(`${field.label}: ${field.input.value}`);
-    }
-    console.warn(`Form Sent: ${l.join(", ")}`);
-  }
-
-  const okButton = addButton("OK", [pos[0] + 60, pos[1] + 40 + (inputFields.length + 1) * 40]);
-
-  okButton.fields = [];
-
-  okButton.addEventListener("mousedown", () => sendFormulary(okButton));
-
-  let y = pos[1] + 50;
-  for (const label of inputFields) {
-    const input = addInputDiv(label, [pos[0], y]);
-    okButton.fields.push({ label, input });
-    y += 40;
-  }
-}
-
 function openFileDialog(callback) {
   const input = document.createElement("input");
   input.type = "file";
@@ -57,7 +10,6 @@ function openFileDialog(callback) {
 }
 
 function uploadFile(files) {
-  console.warn("YOOOOOOO" + files.length);
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const name = file.name;
@@ -84,4 +36,76 @@ function uploadFile(files) {
       })
       .catch((err) => announce("Upload failed: " + err));
   }
+}
+
+function addScrollerMenu(label, p, options, onClick) {
+  const d = addButton(label, p);
+  d.buttons = [];
+  d.hov = null;
+  d.bgr = writeBox(60, 30 * options.length, p[0] - 30, p[1] + 15, "rgba(0, 0, 0, 0.04)");
+  d.bgr.style.zIndex = -100;
+  d.bgr.style.display = "none";
+
+  for (let i = 0; i < options.length; i++) {
+    const handler = onClick && onClick[i] ? onClick[i] : null;
+
+    const optI = addButton(options[i], [p[0], p[1] + (i + 1) * 30], handler, "white", "rgba(0, 0, 0, 0)");
+    optI.style.scale = ".8";
+    optI.style.display = "none";
+
+    d.buttons.push(optI);
+
+    optI.addEventListener("mouseenter", () => {
+      optI.style.scale = 1;
+      d.hov = optI;
+      d.bgr.style.display = "block";
+    });
+
+    optI.addEventListener("mouseleave", () => {
+      optI.style.scale = 0.8;
+      setTimeout(() => {
+        if (d.hov === optI) {
+          for (const o of d.buttons) o.style.display = "none";
+          d.hov = null;
+          d.bgr.style.display = "none";
+        }
+      }, 100);
+    });
+  }
+
+  d.addEventListener("mouseenter", () => {
+    d.hov = d;
+    for (const o of d.buttons) o.style.display = "block";
+    d.bgr.style.display = "block";
+  });
+
+  d.addEventListener("mouseleave", () => {
+    if (d.hov === d) d.hov = null;
+    setTimeout(() => {
+      if (!d.hov) {
+        for (const o of d.buttons) o.style.display = "none";
+        d.bgr.style.display = "none";
+      }
+    }, 100);
+  });
+}
+
+function addInputField(label, p, clr, bgrClr) {
+  let div = document.createElement("input");
+  div.placeholder = label;
+
+  div.style.position = "absolute";
+
+  div.style.left = (p[0] / window.innerWidth) * 100 + "%";
+  div.style.top = (p[1] / window.innerHeight) * 100 + "%";
+  div.style.transform = "translate(-50%, -50%) scale(" + 1 + ")";
+
+  div.style.transformOrigin = "center center";
+
+  div.style.userSelect = "none";
+  if (clr) div.style.color = clr;
+  if (bgrClr) div.style.backgroundColor = bgrClr;
+
+  document.body.appendChild(div);
+  return div;
 }

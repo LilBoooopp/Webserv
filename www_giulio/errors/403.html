@@ -7,17 +7,17 @@
   </head>
 
   <body>
-    <div id="ui-root"></div>
+    <body style="margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh">
+      <div style="color: black">Forbidden</div>
+    </body>
 
     <script src="/js/buttons.js"></script>
+    <script src="/js/div.js"></script>
 
     <script>
-      function init() {
-        const c = [window.innerWidth / 2, window.innerHeight / 2];
-        addDiv("SOME PAGE", [c[0], c[1] - 150], 3);
-        addHomeButton();
-      }
-      init();
+      const c = [window.innerWidth / 2, window.innerHeight / 2];
+      addDiv("403", [c[0], c[1] - 150], 5);
+      addHomeButton();
     </script>
   </body>
 </html>

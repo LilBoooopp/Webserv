@@ -1,119 +1,124 @@
 #include "../utils/Chrono.hpp"
+#include "../utils/Colors.hpp"
+#include "../utils/Logger.hpp"
 #include "cgi.hpp"
 #include <cstdlib>
+#include <errno.h>
+#include <fstream>
+#include <signal.h>
 
 static void trim_spaces(std::string &s) {
-	std::string::size_type start = 0;
-	while (start < s.size() && (s[start] == ' ' || s[start] == '\t'))
-		++start;
-	std::string::size_type end = s.size();
-	while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t'))
-		--end;
-	s.assign(s, start, end - start);
+  std::string::size_type start = 0;
+  while (start < s.size() && (s[start] == ' ' || s[start] == '\t'))
+    ++start;
+  std::string::size_type end = s.size();
+  while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t'))
+    --end;
+  s.assign(s, start, end - start);
 }
 
 static bool parseCgiOutput(const std::string &raw, HttpResponse &res) {
-	std::string::size_type pos = raw.find("\r\n\r\n");
-	std::string::size_type sep_len = 4;
-	if (pos == std::string::npos) {
-		pos = raw.find("\n\n");
-		sep_len = 2;
-	}
-	if (pos == std::string::npos)
-		return false;
+  std::string::size_type pos = raw.find("\r\n\r\n");
+  std::string::size_type sep_len = 4;
+  if (pos == std::string::npos) {
+    pos = raw.find("\n\n");
+    sep_len = 2;
+  }
+  if (pos == std::string::npos)
+    return false;
 
-	std::string headerBlock(raw, 0, pos);
-	std::string body(raw, pos + sep_len);
+  std::string headerBlock(raw, 0, pos);
+  std::string body(raw, pos + sep_len);
 
-	std::string::size_type start = 0;
-	bool hasStatus = false;
-	bool hasContentType = false;
+  std::string::size_type start = 0;
+  bool hasStatus = false;
+  bool hasContentType = false;
 
-	while (start < headerBlock.size()) {
-		std::string::size_type end = headerBlock.find('\n', start);
-		if (end == std::string::npos)
-			end = headerBlock.size();
-		std::string line(headerBlock, start, end - start);
-		if (!line.empty() && line[line.size() - 1] == '\r')
-			line.erase(line.size() - 1);
+  while (start < headerBlock.size()) {
+    std::string::size_type end = headerBlock.find('\n', start);
+    if (end == std::string::npos)
+      end = headerBlock.size();
+    std::string line(headerBlock, start, end - start);
+    if (!line.empty() && line[line.size() - 1] == '\r')
+      line.erase(line.size() - 1);
 
-		if (line.empty())
-			break;
+    if (line.empty())
+      break;
 
-		std::string::size_type colon = line.find(':');
-		if (colon != std::string::npos) {
-			std::string name(line, 0, colon);
-			std::string value(line, colon + 1);
-			trim_spaces(name);
-			trim_spaces(value);
+    std::string::size_type colon = line.find(':');
+    if (colon != std::string::npos) {
+      std::string name(line, 0, colon);
+      std::string value(line, colon + 1);
+      trim_spaces(name);
+      trim_spaces(value);
 
-			for (std::size_t i = 0; i < name.size(); ++i)
-				name[i] = static_cast<char>(
-				    std::tolower(static_cast<unsigned char>(name[i])));
+      for (std::size_t i = 0; i < name.size(); ++i)
+        name[i] = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(name[i])));
 
-			if (name == "status") {
-				int code = 0;
-				std::string reason;
-				std::string::size_type sp = value.find(' ');
-				if (sp == std::string::npos) {
-					code = std::atoi(value.c_str());
-					reason = "";
-				} else {
-					code = std::atoi(value.substr(0, sp).c_str());
-					reason = value.substr(sp + 1);
-				}
-				if (code <= 0)
-					code = 200;
-				if (reason.empty())
-					reason = "OK";
-				res.setStatus(code, reason);
-				hasStatus = true;
-			} else if (name == "content-type") {
-				res.setContentType(value);
-				hasContentType = true;
-			} else {
-				res.setHeader(name, value);
-			}
-		}
+      if (name == "status") {
+        int code = 0;
+        std::string reason;
+        std::string::size_type sp = value.find(' ');
+        if (sp == std::string::npos) {
+          code = std::atoi(value.c_str());
+          reason = "";
+        } else {
+          code = std::atoi(value.substr(0, sp).c_str());
+          reason = value.substr(sp + 1);
+        }
+        if (code <= 0)
+          code = 200;
+        if (reason.empty())
+          reason = "OK";
+        res.setStatus(code, reason);
+        hasStatus = true;
+      } else if (name == "content-type") {
+        res.setContentType(value);
+        hasContentType = true;
+      } else {
+        res.setHeader(name, value);
+      }
+    }
 
-		if (end == headerBlock.size())
-			break;
-		start = end + 1;
-	}
+    if (end == headerBlock.size())
+      break;
+    start = end + 1;
+  }
 
-	if (!hasStatus)
-		res.setStatus(200, "OK");
-	if (!hasContentType)
-		res.setContentType("text/html");
+  if (!hasStatus)
+    res.setStatus(200, "OK");
+  if (!hasContentType)
+    res.setContentType("text/html");
 
-	res.setBody(body);
-	return true;
+  res.setBody(body);
+  return true;
 }
 
 bool cgiHandler::handleResponses() {
-	if (cgiResponses_.empty())
-		return false;
+  if (cgiResponses_.empty())
+    return false;
 
 	bool anyProgress = false;
 	size_t i = 0;
 	while (i < cgiResponses_.size()) {
 		CgiExecutionData &data = cgiResponses_[i];
+		const ServerConf &resCfg = (*cfg_)[data.conn->serverIdx];
 		char buf[4096];
 		bool finished = false;
 
 		std::string err;
 		ssize_t n = read(data.readFd, buf, sizeof(buf));
 		if (n > 0) {
-			Logger::info("%d bytes read from fd %d", n, data.readFd);
+			Logger::cgi("%d bytes read from fd %d", n, data.readFd);
 			data.out.append(buf, n);
 			data.bytesRead += n;
 			anyProgress = true;
-			if (data.bytesRead > (*cfg_)[0].locations[0].cgi_maxOutput) {
+			if (data.bytesRead > resCfg.locations[0].cgi_maxOutput) {
 				err = "CGI output exceeded server limit";
-				Logger::error(
-				    "cgi stopping %s execution after %lu bytes (max %lu)",
-				    data.file.c_str(), (unsigned long)data.bytesRead,
-				    (unsigned long)(*cfg_)[0].locations[0].cgi_maxOutput);
+				Logger::error("cgi stopping %s execution after %lu bytes (max %lu)",
+					      data.file.c_str(), (unsigned long)data.bytesRead,
+					      (unsigned long)resCfg.locations[0].cgi_maxOutput);
 				kill(data.pid, SIGKILL);
 				finished = true;
 			}
@@ -122,8 +127,8 @@ bool cgiHandler::handleResponses() {
 		else if (errno != EAGAIN && errno != EWOULDBLOCK)
 			finished = true;
 		unsigned long nowMs = now_ms();
-		if (!finished && (*cfg_)[0].locations[0].cgi_timeout_ms > 0 &&
-		    nowMs - data.conn->start >= (*cfg_)[0].locations[0].cgi_timeout_ms) {
+		if (!finished && resCfg.locations[0].cgi_timeout_ms > 0 &&
+		    nowMs - data.conn->start >= resCfg.locations[0].cgi_timeout_ms) {
 			unsigned long elapsed = nowMs - data.conn->start;
 			err = "CGI timed out";
 			Logger::error("stopping \'%s%s%s\' execution - timed out after %lums",
@@ -151,13 +156,11 @@ bool cgiHandler::handleResponses() {
 					res.setBody(err);
 				}
 				bool head_only = (conn->req.method == "HEAD");
-				std::string head = res.serialize(true);
-				std::string preview = data.out.substr(0, 50);
-				Logger::info("%s%s%s execution ended after %lums - raw output "
-					     "(first 50 bytes):\n'%s'",
-					     YELLOW, data.file.c_str(), TS,
-					     (unsigned long)(nowMs - data.conn->start),
-					     preview.c_str());
+				std::string preview = data.out.substr(0, 300);
+				Logger::cgi("%s%s%s execution ended after %lums", YELLOW,
+					    data.file.c_str(), TS,
+					    (unsigned long)(nowMs - data.conn->start));
+				res.printResponse(data.fd);
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;
 			}
@@ -166,33 +169,29 @@ bool cgiHandler::handleResponses() {
 			++i;
 		}
 	}
-	// if (anyProgress) {
-	// 	Logger::info("cgiResponses: %zu cgi currently running", cgiResponses_.size());
-	// }
-
 	return anyProgress;
 }
 
 void placeFileInDir(const std::string &name, const std::string &fileContent,
-		    const std::string &dir) {
-	struct stat st;
-	if (::stat(dir.c_str(), &st) != 0) {
-		Logger::error("Error creating file: dir %s not found", dir.c_str());
-		return;
-	}
-	std::string full = dir;
-	if (!full.empty() && full[full.size() - 1] != '/')
-		full += "/";
-	full += name;
+                    const std::string &dir) {
+  struct stat st;
+  if (::stat(dir.c_str(), &st) != 0) {
+    Logger::error("Error creating file: dir %s not found", dir.c_str());
+    return;
+  }
+  std::string full = dir;
+  if (!full.empty() && full[full.size() - 1] != '/')
+    full += "/";
+  full += name;
 
-	std::ofstream file(full.c_str());
-	if (!file.is_open()) {
-		Logger::error("Error creating file: %s", full.c_str());
-		return;
-	}
+  std::ofstream file(full.c_str());
+  if (!file.is_open()) {
+    Logger::error("Error creating file: %s", full.c_str());
+    return;
+  }
 
-	file << fileContent;
-	file.close();
+  file << fileContent;
+  file.close();
 
-	Logger::info("File created: %s", full.c_str());
+  Logger::info("File created: %s", full.c_str());
 }

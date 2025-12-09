@@ -230,7 +230,7 @@ def main():
                     "POST / HTTP/1.1\r\n"
                     "Host: localhost\r\n"
                     "Transfer-Encoding: chunked\r\n\r\n"
-                    "4\r\nTest\r\n0\r\n\r"
+                    "4\r\nTest\r\n0\r\n\r\n"
                 ),
                 expect_status_prefix="HTTP/1.1 ",
             )

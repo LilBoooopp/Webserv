@@ -1,3 +1,30 @@
+function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true) {
+  let div = document.createElement("div");
+  div.textContent = text;
+
+  div.style.position = "absolute";
+
+  div.style.left = (pos[0] / window.innerWidth) * 100 + "%";
+  div.style.top = (pos[1] / window.innerHeight) * 100 + "%";
+  div.style.whiteSpace = "pre";
+
+  if (centered) {
+    div.style.transform = "translate(-50%, -50%) scale(" + size + ")";
+  } else {
+    div.style.transform = "scale(" + size + ")";
+  }
+
+  div.style.transformOrigin = "center center";
+
+  div.style.userSelect = "none";
+  if (clr) div.style.color = clr;
+  else if (window.DARKMODE !== "undefined") div.style.color = window.DARKMODE === 1 ? "white" : "black";
+  if (bgrClr) div.style.backgroundColor = bgrClr;
+
+  document.body.appendChild(div);
+  return div;
+}
+
 function initImage(w, h, x, y, src) {
   const imgDiv = document.createElement("img");
   imgDiv.src = src;
@@ -40,22 +67,41 @@ function writeBox(w, h, x, y, bgrClr) {
   return div;
 }
 
-// writeBox(window.innerWidth, 20, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.26)");
-// writeBox(window.innerWidth, 100, 0, window.innerHeight - 100, "rgba(0, 0, 0, 0.13)");
 let infoBoxes = [];
 function announce(msg, dur = 2000, bgr = null) {
-  const base = [window.innerWidth / 2, window.innerHeight - 55];
+  const base = [window.innerWidth / 2, window.innerHeight * 0.8];
   const y = base[1] + infoBoxes.length * 20;
   const box = addDiv(msg, [base[0], y], 1, "white", bgr);
+  box.classList.add("infoBox");
+
   infoBoxes.push(box);
+
+  requestAnimationFrame(() => {
+    box.classList.add("show");
+  });
+
   setTimeout(() => {
-    box.remove();
-    const i = infoBoxes.indexOf(box);
-    if (i !== -1) infoBoxes.splice(i, 1);
-    for (let j = 0; j < infoBoxes.length; j++) {
-      const div = infoBoxes[j];
-      div.style.top = base[1] + j * 20 + "px";
-    }
+    box.classList.remove("show");
+    box.classList.add("hide");
+
+    setTimeout(() => {
+      box.remove();
+      const i = infoBoxes.indexOf(box);
+      if (i !== -1) infoBoxes.splice(i, 1);
+
+      for (let j = 0; j < infoBoxes.length; j++) {
+        const div = infoBoxes[j];
+        div.style.top = base[1] + j * 20 + "px";
+      }
+    }, 250);
   }, dur);
+
   return box;
+}
+
+function addTitle() {
+  const title = addDiv(window.PAGE_NAME.toUpperCase(), [window.innerWidth / 2, window.innerHeight / 2 - 150], 3);
+  title.style.textDecoration = "underline";
+  title.style.textDecorationColor = title.style.color;
+  title.style.textDecorationThickness = "1px";
 }

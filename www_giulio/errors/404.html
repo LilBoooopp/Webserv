@@ -7,19 +7,17 @@
   </head>
 
   <body>
-    <div id="ui-root"></div>
+    <body style="margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh">
+      <div style="color: black">Not Found</div>
+    </body>
 
     <script src="/js/buttons.js"></script>
-    <script src="/js/inputField.js"></script>
+    <script src="/js/div.js"></script>
 
     <script>
-      function init() {
-        const c = [window.innerWidth / 2, window.innerHeight / 2];
-        addDiv("FORM", [c[0], c[1] - 150], 3);
-        addFormulary([c[0], c[1] - 120]);
-        addHomeButton();
-      }
-      init();
+      const c = [window.innerWidth / 2, window.innerHeight / 2];
+      addDiv("404", [c[0], c[1] - 150], 5);
+      addHomeButton();
     </script>
   </body>
 </html>

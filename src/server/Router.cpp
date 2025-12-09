@@ -116,23 +116,23 @@ IHandler *Router::route(Connection &c, const HttpRequest &req,
 
   if (matched_loc) {
     const LocationConf &loc = *matched_loc;
-    Logger::debug("Router: Matched location: %s", loc.path.c_str());
+    Logger::info("Router: Matched location: %s", loc.path.c_str());
 
     if (!checkAllowedMethod(req, loc, res)) {
       return (new ErrorHandler(405));
     }
 
     if (loc.redirect_enabled) {
-      Logger::debug("Router: Redirecting to %s (%d).",
+      Logger::info("Router: Redirecting to %s (%d).",
                     loc.redirect_target.c_str(), loc.redirect_status);
       return (new RedirectHandler(loc.redirect_status, loc.redirect_target));
     }
 
-    Logger::debug("Router: Using StaticHandler with location %s",
+    Logger::info("Router: Using StaticHandler with location %s",
                   loc.path.c_str());
     return (new StaticHandler(server_conf_, matched_loc));
   }
 
-  Logger::debug("Router: No location matched. Using server defaults.");
+  Logger::info("Router: No location matched. Using server defaults.");
   return (new StaticHandler(server_conf_, NULL));
 }

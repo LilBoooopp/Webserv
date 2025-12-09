@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include "../config/Config.hpp"
 
 inline static const LocationConf *findLocation(const ServerConf &conf,
 					       const std::string &reqTarget) {

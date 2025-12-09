@@ -1,6 +1,6 @@
 #include "cgi.hpp"
 
-static bool execute(CgiExecutionData &data) {
+static bool execute(CgiExecutionData &data, const ServerConf &cfg) {
 	int fds[2];
 	if (pipe(fds) == -1) {
 		Logger::error("Pipe error");
@@ -25,9 +25,9 @@ static bool execute(CgiExecutionData &data) {
 		envStrings.push_back("REDIRECT_STATUS=200");
 		envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
 		envStrings.push_back("SERVER_PROTOCOL=HTTP/1.1");
-		envStrings.push_back("SERVER_SOFTWARE=webserv/1.0");
-		envStrings.push_back("SERVER_NAME=127.0.0.1");
-		envStrings.push_back("SERVER_PORT=8080");
+		envStrings.push_back("SERVER_SOFTWARE=" + cfg.names[0]);
+		envStrings.push_back("SERVER_NAME=" + cfg.hosts[0].host_str);
+		envStrings.push_back("SERVER_PORT=" + std::to_string(cfg.hosts[0].port_int));
 		envStrings.push_back("REQUEST_URI=" + data.requestUri);
 		envStrings.push_back("REQUEST_METHOD=" + data.method);
 		envStrings.push_back("QUERY_STRING=" + data.queryString);
@@ -113,7 +113,7 @@ bool cgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c
 	data.conn = &c;
 	data.fd = fd;
 	data.headers = c.req.headers;
-	bool execSuccess = execute(data);
+	bool execSuccess = execute(data, cfg);
 	Logger::cgi("%s CGI execution Data - %s%s%s:\n"
 		    "  %-12s %s\n"
 		    "  %-12s %s\n"

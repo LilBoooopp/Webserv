@@ -11,6 +11,7 @@ function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = nul
   div.style.cursor = "pointer";
   div.style.borderRadius = "5px";
   if (color) div.style.color = color;
+  else if (window.DARKMODE !== "undefined") div.style.color = window.DARKMODE === 0 ? "black" : "white";
   if (bgrClr) div.style.backgroundColor = bgrClr;
 
   document.body.appendChild(div);

@@ -43,8 +43,7 @@ $secret = $_SESSION["secret"] ?? null;
 		applyBackground();
 
 		const c = [window.innerWidth / 2, window.innerHeight / 2];
-		addDiv(window.PAGE_NAME.toUpperCase(), [c[0], c[1] - 150], 3);
-
+		addTitle();
 		const formFields = {};
 		const formLabels = ["name", "email", "secret", "tel"];
 		const w = 25;
@@ -52,13 +51,14 @@ $secret = $_SESSION["secret"] ?? null;
 		for (let i = 0; i < formLabels.length; i++) {
 			const label = formLabels[i];
 			const input = addInputField(label, [c[0], c[1] + w * i]);
+			const div = addDiv(label, [c[0] - 150, c[1] + w * i - 10]);
 			const value = data[label];
 				if (value != null && value !== "")
 				input.value = value;
 			formFields[label] = input;
 		}
 
-		addButton("Send", [c[0], c[1] + w * (formLabels.length + 1)], () => {
+		addButton("Send", [c[0] - 10, c[1] + w * (formLabels.length + 1) ], () => {
 		const data = new URLSearchParams();
 		const headerData = {};
 		for (const label of formLabels) {

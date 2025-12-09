@@ -18,6 +18,7 @@ function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true) {
 
   div.style.userSelect = "none";
   if (clr) div.style.color = clr;
+  else if (window.DARKMODE !== "undefined") div.style.color = window.DARKMODE === 1 ? "white" : "black";
   if (bgrClr) div.style.backgroundColor = bgrClr;
 
   document.body.appendChild(div);
@@ -96,4 +97,11 @@ function announce(msg, dur = 2000, bgr = null) {
   }, dur);
 
   return box;
+}
+
+function addTitle() {
+  const title = addDiv(window.PAGE_NAME.toUpperCase(), [window.innerWidth / 2, window.innerHeight / 2 - 150], 3);
+  title.style.textDecoration = "underline";
+  title.style.textDecorationColor = title.style.color;
+  title.style.textDecorationThickness = "1px";
 }

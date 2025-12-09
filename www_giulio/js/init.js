@@ -142,11 +142,12 @@ function initAudioPlayer() {
 
   const button = addButton("Upload", [p[0], p[1] + 120], () => openFileDialog(uploadFile), "black", "rgba(255, 255, 255, 0.24)");
   button.style.scale = 0.8;
+  button.addEventListener("mouseenter", () => (button.style.scale = 1));
+  button.addEventListener("mouseleave", () => (button.style.scale = 0.8));
 }
 
 function init() {
   initAudioPlayer();
-
   const c = [window.innerWidth / 2, window.innerHeight * 0.4];
   const colSpacing = 200;
   const rowSpacing = 50;
@@ -167,13 +168,11 @@ function init() {
   const cgiX = colX[2];
   const postX = colX[3];
 
-  const names = ["about", "form", "somePage"];
-  for (let i = 0; i < names.length; i++) {
-    cgiButton(names[i].toUpperCase(), "cgi/printArg.py", [navX, c[1] + 25 + rowSpacing * i], "/main/" + names[i] + ".html");
-  }
+  cgiButton("LOGIN", "cgi/printArg.py", [navX, c[1] + 25], "login.html");
 
   addButton("SPAM", [reqX, c[1] + 25], loopRequest);
-  cgiButton("not found", "notFound", [reqX, c[1] + 25 + rowSpacing]);
+  addButton("not found", [reqX, c[1] + 25 + rowSpacing], () => (window.location.href = "/notfound"));
+  addButton("bad url", [reqX, c[1] + 25 + rowSpacing * 2], () => (window.location.href = "awfin/qwq1||//#"));
 
   const cgPaths = ["print.cgi", "printArg.py", "infinite.py", "hugeResponse.py"];
   for (let i = 0; i < cgPaths.length; i++) {

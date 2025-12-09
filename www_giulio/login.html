@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+
+  <body>
+    <div id="ui-root"></div>
+
+    <script src="/js/buttons.js"></script>
+    <script src="/js/div.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/inputField.js"></script>
+
+    <form id="createForm" autocomplete="on" onsubmit="handleAuth(event)">
+      <input type="text" name="user" placeholder="nom utilisateur" style="position: absolute; top: 40%; left: 44%" />
+      <input type="password" name="pass" placeholder="password" style="position: absolute; top: 44%; left: 44%" />
+      <button type="submit" name="action" value="login" style="position: absolute; top: 50%; left: 45%">Login</button>
+      <button type="submit" name="action" value="register" style="position: absolute; top: 50%; left: 50%">Create</button>
+    </form>
+
+    <script>
+      function init() {
+        const c = [window.innerWidth / 2, window.innerHeight / 2];
+        addDiv("Login", [c[0], c[1] - 150], 3);
+        addHomeButton();
+      }
+      init();
+    </script>
+  </body>
+</html>

@@ -10,10 +10,10 @@
 #include <sys/socket.h>
 
 std::string getDefaultConfig() {
-	std::cout << "No config file given, would you like to use default.conf?" << std::endl;
+	std::cout << ".conf needed, use default.conf?" << std::endl;
 	std::string res;
-	std::cin >> res;
-	if (!std::strncmp(res.c_str(), "yes", 1))
+	std::getline(std::cin, res);
+	if (res.empty() || !std::strncmp(res.c_str(), "yes", 1))
 		return "default.conf";
 	return "";
 }

@@ -1,4 +1,3 @@
-#include "../utils/Logger.hpp"
 #include "cgi.hpp"
 
 std::string getInterpreter(const std::string &path, const ServerConf &conf) {

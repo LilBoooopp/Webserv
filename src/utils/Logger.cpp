@@ -1,6 +1,7 @@
 #include "Logger.hpp"
 #include "Chrono.hpp"
 #include "Colors.hpp"
+#include <sstream>
 
 bool Logger::channels[loggerChannelsCount] = {
     true,  // LOG_NONE (0)
@@ -12,7 +13,7 @@ bool Logger::channels[loggerChannelsCount] = {
     true,  // LOG_REQUEST (6)
     true,  // LOG_RESPONSE (7)
     false, // LOG_HEADER (8)
-    false   // LOG_BODY (9)
+    false  // LOG_BODY (9)
 };
 
 static void vlog(LogChannel want, const char *tag, const char *fmt, const char *clr, va_list ap) {

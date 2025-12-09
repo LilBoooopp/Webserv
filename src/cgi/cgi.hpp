@@ -3,6 +3,7 @@
 #include "../http/Connection.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
+#include "../utils/Path.hpp"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>

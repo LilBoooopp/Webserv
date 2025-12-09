@@ -18,6 +18,8 @@ bool	Config::IP_to_long(const char *addr, uint32_t &res)
 
 bool	Config::is_num(std::string str)
 {
+	if (str.empty())
+        return false;
 	for(size_t i = 0; i < str.size(); ++i)
 	{
 		if (!isdigit(str[i]))
@@ -26,12 +28,52 @@ bool	Config::is_num(std::string str)
 	return (true);
 }
 
+static const char *reasonForStatus(int code)
+{
+	switch (code)
+	{
+		case 400: return ("Bad Request");
+		case 403: return ("Forbidden");
+		case 404: return ("Not Found");
+		case 405: return ("Method Not Allowed");
+		case 413: return ("Payload Too Large");
+		case 501: return ("Not Implemented");
+		case 505: return ("HTTP Version Not Supported");
+		default: return ("Unknown");
+	}
+}
+
+static std::string build_default_error_page(int code)
+{
+    const char *reason = reasonForStatus(code);
+
+    std::ostringstream oss;
+    oss << "<!DOCTYPE html>\n"
+        << "<html><head><title>"
+        << code << " " << reason
+        << "</title></head><body>\n"
+        << "<h1>" << code << " " << reason << "</h1>\n"
+        << "<p>The server encountered an error.</p>\n"
+        << "</body></html>\n";
+
+    return oss.str();
+}
+
 void	Config::apply_defaults()
 {
+	int	codes[] = {400, 403, 404, 405, 413, 501, 505};
+
 	for (size_t i = 0; i < _servers.size(); ++i)
 	{
 		if (_servers[i].files.empty())
 			_servers[i].files.push_back("index.html");
+
+		for (size_t k = 0; k < 7; ++k)
+		{
+			if (_servers[i].error_pages.find(codes[k]) == _servers[i].error_pages.end())
+				_servers[i].error_pages[codes[k]] = build_default_error_page(codes[k]);
+		}
+
 		for (size_t j = 0; j < _servers[i].locations.size(); ++j)
 		{
 			if (!_servers[i].locations[j].has_root)
@@ -40,7 +82,8 @@ void	Config::apply_defaults()
 				_servers[i].locations[j].index_files = _servers[i].files;
 			if (!_servers[i].locations[j].has_max_size)
 				_servers[i].locations[j].max_size = _servers[i].max_size;
-
+			if (_servers[i].locations[j].cgi_maxOutput == 0)
+        		_servers[i].locations[j].cgi_maxOutput = _servers[i].locations[j].max_size;
 			if (_servers[i].locations[j].methods.empty())
 				_servers[i].locations[j].methods.push_back("GET");
 		}
@@ -52,9 +95,9 @@ bool	Config::valid_config()
 	for (size_t i = 0; i < _servers.size(); ++i)
 	{
 		if (_servers[i].hosts.empty())
-			setError(-1, "Missing host in server");
+			setError(0, "Missing host in server");
 		if (_servers[i].root.empty())
-			setError(-1, "Missing root in server");
+			setError(0, "Missing root in server");
 		if (_isError)
 			return (false);
 	}

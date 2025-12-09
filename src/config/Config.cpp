@@ -47,9 +47,9 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			else
 				res.port = htons(res.port_int);
 		}
-		server.hosts.push_back(res);
 		if (_isError)
 			return ;
+		server.hosts.push_back(res);
 	}
 	else if (key == "server_name")
 	{
@@ -79,12 +79,22 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			setError(line, "Invalid error syntax, expected 'error_page CODE PATH ;'");
 			return ;
 		}
-		if (!is_num(tokens[1]) || std::atoi(tokens[1].c_str()) < 1 || std::atoi(tokens[1].c_str()) > 599)
+		if (!is_num(tokens[1]) || std::atoi(tokens[1].c_str()) < 400 || std::atoi(tokens[1].c_str()) > 599)
 		{
 			setError(line, "Invalid error code");
 			return ;
 		}
-		server.error_pages[std::atoi(tokens[1].c_str())] = tokens[2];
+		std::ifstream file((server.root + tokens[2]).c_str());
+		std::string str;
+		if (!file.is_open())
+		{
+			setError(line, "Could not open error file");
+			return ;
+		}
+		std::ostringstream ss;
+		ss << file.rdbuf();
+		str = ss.str();
+		server.error_pages[std::atoi(tokens[1].c_str())] = str;
 	}
 	else if (key == "client_max_body_size")
 	{
@@ -101,9 +111,23 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 		}
 		server.max_size = val;
 	}
+	else if (key == "timeout")
+	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid timeout syntax, expected 'timeout MS ;'");
+			return ;
+		}
+		int time = std::atoi(tokens[1].c_str());
+		if (time <= 0 || !is_num(tokens[1]))
+		{
+			setError(line, "Invalid timeout value, expected positive number");
+			return ;
+		}
+		server.timeout_ms = time;
+	}
 	else
 		setError(line, "Unknown directive");
-
 }
 
 void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line)
@@ -165,14 +189,16 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 	{
 		if (tokens.size() != 3)
 		{
-			setError(line, "Invalid autoindex syntax, expected 'autoindex ON|OFF ;'");
+			setError(line, "Invalid autoindex syntax, expected 'autoindex on|off ;'");
 			return ;
 		}
 		location.autoindex_set = true;
 		if (tokens[1] == "on")
 			location.autoindex = true;
-		else
+		else if (tokens[1] == "off")
 			location.autoindex = false;
+		else
+			setError(line, "Invalid arg, expected 'on' or 'off'");
 	}
 	else if (key == "upload_store")
 	{
@@ -191,16 +217,56 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 			setError(line, "Invalid cgi syntax, expected 'cgi EXT PATH ;'");
 			return ;
 		}
-		else if (tokens[1] == ".py")
+		
+		std::string	ext = tokens[1];
+		std::string	path = tokens[2];
+
+		if (ext.size() < 2 || ext[0] != '.')
 		{
-			location.has_py = true;
-			location.py_path = tokens[2];
+			setError(line, "CGI extension must start with '.', path and ext must not be empty");
+			return ;
 		}
-		else if (tokens[1] == ".php")
+		location.cgi[ext] = path;
+		// else if (tokens[1] == ".py")
+		// {
+		// 	location.has_py = true;
+		// 	location.py_path = tokens[2];
+		// }
+		// else if (tokens[1] == ".php")
+		// {
+		// 	location.has_php = true;
+		// 	location.php_path = tokens[2];
+		// }
+	}
+	else if (key == "cgi_timeout")
+	{
+		if (tokens.size() != 3)
 		{
-			location.has_php = true;
-			location.php_path = tokens[2];
+			setError(line, "Invalid cgi_timeout syntax, expected 'cgi_timeout MS ;'");
+			return ;
 		}
+		int time = std::atoi(tokens[1].c_str());
+		if (time <= 0 || !is_num(tokens[1]))
+		{
+			setError(line, "Invalid cgi_timeout value, expected positive number");
+			return ;
+		}
+		location.cgi_timeout_ms = time;
+	}
+	else if (key == "cgi_max_output")
+	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid cgi max size syntax, expected 'cgi_max_output SIZE ;'");
+			return ;
+		}
+		int val	= std::atoi(tokens[1].c_str());
+		if (val < 0 || !is_num(tokens[1]))
+		{
+			setError(line, "Invalid body size value, expected positive number");
+			return ;
+		}
+		location.cgi_maxOutput = val;
 	}
 	else if (key == "client_max_body_size")
 	{

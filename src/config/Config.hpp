@@ -53,12 +53,14 @@ struct LocationConf
 	bool	upload_enabled;
 	std::string	upload_location;
 
-	bool	has_py;
-	std::string	py_path;
+	// bool	has_py;
+	// std::string	py_path;
 
-	bool	has_php;
-	std::string	php_path;
+	// bool	has_php;
+	// std::string	php_path;
 
+	std::map<std::string, std::string> cgi;
+	
 	size_t	cgi_timeout_ms;
 	size_t	cgi_maxOutput;
 
@@ -75,8 +77,8 @@ struct LocationConf
 		upload_enabled(false),
 		has_py(false),
 		has_php(false),
-		cgi_timeout_ms(5000),
-		cgi_maxOutput(1024 * 1024),
+		cgi_timeout_ms(60000),
+		cgi_maxOutput(0),
 		has_max_size(false),
 		max_size(1024*1024)
     {}
@@ -93,10 +95,13 @@ struct ServerConf
 	std::map<int, std::string>	error_pages;
 
 	size_t	max_size;
+	size_t	timeout_ms;
 
 	std::vector<LocationConf>	locations;
 
-	ServerConf() : max_size(1024*1024) {}
+	ServerConf() : max_size(1024*1024),
+				   timeout_ms(60000)
+	{}
 };
 
 class Config
@@ -131,6 +136,7 @@ class Config
 		std::string	separate(std::string &line);
 		std::vector<std::string> tokenize(std::string &line);
 		std::vector<std::string> read_lines(const std::string &filename);
+		//bool parse_size(std::string &str, size_t &out, size_t line, std::string &name);
 
 		// Config_Error
 		bool	_isError;

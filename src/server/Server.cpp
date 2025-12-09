@@ -3,11 +3,13 @@
 #include "../http/HttpParser.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
+#include "../utils/Chrono.hpp"
+#include "../utils/Colors.hpp"
 #include "../utils/Logger.hpp"
 #include "../utils/Path.hpp"
+#include "IHandler.hpp"
 #include "Listener.hpp"
 #include "Router.hpp"
-#include "StaticHandler.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <fcntl.h>
@@ -354,46 +356,51 @@ void Server::prepareResponse(int fd, Connection &c) {
 	if (is_cgi(req.target, cfg_[c.serverIdx])) {
 		if (cgiHandler_.runCgi(req, c.res, c, fd))
 			return;
-	} else if (req.method == "GET" || req.method == "HEAD") {
-		StaticHandler StaticHandler(&cfg_);
-		Router router(&StaticHandler);
-		router.route(req.target)->handle(c, req, c.res);
+	}
+	const ServerConf &serverConf = cfg_[c.serverIdx];
 
-		// Detect large static file streaming case for GET
-		if (req.method == "GET") {
-			const std::string kStreamHeader = "X-Stream-File";
+	Router router(serverConf);
 
-			if (c.res.hasHeader(kStreamHeader)) {
-				std::string file_path = c.res.getHeader(kStreamHeader);
+	IHandler *handler = router.route(c, req, c.res);
 
-				// Try to open the file now, in non-streaming, blocking mode.
-				// We will only read it in small chunks later form handleWritable.
-				int ffd = ::open(file_path.c_str(), O_RDONLY);
-				if (ffd >= 0) {
-					c.file_fd = ffd;
-					c.streaming_file = true;
+	handler->handle(c, req, c.res);
 
-					// Initialize remaining bytes from Content-Length
-					std::string cl = c.res.getHeader("Content-Length");
-					off_t remaining = 0;
-					if (!cl.empty()) {
-						std::istringstream iss(cl);
-						iss >> remaining;
-					}
-					c.file_remaining = remaining;
+	delete handler;
 
-					// Remove the internal header so the client doesn't see it.
-					if (c.res.hasHeader(kStreamHeader))
-						c.res.eraseHeader(kStreamHeader);
-				} else {
-					// If open fails, fall back to a 404
-					c.res.setStatusFromCode(404);
+	// Detect large static file streaming case for GET
+	if (req.method == "GET") {
+		const std::string kStreamHeader = "X-Stream-File";
 
-					// ensure no streaming
-					c.streaming_file = false;
-					c.file_fd = -1;
-					c.file_remaining = 0;
+		if (c.res.hasHeader(kStreamHeader)) {
+			std::string file_path = c.res.getHeader(kStreamHeader);
+
+			// Try to open the file now, in non-streaming, blocking mode.
+			// We will only read it in small chunks later form handleWritable.
+			int ffd = ::open(file_path.c_str(), O_RDONLY);
+			if (ffd >= 0) {
+				c.file_fd = ffd;
+				c.streaming_file = true;
+
+				// Initialize remaining bytes from Content-Length
+				std::string cl = c.res.getHeader("Content-Length");
+				off_t remaining = 0;
+				if (!cl.empty()) {
+					std::istringstream iss(cl);
+					iss >> remaining;
 				}
+				c.file_remaining = remaining;
+
+				// Remove the internal header so the client doesn't see it.
+				if (c.res.hasHeader(kStreamHeader))
+					c.res.eraseHeader(kStreamHeader);
+			} else {
+				// If open fails, fall back to a 404
+				c.res.setStatusFromCode(404);
+
+				// ensure no streaming
+				c.streaming_file = false;
+				c.file_fd = -1;
+				c.file_remaining = 0;
 			}
 		}
 	} else if (req.method == "POST") // TEMP, only echo response

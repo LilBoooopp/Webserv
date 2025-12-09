@@ -1,3 +1,7 @@
+#include "../utils/Chrono.hpp"
+#include "../utils/Colors.hpp"
+#include "../utils/Logger.hpp"
+#include "../utils/Path.hpp"
 #include "cgi.hpp"
 
 static bool execute(CgiExecutionData &data, const ServerConf &cfg) {
@@ -7,13 +11,13 @@ static bool execute(CgiExecutionData &data, const ServerConf &cfg) {
 		return "";
 	}
 
-	pid_t pid = fork();
-	if (pid == -1) {
-		close(fds[0]);
-		close(fds[1]);
-		Logger::error("Fork error");
-		return false;
-	}
+  pid_t pid = fork();
+  if (pid == -1) {
+    close(fds[0]);
+    close(fds[1]);
+    Logger::error("Fork error");
+    return false;
+  }
 
 	if (pid == 0) {
 		if (dup2(fds[1], STDOUT_FILENO) == -1)

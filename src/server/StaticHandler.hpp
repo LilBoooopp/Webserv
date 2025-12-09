@@ -3,7 +3,13 @@
 #include "IHandler.hpp"
 
 struct StaticHandler : IHandler {
-  const std::vector<ServerConf> *cfg_;
-  explicit StaticHandler(const std::vector<ServerConf> *cfg) : cfg_(cfg) {}
+private:
+  const ServerConf &server_conf_;
+  const LocationConf *location_conf_;
+
+public:
+  explicit StaticHandler(const ServerConf &server_conf,
+                         const LocationConf *location_conf = NULL)
+      : server_conf_(server_conf), location_conf_(location_conf) {}
   virtual void handle(Connection &c, const HttpRequest &req, HttpResponse &res);
 };

@@ -13,10 +13,10 @@ std::string getInterpreter(const std::string &path, const ServerConf &conf) {
   const LocationConf *loc = findLocation(conf, path);
   if (!loc)
     return "";
-  if (ext == "py" && loc->has_py)
-    return loc->py_path;
-  if (ext == "php" && loc->has_php)
-    return loc->php_path;
+  if (ext == "py" && loc->cgi.find(".py") != loc->cgi.end())
+    return loc->cgi.find(".py")->second;
+  if (ext == "php" && loc->cgi.find(".php") != loc->cgi.end())
+    return loc->cgi.find(".php")->second;
   return "";
 }
 

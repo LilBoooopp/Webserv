@@ -75,8 +75,6 @@ struct LocationConf
 		autoindex_set(false),
 		autoindex(false),
 		upload_enabled(false),
-		has_py(false),
-		has_php(false),
 		cgi_timeout_ms(60000),
 		cgi_maxOutput(0),
 		has_max_size(false),

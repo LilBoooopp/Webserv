@@ -26,3 +26,22 @@ body {
   opacity: 0;
   transform: translateY(-10px) scale(0.95);
 }
+
+.mineSweeperCell {
+  background-color: rgb(195, 195, 195);
+  box-shadow: inset 2px 2px 0 0 rgb(187, 187, 187), inset -2px -2px 0 0 rgb(192, 192, 192);
+  box-sizing: border-box;
+  user-select: none;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+}
+
+.mineSweeperCell.bomb {
+  background-color: rgb(200, 29, 29);
+  box-shadow: inset 1px 1px 0 0 rgb(255, 100, 100), inset -1px -1px 0 0 rgb(85, 10, 10);
+}
+
+.mineSweeperCell.hidden {
+  background-color: rgb(195, 195, 195);
+  box-shadow: inset 5px 5px 0 0 rgb(242, 242, 242), inset -5px -5px 0 0 rgb(70, 70, 70);
+}

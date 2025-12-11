@@ -9,6 +9,15 @@
 #include <signal.h>
 #include <sys/socket.h>
 
+Server *g_server = NULL;
+void signalHandler(int signum) {
+	if (g_server) {
+		std::cout << "\nReceived signal " << signum << ", cleaning up..." << std::endl;
+		g_server->cleanup();
+	}
+	exit(signum);
+}
+
 std::string getDefaultConfig() {
 	std::cout << ".conf needed, use default.conf?" << std::endl;
 	std::string res;
@@ -45,6 +54,12 @@ int main(int argc, char **argv) {
 		return (1);
 	}
 	s.setConf(servers);
+
+	// Setup signal handlers
+	g_server = &s;
+	signal(SIGINT, signalHandler);
+	signal(SIGTERM, signalHandler);
+
 	std::cout << "started" << std::endl;
 	s.run();
 	return (0);

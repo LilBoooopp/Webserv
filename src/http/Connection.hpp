@@ -41,7 +41,8 @@ class Connection {
 	int file_fd;	      // fd of file being streamed, -1 if none
 	off_t file_remaining; // bytes left to send
 	bool streaming_file;  // true if we still need to stream body from file
-	time_t last_active;   // for idle timeout
+	bool cgiRunning;
+	time_t last_active; // for idle timeout
 
 	Connection(void);
 	void printStatus(const std::string &label);

@@ -9,7 +9,7 @@ function handleAuth(e) {
   const username = formData.get("user") || "";
   const password = formData.get("pass") || "";
 
-  const url = "/cgi/auth/" + (action === "login" ? "login.php" : "register.php");
+  const url = "/cgi/auth/sessionManagment/" + (action === "login" ? "login.php" : "register.php");
 
   fetch(url, {
     method: "POST",
@@ -48,7 +48,7 @@ function handleAuth(e) {
 }
 
 function logout() {
-  const url = "/cgi/auth/logout.php";
+  const url = "/cgi/auth/sessionManagment/logout.php";
   fetch(url, {
     method: "POST",
     credentials: "include",
@@ -90,4 +90,14 @@ function addScrollerProfileMenu() {
 
 function applyBackground(flag = window.DARKMODE === 1) {
   document.documentElement.style.setProperty("background-color", flag ? "rgba(34, 34, 34, 1)" : "", "important");
+}
+
+function loadUsers(onLoad = null) {
+  fetch("/cgi/auth/sessionManagment/getUserList.php")
+    .then((response) => response.json())
+    .then((users) => {
+      window.USERS = users;
+      if (onLoad) onLoad(users);
+    })
+    .catch((err) => console.error("Failed to fetch users:", err));
 }

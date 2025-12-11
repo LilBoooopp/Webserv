@@ -35,9 +35,10 @@ $darkmode = $_SESSION["darkmode"] ?? false;
 
 		addTitle();
 		applyBackground();
-		addButton("Snake", [c[0], c[1]], () => {window.location.href = "/cgi/auth/securePage/snake.php"});
+		const games = ["Snake", "MineSweeper", "Logimage"];
+		for (let i = 0; i < games.length; i++)
+			addButton(games[i], [c[0], c[1] + i * 50], () => {window.location.href = "/cgi/auth/securePage/games/" + games[i].toLowerCase() + ".php"});
 		addScrollerProfileMenu();
     </script>
   </body>
 </html>
-

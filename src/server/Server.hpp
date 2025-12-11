@@ -40,4 +40,5 @@ class Server {
 	void setConf(std::vector<ServerConf> config);
 	void run();
 	bool executeStdin();
+	void cleanup();
 };

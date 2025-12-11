@@ -3,8 +3,15 @@
 #include "../http/Connection.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
+#include "../utils/Chrono.hpp"
+#include "../utils/Colors.hpp"
+#include "../utils/Logger.hpp"
 #include "../utils/Path.hpp"
+#include <cstdlib>
+#include <errno.h>
 #include <fcntl.h>
+#include <fstream>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -13,6 +20,7 @@
 #include <vector>
 
 struct CgiExecutionData {
+	std::vector<pid_t> asyncPids_;
 	std::string method;
 	std::string requestUri;
 	std::string queryString;
@@ -29,18 +37,23 @@ struct CgiExecutionData {
 	size_t start;
 	size_t bytesRead;
 	std::string out;
-	CgiExecutionData() : conn(NULL), readFd(-1), pid(-1), start(0), bytesRead(0) {}
+	bool noRead;
+	CgiExecutionData()
+	    : conn(NULL), readFd(-1), pid(-1), start(0), bytesRead(0), noRead(false) {}
 };
 
 class cgiHandler {
     private:
 	std::vector<CgiExecutionData> cgiResponses_;
+	std::vector<pid_t> asyncPids_;
 	const std::vector<ServerConf> *cfg_;
 
     public:
 	bool runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd);
 	bool handleResponses();
 	void setConfig(const std::vector<ServerConf> &cfg);
+	void killAsyncProcesses();
+	void detachConnection(Connection *conn);
 };
 
 void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,

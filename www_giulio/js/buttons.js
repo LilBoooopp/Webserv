@@ -169,7 +169,7 @@ function addToggleButton(label, p, active, onClick) {
 
 function addDeleteAccountButton(p) {
   addButton("Delete Account", [p[0], p[1]], () => {
-    fetch("/cgi/auth/delete.php", {
+    fetch("/cgi/auth/sessionManagment/delete.php", {
       method: "POST",
     })
       .then(async (res) => {
@@ -182,6 +182,27 @@ function addDeleteAccountButton(p) {
       })
       .catch(() => {
         announce("error while deleting account");
+      });
+  });
+}
+
+function addInfiniteRequestButton(p) {
+  addButton("No Timeout CGI", [p[0], p[1]], () => {
+    fetch("/cgi/infinite.py", {
+      method: "POST",
+      headers: {
+        "X-Async": "1",
+      },
+    })
+      .then(async (res) => {
+        const msg = await res.text();
+        if (res.ok && msg.trim() === "OK") {
+        } else {
+          announce(msg || "no Timeout CGI failed");
+        }
+      })
+      .catch(() => {
+        announce("error in No Timeout CGI call");
       });
   });
 }

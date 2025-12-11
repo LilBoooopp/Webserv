@@ -362,9 +362,7 @@ void Server::prepareResponse(int fd, Connection &c) {
 	Router router(serverConf);
 
 	IHandler *handler = router.route(c, req, c.res);
-
 	handler->handle(c, req, c.res);
-
 	delete handler;
 
 	// Detect large static file streaming case for GET
@@ -433,7 +431,6 @@ void Server::handleWritable(int fd) {
 		return;
 
 	Connection &c = it->second;
-
 	// Max number of bytes we will attempt to send in a single call.
 	// This prevents one big response from blocking other clients.
 	const size_t MAX_WRITE_BYTES = 16 * 1024;
@@ -497,6 +494,7 @@ void Server::handleWritable(int fd) {
 			c.responded = true;
 		Logger::connection("fd %d closed", fd);
 
+		cgiHandler_.detachConnection(&c);
 		reactor_.del(fd);
 		::close(fd);
 		conns_.erase(it);
@@ -580,8 +578,10 @@ void Server::run() {
 			for (int i = 0; i < n; ++i) {
 				int fd = events[i].data.fd;
 				if (fd == 0) {
-					if (executeStdin())
+					if (executeStdin()) {
+						cleanup();
 						return;
+					}
 					logged = false;
 					continue;
 				}
@@ -594,13 +594,15 @@ void Server::run() {
 					continue;
 				}
 
-				if (ev & (EPOLLHUP | EPOLLERR)) {
-					reactor_.del(fd);
-					::close(fd);
-					conns_.erase(fd);
-					continue;
-				}
-
+			if (ev & (EPOLLHUP | EPOLLERR)) {
+				std::map<int, Connection>::iterator it = conns_.find(fd);
+				if (it != conns_.end())
+					cgiHandler_.detachConnection(&it->second);
+				reactor_.del(fd);
+				::close(fd);
+				conns_.erase(fd);
+				continue;
+			}
 				if (ev & EPOLLIN)
 					handleReadable(fd);
 				if (ev & EPOLLOUT)
@@ -625,4 +627,16 @@ void Server::run() {
 				enableWrite(it->first);
 		}
 	}
+}
+
+void Server::cleanup() {
+	Logger::server("Cleaning up server resources...");
+	cgiHandler_.killAsyncProcesses();
+	for (std::map<int, Connection>::iterator it = conns_.begin(); it != conns_.end(); ++it) {
+		close(it->first);
+	}
+	conns_.clear();
+	for (size_t i = 0; i < listener_.size(); ++i)
+		close(listener_[i].fd());
+	Logger::server("Cleanup complete");
 }

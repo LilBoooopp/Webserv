@@ -3,34 +3,43 @@ var scoreDiv = addDiv("", [window.innerWidth / 2 - 200, window.innerHeight * 0.3
 var highScoreDiv = addDiv("", [window.innerWidth / 2 + 200, window.innerHeight * 0.3]);
 
 var score = 0;
-const restartBtn = addButton("Restart", [window.innerWidth / 2, window.innerHeight * 0.2], () => {
-  initSnakeGame();
-});
+var difficulty = 0;
+var k = "";
+var restartBtn = null;
 
 window.addEventListener("keydown", (e) => {
-  const k = e.key.toLowerCase();
-  const curDir = plr.snakeDir;
-  plr.snakeDir = k === "a" && curDir !== "right" ? "left" : k === "d" && curDir !== "left" ? "right" : k === "w" && curDir !== "down" ? "up" : k === "s" && curDir !== "up" ? "down" : curDir;
+  k = e.key.toLowerCase();
 });
 
-function initSnakeGame() {
-  const cellSz = 10,
-    cellW = 40,
-    cellH = 40;
+function initSnakeGame(diff = 0) {
+  loadUsers((users) => {
+    displayUsersScores(users, "Snake");
+  });
+
+  const cellSz = 10;
+  const cellW = 40;
+  const cellH = 40;
   const cells = [];
 
+  if (!restartBtn)
+    restartBtn = addButton("Restart", [window.innerWidth / 2, window.innerHeight * 0.2], () => {
+      initSnakeGame();
+    });
+  restartBtn.style.display = "none";
+
+  difficulty = diff;
   score = 0;
   scoreDiv.textContent = "Score " + 0;
   restartBtn.style.display = "none";
 
   highScoreDiv.textContent = "High Score " + (window.HIGH_SCORE === undefined ? 0 : window.HIGH_SCORE);
 
-  plr.snakeDir = "down";
+  plr.snakeDir = "";
   plr.body = [];
 
   const c = [window.innerWidth / 2, window.innerHeight * 0.65];
-  for (let y = -cellH / 2; y < cellH / 2; y++) {
-    for (let x = -cellW / 2; x < cellW / 2; x++) {
+  for (let y = -Math.round(cellH / 2); y < Math.round(cellH / 2); y++) {
+    for (let x = -Math.round(cellW / 2); x < Math.round(cellW / 2); x++) {
       const p = [c[0] + x * cellSz, c[1] + y * cellSz];
       var cell = writeBox(cellSz - 1, cellSz - 1, p[0], p[1], "white");
       cells.push(cell);
@@ -41,6 +50,12 @@ function initSnakeGame() {
       }
     }
   }
+  const am = Math.round(cells.length * (diff * 0.01));
+  for (let i = 0; i < am; i++) {
+    var wall = cells[Math.round(Math.random() * (cells.length - 1))];
+    while (wall.style.backgroundColor !== "white") wall = cells[Math.round(Math.random() * (cells.length - 1))];
+    wall.style.backgroundColor = "grey";
+  }
 
   var food = cells[Math.round(Math.random() * cells.length)];
   food.style.backgroundColor = "green";
@@ -50,6 +65,8 @@ function initSnakeGame() {
     loop(cells, cellW, cellH, plr);
   }, 300);
 }
+
+var overload = 3;
 
 function spawnFruit(cells, isMega = false) {
   var food = cells[Math.round(Math.random() * cells.length)];
@@ -66,8 +83,11 @@ function spawnFruit(cells, isMega = false) {
   } else if (Math.round(Math.random() * 10) <= 2) spawnFruit(cells, true);
 }
 
-function loop(cells, w, h, plr) {
+function frame(cells, w, h, plr) {
   const curCrd = plr.body[plr.body.length - 1].cord;
+  const pd = plr.snakeDir;
+  plr.snakeDir = k === "a" && pd !== "right" ? "left" : k === "d" && pd !== "left" ? "right" : k === "w" && pd !== "down" ? "up" : k === "s" && pd !== "up" ? "down" : pd;
+  if (plr.snakeDir === "") return 1;
   var newX = curCrd[0] + (plr.snakeDir === "left" ? -1 : plr.snakeDir === "right" ? 1 : 0);
   var newY = curCrd[1] + (plr.snakeDir === "up" ? -1 : plr.snakeDir === "down" ? 1 : 0);
   const halfW = w / 2;
@@ -82,35 +102,61 @@ function loop(cells, w, h, plr) {
 
   const newCell = cells[idx];
   if (newCell.isFood) {
-    score += newCell.isMega ? 200 : 50;
+    const wasMega = newCell.isMega;
+    score += 50 * (difficulty <= 0 ? 1 : difficulty);
+    if (wasMega) {
+      score += 150 * (difficulty <= 0 ? 1 : difficulty);
+      overload += 10;
+    }
     scoreDiv.textContent = "Score " + score;
     newCell.isFood = false;
     newCell.isMega = false;
-    spawnFruit(cells, false);
-  } else if (newCell.style.backgroundColor === "black") {
-    if (window.HIGH_SCORE === undefined || score > window.HIGH_SCORE) {
-      window.HIGH_SCORE = score;
-      const body = new URLSearchParams({ snakeHighScore: score });
-      fetch("/cgi/auth/setScore.php", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-snakeHighScore": score.toString(),
-        },
-        body: body.toString(),
-      }).catch(() => announce("Can't save score"));
-    }
-    restartBtn.style.display = "block";
-    return;
-  } else {
+    if (!wasMega) spawnFruit(cells, false);
+  } else if (newCell.style.backgroundColor !== "white") return 0;
+  else if (overload > 0) overload--;
+  else {
     plr.body[0].style.backgroundColor = "white";
     plr.body.splice(0, 1);
   }
   plr.body.push(newCell);
   newCell.style.backgroundColor = "black";
-  if (newCell)
+  return 1;
+}
+
+function onGameOver() {
+  if (window.HIGH_SCORE === undefined || score > window.HIGH_SCORE) {
+    window.HIGH_SCORE = score;
+    const body = new URLSearchParams({ snakeHighScore: score });
+    fetch("/cgi/auth/setters/setScore.php", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-snakeHighScore": score.toString(),
+      },
+      body: body.toString(),
+    }).catch(() => announce("Can't save score"));
+  }
+  restartBtn.style.display = "block";
+}
+
+function loop(cells, w, h, plr) {
+  if (k && !frame(cells, w, h, plr)) onGameOver();
+  else
     setTimeout(() => {
       requestAnimationFrame(() => loop(cells, w, h, plr));
     }, 50);
+}
+
+var usersDivs = null;
+function displayUsersScores(users, type) {
+  if (usersDivs) usersDivs.forEach((div) => div.remove());
+  usersDivs = [];
+  users.sort((a, b) => b.snakeHighScore - a.snakeHighScore);
+  var cp = [window.innerWidth * 0.1, window.innerHeight * 0.5];
+  users.forEach((user) => {
+    usersDivs.push(addDiv(`${user.username}:`, cp));
+    usersDivs.push(addDiv(`${user.snakeHighScore} points`, [cp[0] + 150, cp[1]]));
+    cp[1] += 20;
+  });
 }

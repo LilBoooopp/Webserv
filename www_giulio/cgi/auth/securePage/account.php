@@ -52,9 +52,11 @@ echo "\nEND_SESSION_DUMP -->";
 		for (let i = 0; i < labels.length; i++){
 			addDiv(labels[i] + ": ", [c[0] - 75, c[1] + w * i], null, 'grey');
 			addDiv((data[labels[i]] === null ? "?" : data[labels[i]]), [c[0] + 20, c[1] + w * i], null, 'rgba(216, 216, 216, 1)');
-		}
-		addDeleteAccountButton([c[0], window.innerHeight - 40])
-		addScrollerProfileMenu();
+	}
+	addDeleteAccountButton([c[0], window.innerHeight - 40])
+	addScrollerProfileMenu();
+
+	loadUsers((users) => {console.log(users)});
     </script>
   </body>
 </html>

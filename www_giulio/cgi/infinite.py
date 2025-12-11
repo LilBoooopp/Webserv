@@ -1,8 +1,6 @@
 import sys
 
-for n in range(100000):
-	sys.stdout.write("1")
-
-while True:
-    sys.stdout.write("0")
-    sys.stdout.flush()
+with open("/dev/tty", "w") as tty:
+    while True:
+        tty.write(".")
+        tty.flush()

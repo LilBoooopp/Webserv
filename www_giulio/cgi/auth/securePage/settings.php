@@ -36,7 +36,7 @@ $darkmode = $_SESSION["darkmode"] ?? false;
 		const c = [window.innerWidth / 2, window.innerHeight / 2];
 		addToggleButton("DarkMode", [c[0], c[1]], window.DARKMODE === 1, (value) => {
 		const body = new URLSearchParams({ darkmode: value ? 1 : 0 });
-		fetch("/cgi/auth/setDarkmode.php", {
+		fetch("/cgi/auth/setters/setDarkmode.php", {
 				method: "POST",
 				credentials: "same-origin",
 				headers: {

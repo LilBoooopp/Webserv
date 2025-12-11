@@ -67,7 +67,7 @@ $secret = $_SESSION["secret"] ?? null;
 			headerData[label] = input.value;
 			console.log(label, "=>", input.value);
 		}
-		fetch("/cgi/auth/setAbout.php", {
+		fetch("/cgi/auth/setters/setAbout.php", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",

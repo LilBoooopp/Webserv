@@ -24,11 +24,12 @@ def main():
         respond("400 Bad Request", "Missing X-Upload-Path header\n")
         return
 
-    # Normalize path but allow subdirectories (don't use basename which strips dirs)
+    is_directory = filename.endswith("/")
+
     filename = os.path.normpath(filename)
 
-    # Prevent directory traversal
-    if filename.startswith("..") or filename.startswith("/"):
+    # Prevent directory traversal (but allow "." to refer to root)
+    if filename.startswith(".."):
         respond("400 Bad Request", "Invalid path\n")
         return
 
@@ -39,7 +40,17 @@ def main():
         respond("500 Internal Server Error", f"Failed to prepare upload dir: {e}\n")
         return
 
-    # Create subdirectories if needed
+    if is_directory:
+        dest = os.path.join(upload_dir, filename)
+        try:
+            os.makedirs(dest, exist_ok=True)
+        except Exception as e:
+            respond("500 Internal Server Error", f"Failed to create directory: {e}\n")
+            return
+        respond("200 OK", f"Created directory {filename}\n")
+        return
+
+    # Otherwise, treat as file upload
     dest = os.path.join(upload_dir, filename)
     dest_dir = os.path.dirname(dest)
     try:
@@ -50,7 +61,6 @@ def main():
 
     data = sys.stdin.buffer.read(content_length)
 
-    dest = os.path.join(upload_dir, filename)
     try:
         with open(dest, "wb") as f:
             f.write(data)

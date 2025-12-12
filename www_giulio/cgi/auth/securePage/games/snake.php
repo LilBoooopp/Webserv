@@ -36,9 +36,9 @@ $snakeHighScore = $_SESSION["snakeHighScore"] ?? false;
 
     <script>
 		addTitle();
-		applyBackground();
 		initSnakeGame();
 		addScrollerProfileMenu();
+		initBackground();
     </script>
   </body>
 </html>

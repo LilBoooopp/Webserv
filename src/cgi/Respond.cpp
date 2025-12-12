@@ -141,7 +141,8 @@ bool CgiHandler::handleResponses() {
 			close(data.readFd);
 			Connection *conn = data.conn;
 			if (conn) {
-				HttpResponse res(200);
+				conn->res = HttpResponse(200);
+				HttpResponse &res = conn->res;
 				if (err.empty()) {
 					if (data.out.empty())
 						err = "CGI produced no output";
@@ -153,11 +154,16 @@ bool CgiHandler::handleResponses() {
 					res.setContentType("text/plain");
 					res.setBody(err);
 				}
+
 				bool head_only = (conn->req.method == "HEAD");
 				std::string preview = data.out.substr(0, 300);
 				Logger::cgi("%s%s%s execution ended after %lums", YELLOW,
 					    data.file.c_str(), TS,
 					    (unsigned long)(nowMs - data.conn->start));
+				if (res.getStatus() == 401) {
+					Router router(resCfg);
+					router.redirectError(*conn);
+				}
 				res.printResponse(data.fd);
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;

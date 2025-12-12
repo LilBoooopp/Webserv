@@ -4,6 +4,7 @@
 #include "../http/Connection.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
+#include "../server/Router.hpp"
 #include "../utils/Utils.hpp"
 #include "CgiData.hpp"
 #include <cstdlib>

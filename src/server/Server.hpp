@@ -15,9 +15,7 @@
 #include <unistd.h>
 #include <vector>
 
-#define MAX_READ 1024 * 16
-#define MAX_WRITE 1024 * 16
-
+class CgiHandler;
 class Server {
 	EpollReactor reactor_;
 	std::vector<Listener> listener_;
@@ -32,7 +30,6 @@ class Server {
 	void enableWrite(int fd);
 	void disableWrite(int fd);
 	void prepareResponse(int fd, Connection &c);
-	void redirectError(Connection &c);
 
     public:
 	Server() : inbuf_(8192) {}

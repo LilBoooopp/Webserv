@@ -2,7 +2,9 @@
 #include "../config/Config.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
+#include "../utils/Path.hpp"
 #include "IHandler.hpp"
+#include <unistd.h>
 
 class Router {
     private:
@@ -18,4 +20,5 @@ class Router {
 
 	// Check if handler is a redirect and return target URL (empty string if not a redirect)
 	static std::string getRedirectTarget(IHandler *handler);
+	void redirectError(Connection &c);
 };

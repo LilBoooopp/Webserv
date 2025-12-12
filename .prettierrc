@@ -1,0 +1,5 @@
+{
+	"printWidth": 300,
+	"useTabs": true,
+	"plugins": ["@prettier/plugin-php"]
+}

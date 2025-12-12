@@ -1,0 +1,25 @@
+{
+  "name": "webserv_git",
+  "version": "1.0.0",
+  "description": "MiniWebserv is a lightweight HTTP server written in C++98, designed to help you understand the inner workings of HTTP and web servers. It is compatible with standard web browsers and can serve static websites, handle file uploads, and process basic HTTP methods (GET, POST, DELETE). The server is non-blocking and uses epoll for efficient I/O multiplexing.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LilBoooopp/Webserv.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LilBoooopp/Webserv/issues"
+  },
+  "homepage": "https://github.com/LilBoooopp/Webserv#readme",
+  "devDependencies": {
+    "@prettier/plugin-php": "^0.24.0",
+    "prettier": "^3.7.4"
+  }
+}

@@ -5,15 +5,17 @@
 
 bool Logger::channels[loggerChannelsCount] = {
     true,  // LOG_NONE (0)
-    true,  // LOG_ERROR (1)
-    true,  // LOG_INFO (2)
-    true,  // LOG_SERVER (3)
-    false, // LOG_CONN (4)
+    true,  // LOG_INFO (1)
+    true,  // LOG_SERVER (2)
+    false, // LOG_CONN (3)
+    true,  // LOG_ROUTER (4)
     true,  // LOG_CGI (5)
     true,  // LOG_REQUEST (6)
     true,  // LOG_RESPONSE (7)
     false, // LOG_HEADER (8)
-    false  // LOG_BODY (9)
+    false, // LOG_BODY (9)
+    true,  // LOG_ERROR (10)
+    true   // LOG_WARN (1)
 };
 
 static void vlog(LogChannel want, const char *tag, const char *fmt, const char *clr, va_list ap) {
@@ -48,20 +50,21 @@ static void log_internal(LogChannel level, const char *tag, const char *color, c
 		va_end(ap);                                                                        \
 	}
 
-LOGGER_IMPL(error, "ERROR", LOG_ERROR, RED)
 LOGGER_IMPL(info, "INFO", LOG_INFO, BLUE)
 LOGGER_IMPL(server, "SERVER", LOG_SERVER, rgba(82, 96, 149, 1))
 LOGGER_IMPL(connection, "Connection ", LOG_CONNECTION, rgba(111, 82, 149, 1))
 LOGGER_IMPL(cgi, "CGI", LOG_CGI, rgba(190, 145, 103, 1))
+LOGGER_IMPL(router, "ROUTER", LOG_ROUTER, rgba(109, 190, 103, 1))
 LOGGER_IMPL(request, "REQUEST", LOG_REQUEST, rgba(76, 156, 116, 1))
 LOGGER_IMPL(response, "RESPONSE", LOG_RESPONSE, rgba(166, 130, 193, 1))
 LOGGER_IMPL(header, "  ", LOG_HEADER, rgba(215, 209, 147, 1))
 LOGGER_IMPL(timer, "", LOG_ALL, TS)
 LOGGER_IMPL(simple, NULL, LOG_ALL, NULL)
+LOGGER_IMPL(error, "ERROR", LOG_ALL, RED)
 LOGGER_IMPL(warn, "WARN", LOG_ALL, RED)
 
 void Logger::printChannels() {
-	for (int i = 1; i < LOG_ALL; ++i) {
+	for (int i = 1; i <= LOG_BODY; ++i) {
 		const std::string &name = LoggerLevels[i];
 		int blockWidth = static_cast<int>(name.size()) + 3;
 
@@ -85,7 +88,7 @@ void Logger::printChannels() {
 	}
 	std::fprintf(stderr, "\n");
 
-	for (int i = 1; i < LOG_ALL; ++i) {
+	for (int i = 1; i <= LOG_BODY; ++i) {
 		const std::string &name = LoggerLevels[i];
 		std::fprintf(stderr, "%s[%s]%s ", channels[i] ? GREEN : RED, name.c_str(), TS);
 	}

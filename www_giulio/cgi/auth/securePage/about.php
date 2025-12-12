@@ -3,7 +3,7 @@ session_start();
 
 if (empty($_SESSION["user_id"])) {
 	header("Location: /login.html");
-	exit;
+	exit();
 }
 $user = $_SESSION["username"] ?? null;
 $darkmode = $_SESSION["darkmode"] ?? null;
@@ -11,7 +11,6 @@ $name = $_SESSION["name"] ?? null;
 $tel = $_SESSION["tel"] ?? null;
 $email = $_SESSION["email"] ?? null;
 $secret = $_SESSION["secret"] ?? null;
-
 ?>
 <!DOCTYPE html>
 <html>
@@ -30,7 +29,7 @@ $secret = $_SESSION["secret"] ?? null;
     <script src="/js/inputField.js"></script>
 
     <script>
-		window.CURRENT_USER = <?php echo json_encode($user); ?>;
+			window.CURRENT_USER = <?php echo json_encode($user); ?>;
 		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
 		window.PAGE_NAME = "about";
 		var data = {
@@ -39,8 +38,6 @@ $secret = $_SESSION["secret"] ?? null;
 			"email": <?php echo json_encode($email); ?>,
 			"secret": <?php echo json_encode($secret); ?>,
 		}
-
-		applyBackground();
 
 		const c = [window.innerWidth / 2, window.innerHeight / 2];
 		addTitle();
@@ -85,8 +82,8 @@ $secret = $_SESSION["secret"] ?? null;
 			})
 			.catch(() => announce("Can't save data"));
 		});
-
 		addScrollerProfileMenu();
+		initBackground();
     </script>
   </body>
 </html>

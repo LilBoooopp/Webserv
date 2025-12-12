@@ -3,7 +3,7 @@ session_start();
 
 if (empty($_SESSION["user_id"])) {
 	header("Location: /login.html");
-	exit;
+	exit();
 }
 
 $user = $_SESSION["username"] ?? null;
@@ -16,7 +16,6 @@ $secret = $_SESSION["secret"] ?? null;
 echo "<!-- SESSION_DUMP\n";
 var_dump($_SESSION);
 echo "\nEND_SESSION_DUMP -->";
-
 ?>
 <!DOCTYPE html>
 <html>
@@ -37,15 +36,14 @@ echo "\nEND_SESSION_DUMP -->";
     <script>
 		window.CURRENT_USER = <?php echo json_encode($user); ?>;
 		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
-		window.PAGE_NAME = window.CURRENT_USER;
 		var data = {
 			"name": <?php echo json_encode($name); ?>,
 			"tel": <?php echo json_encode($tel); ?>,
 			"email": <?php echo json_encode($email); ?>,
 			"secret": <?php echo json_encode($secret); ?>,
 		}
-		applyBackground();
 		const c = [window.innerWidth / 2, window.innerHeight / 2];
+		window.PAGE_NAME = "account";
 		addTitle();
 		const labels = ["name", "email", "secret", "tel"];
 		const w = 25;
@@ -57,6 +55,7 @@ echo "\nEND_SESSION_DUMP -->";
 	addScrollerProfileMenu();
 
 	loadUsers((users) => {console.log(users)});
+	initBackground();
     </script>
   </body>
 </html>

@@ -70,7 +70,7 @@ void parseCgiRequest(const std::string &target, std::string &dir, std::string &f
 	std::string joined = safe_join_under_root(conf.root, target);
 	Logger::cgi("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, target.c_str(), TS, GREY,
 		    joined.c_str());
-	Logger::cgi("Parsing cgi request: \'%s\'\n", joined.c_str());
+	Logger::cgi("Parsing cgi request: \'%s\'", joined.c_str());
 	queryString = extractArguments(joined);
 
 	size_t pos = joined.find_last_of('/');

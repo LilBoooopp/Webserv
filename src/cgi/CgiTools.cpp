@@ -1,0 +1,113 @@
+#include "Cgi.hpp"
+#include <cstring>
+
+std::string getInterpreter(const std::string &path, const ServerConf &conf) {
+	size_t qpos = path.find('?');
+	size_t searchEnd = (qpos == std::string::npos) ? path.size() : qpos;
+	size_t dotPos = path.rfind('.', searchEnd);
+	if (dotPos == std::string::npos)
+		return "";
+	std::string ext = path.substr(dotPos + 1, searchEnd - dotPos - 1);
+	if (ext != "py" && ext != "php")
+		return "";
+	const LocationConf *loc = findLocation(conf, path);
+	if (!loc)
+		return "";
+	if (ext == "py" && loc->has_py)
+		return loc->py_path;
+	if (ext == "php" && loc->has_php)
+		return loc->php_path;
+	return "";
+}
+
+static std::string extractArguments(std::string &pathToCgi) {
+	std::string queryString = "";
+	std::string::size_type qpos = pathToCgi.find('?');
+	if (qpos == std::string::npos)
+		return queryString;
+	queryString = pathToCgi.substr(qpos + 1);
+	pathToCgi = pathToCgi.substr(0, qpos);
+	return queryString;
+}
+
+bool is_cgi(const std::string &req_target, const ServerConf &cfg) {
+	if (std::strncmp(req_target.c_str(), "/cgi/", 5) == 0)
+		return true;
+	std::string interpreter = getInterpreter(req_target, cfg);
+	return !interpreter.empty();
+}
+
+bool CgiData::tryInit(Connection *c, const HttpRequest &req, int fd, const ServerConf &cfg) {
+	method = req.method;
+	requestUri = req.target;
+	std::map<std::string, std::string>::const_iterator itCT = req.headers.find("Content-Type");
+	contentType = (itCT != req.headers.end()) ? itCT->second : "";
+	itCT = req.headers.find("Content-Length");
+	contentLength = (itCT != req.headers.end()) ? itCT->second : to_string(c->body.size());
+	headers = c->req.headers;
+	this->fd = fd;
+	conn = c;
+	parseCgiRequest(requestUri, this->path, this->file, this->queryString, cfg);
+	interp = getInterpreter(requestUri, cfg);
+	if (interp.empty()) {
+		Logger::cgi("No Interpreter found for cgi request's target '%s'",
+			    requestUri.c_str());
+		return false;
+	}
+	struct stat st;
+	std::string full = this->path + this->file;
+	if (::stat(full.c_str(), &st) != 0) {
+		Logger::cgi("file not found: \'%s\' target: \'%s', returning 404", full.c_str(),
+			    requestUri.c_str());
+		return false;
+	}
+	return true;
+}
+
+void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,
+		     std::string &queryString, const ServerConf &conf) {
+
+	std::string joined = safe_join_under_root(conf.root, target);
+	Logger::cgi("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, target.c_str(), TS, GREY,
+		    joined.c_str());
+	Logger::cgi("Parsing cgi request: \'%s\'\n", joined.c_str());
+	queryString = extractArguments(joined);
+
+	size_t pos = joined.find_last_of('/');
+	if (pos == std::string::npos) {
+		dir = "";
+		file = joined;
+		return;
+	}
+	dir = joined.substr(0, pos + 1);
+	file = joined.substr(pos + 1);
+}
+
+void CgiHandler::setConfig(const std::vector<ServerConf> &cfg) {
+	cfg_ = &cfg;
+	Logger::cgi("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1), GREY,
+		    "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms, "maxOutput",
+		    (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
+}
+
+void CgiHandler::killAsyncProcesses() {
+	for (size_t i = 0; i < asyncPids_.size(); ++i) {
+		if (kill(asyncPids_[i], 0) == 0) { // Check if process exists
+			Logger::cgi("Killing async CGI process: %d", asyncPids_[i]);
+			kill(asyncPids_[i], SIGTERM);
+		}
+	}
+	asyncPids_.clear();
+}
+
+void CgiData::log(bool execSuccess) {
+	Logger::cgi("%s CGI execution Data - %s%s%s:\n"
+		    "  %-12s %s\n"
+		    "  %-12s %s\n"
+		    "  %-12s %s\n"
+		    "  %-12s '%s'\n"
+		    "  %-12s %d\n",
+		    SERV_CLR, execSuccess ? GREEN : RED, execSuccess ? "Success" : "Failed", GREY,
+		    "interpreter:", interp.c_str(), "path:", path.c_str(), "file:", file.c_str(),
+		    "queryString:", queryString.c_str(), "pid", pid);
+}

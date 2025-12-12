@@ -14,7 +14,7 @@ SRC = $(addprefix $(SRC_DIR), $(SRC_SRC))
 CGI_DIR = src/cgi/
 CGI_SRC =  \
 	Execute.cpp \
-	ParseRequest.cpp \
+	CgiTools.cpp \
 	Respond.cpp
 CGI = $(addprefix $(CGI_DIR), $(CGI_SRC))
 

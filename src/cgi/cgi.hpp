@@ -1,12 +1,11 @@
 #pragma once
+
 #include "../config/Config.hpp"
 #include "../http/Connection.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
-#include "../utils/Chrono.hpp"
-#include "../utils/Colors.hpp"
-#include "../utils/Logger.hpp"
-#include "../utils/Path.hpp"
+#include "../utils/Utils.hpp"
+#include "CgiData.hpp"
 #include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
@@ -19,32 +18,11 @@
 #include <unistd.h>
 #include <vector>
 
-struct CgiExecutionData {
-	std::vector<pid_t> asyncPids_;
-	std::string method;
-	std::string requestUri;
-	std::string queryString;
-	std::string contentLength;
-	std::string contentType;
-	std::string interpreter;
-	std::string file;
-	std::string path;
-	std::map<std::string, std::string> headers;
-	Connection *conn;
-	int fd;
-	int readFd;
-	pid_t pid;
-	size_t start;
-	size_t bytesRead;
-	std::string out;
-	bool noRead;
-	CgiExecutionData()
-	    : conn(NULL), readFd(-1), pid(-1), start(0), bytesRead(0), noRead(false) {}
-};
+struct CgiData;
 
-class cgiHandler {
+class CgiHandler {
     private:
-	std::vector<CgiExecutionData> cgiResponses_;
+	std::vector<CgiData> cgiResponses_;
 	std::vector<pid_t> asyncPids_;
 	const std::vector<ServerConf> *cfg_;
 
@@ -56,10 +34,9 @@ class cgiHandler {
 	void detachConnection(Connection *conn);
 };
 
-void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,
-		     std::string &queryString, const ServerConf &conf);
 bool is_cgi(const std::string &req_target, const ServerConf &cfg);
-
 void placeFileInDir(const std::string &name, const std::string &fileContent,
 		    const std::string &dir);
 std::string getInterpreter(const std::string &path, const ServerConf &conf);
+void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,
+		     std::string &queryString, const ServerConf &conf);

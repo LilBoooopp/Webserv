@@ -16,6 +16,7 @@ enum LogChannel {
 	LOG_HEADER,
 	LOG_BODY,
 	LOG_ALL,
+	LOG_WARN,
 };
 
 const int loggerChannelsCount = LOG_ALL + 1;
@@ -56,6 +57,7 @@ struct Logger {
 	static void request(const char *fmt, ...);
 	static void response(const char *fmt, ...);
 	static void header(const char *fmt, ...);
+	static void warn(const char *fmt, ...);
 	static void action(const char *fmt, ...);
 };
 

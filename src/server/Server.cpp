@@ -349,21 +349,26 @@ void Server::handleReadable(int fd) {
 // Build and serialize a response once the request/body are ready
 void Server::prepareResponse(int fd, Connection &c) {
 	const HttpRequest &req = c.req;
-
 	c.res.setVersion(req.version);
-	bool head_only = (req.method == "HEAD");
 
-	if (is_cgi(req.target, cfg_[c.serverIdx])) {
-		if (cgiHandler_.runCgi(req, c.res, c, fd))
-			return;
-	}
-	const ServerConf &serverConf = cfg_[c.serverIdx];
-
-	Router router(serverConf);
-
+	Router router(cfg_[c.serverIdx]);
 	IHandler *handler = router.route(c, req, c.res);
-	handler->handle(c, req, c.res);
-	delete handler;
+
+	std::string redirect_target = Router::getRedirectTarget(handler);
+	if (!redirect_target.empty() && is_cgi(redirect_target, cfg_[c.serverIdx])) {
+		c.req.target = redirect_target;
+		delete handler;
+		if (cgiHandler_.runCgi(c.req, c.res, c, fd))
+			return;
+		c.res.setStatusFromCode(500);
+	} else {
+		handler->handle(c, req, c.res);
+		delete handler;
+		if (is_cgi(req.target, cfg_[c.serverIdx])) {
+			if (cgiHandler_.runCgi(req, c.res, c, fd))
+				return;
+		}
+	}
 
 	// Detect large static file streaming case for GET
 	if (req.method == "GET") {
@@ -389,8 +394,7 @@ void Server::prepareResponse(int fd, Connection &c) {
 				c.file_remaining = remaining;
 
 				// Remove the internal header so the client doesn't see it.
-				if (c.res.hasHeader(kStreamHeader))
-					c.res.eraseHeader(kStreamHeader);
+				c.res.eraseHeader(kStreamHeader);
 			} else {
 				// If open fails, fall back to a 404
 				c.res.setStatusFromCode(404);
@@ -401,26 +405,13 @@ void Server::prepareResponse(int fd, Connection &c) {
 				c.file_remaining = 0;
 			}
 		}
-	} else if (req.method == "POST") // TEMP, only echo response
-	{
-		c.res.setContentType("text/plain");
-		Logger::request("%s received POST request of size %zu", SERV_CLR, c.body.size());
-		std::map<std::string, std::string>::iterator it = c.req.headers.find("x-filename");
-		if (it != c.req.headers.end()) {
-			c.res.setBody("OK");
-			c.res.setStatusFromCode(200);
-			placeFileInDir(it->second, c.body,
-				       cfg_[c.serverIdx].root + "ressources/uploads");
-		} else {
-			Logger::request("x-filename not present in the request headers, the file "
-					"won't be uploaded");
-			c.res.setStatusFromCode(404);
-		}
-	} else
-		c.res.setStatusFromCode(501);
+	}
+	// All other methods (POST, PUT, DELETE, etc.) without explicit handler
+	else
+		c.res.setStatusFromCode(405); // Method Not Allowed
 
 	redirectError(c);
-	c.out = c.res.serialize(head_only);
+	c.out = c.res.serialize(req.method == "HEAD");
 	enableWrite(fd);
 }
 
@@ -513,7 +504,7 @@ bool Server::executeStdin() {
 	if (sr == 0)
 		return false;
 	if (std::strcmp(buff, "clear") == 0) {
-		const char *clr = "\033[2J\033[H";
+		const char *clr = "\033[H\033[2J\033[3J";
 		write(1, clr, std::strlen(clr));
 		return false;
 	} else if (std::strcmp(buff, "quit") == 0) {
@@ -594,15 +585,15 @@ void Server::run() {
 					continue;
 				}
 
-			if (ev & (EPOLLHUP | EPOLLERR)) {
-				std::map<int, Connection>::iterator it = conns_.find(fd);
-				if (it != conns_.end())
-					cgiHandler_.detachConnection(&it->second);
-				reactor_.del(fd);
-				::close(fd);
-				conns_.erase(fd);
-				continue;
-			}
+				if (ev & (EPOLLHUP | EPOLLERR)) {
+					std::map<int, Connection>::iterator it = conns_.find(fd);
+					if (it != conns_.end())
+						cgiHandler_.detachConnection(&it->second);
+					reactor_.del(fd);
+					::close(fd);
+					conns_.erase(fd);
+					continue;
+				}
 				if (ev & EPOLLIN)
 					handleReadable(fd);
 				if (ev & EPOLLOUT)

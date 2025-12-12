@@ -19,6 +19,10 @@ bool Logger::channels[loggerChannelsCount] = {
 static void vlog(LogChannel want, const char *tag, const char *fmt, const char *clr, va_list ap) {
 	if (want >= LOG_NONE && want < LOG_ALL && !Logger::channels[want])
 		return;
+	if (want == LOG_WARN) {
+		std::fprintf(stderr, "%s!!!---------!!! %s !!!---------!!!%s", clr, tag, TS);
+		return;
+	}
 	if (tag) {
 		if (want == LOG_HEADER || want == LOG_CONNECTION)
 			std::fprintf(stderr, "%s%s%s", clr, tag, TS);
@@ -54,6 +58,7 @@ LOGGER_IMPL(response, "RESPONSE", LOG_RESPONSE, rgba(166, 130, 193, 1))
 LOGGER_IMPL(header, "  ", LOG_HEADER, rgba(215, 209, 147, 1))
 LOGGER_IMPL(timer, "", LOG_ALL, TS)
 LOGGER_IMPL(simple, NULL, LOG_ALL, NULL)
+LOGGER_IMPL(warn, "WARN", LOG_ALL, RED)
 
 void Logger::printChannels() {
 	for (int i = 1; i < LOG_ALL; ++i) {

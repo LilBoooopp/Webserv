@@ -1,5 +1,4 @@
-
-#include "cgi.hpp"
+#include "Cgi.hpp"
 
 static void trim_spaces(std::string &s) {
 	std::string::size_type start = 0;
@@ -89,14 +88,14 @@ static bool parseCgiOutput(const std::string &raw, HttpResponse &res) {
 	return true;
 }
 
-bool cgiHandler::handleResponses() {
+bool CgiHandler::handleResponses() {
 	if (cgiResponses_.empty())
 		return false;
 
 	bool anyProgress = false;
 	size_t i = 0;
 	while (i < cgiResponses_.size()) {
-		CgiExecutionData &data = cgiResponses_[i];
+		CgiData &data = cgiResponses_[i];
 		if (!data.conn) {
 			cgiResponses_.erase(cgiResponses_.begin() + i);
 			continue;
@@ -142,7 +141,6 @@ bool cgiHandler::handleResponses() {
 			close(data.readFd);
 			Connection *conn = data.conn;
 			if (conn) {
-				conn->cgiRunning = false;
 				HttpResponse res(200);
 				if (err.empty()) {
 					if (data.out.empty())
@@ -172,7 +170,7 @@ bool cgiHandler::handleResponses() {
 	return anyProgress;
 }
 
-void cgiHandler::detachConnection(Connection *conn) {
+void CgiHandler::detachConnection(Connection *conn) {
 	if (!conn)
 		return;
 	for (size_t i = 0; i < cgiResponses_.size(); ++i) {

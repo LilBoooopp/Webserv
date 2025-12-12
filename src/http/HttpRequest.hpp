@@ -15,8 +15,9 @@ inline static void logRequest(const HttpRequest &req) {
 	if (!Logger::channels[LOG_REQUEST])
 		return;
 	const char *clr = rgba(122, 152, 126, 1);
-	Logger::request("%sMethod%s %s, %starget%s %s, %sversion%s %s", GREY, TS,
-			req.method.c_str(), GREY, TS, req.target.c_str(), GREY, TS,
+	const char *methodClr = req.method == "GET" ? RED : req.method == "POST" ? GREEN : BLUE;
+	Logger::request("%sMethod %s%s%s, %starget%s %s, %sversion%s %s", GREY, methodClr,
+			req.method.c_str(), TS, GREY, TS, req.target.c_str(), GREY, TS,
 			req.version.c_str());
 	std::map<std::string, std::string>::const_iterator it;
 	for (it = req.headers.begin(); it != req.headers.end(); it++)

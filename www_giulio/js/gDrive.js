@@ -232,16 +232,21 @@ function inspectFiles() {
 }
 
 function deleteFiles() {
-  for (let i = 0; i < selFiles.length; i++) {
-    const f = selFiles[i];
-    if (f.extension === "folder" || f.isDir) continue; // skip folders
-    const encodedPath = encodeURIComponent(f.relativePath);
-    fetch(`/cgi/delete.php?file=${encodedPath}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+  const filesToDelete = selFiles.filter((f) => f.extension !== "folder" && !f.isDir);
+  if (filesToDelete.length === 0) {
+    selFiles = [];
+    return;
+  }
+
+  let completed = 0;
+  for (const f of filesToDelete) {
+    fetch(`/delete`, {
+      method: "DELETE",
+      headers: { "X-Delete-Path": f.relativePath },
     })
       .then(() => {
-        if (i === selFiles.length) window.location.reload();
+        completed++;
+        if (completed === filesToDelete.length) window.location.reload();
       })
       .catch((err) => announce("Delete failed: " + err));
   }
@@ -260,11 +265,12 @@ function uploadFile(files) {
     const ext = name.slice(dot + 1).toLowerCase();
     const start = performance.now();
 
+    const targetPath = (CURRENT_DIR ? CURRENT_DIR + "/" : "") + name;
     fetch("/upload", {
       method: "POST",
       headers: {
         "Content-Type": file.type || "application/octet-stream",
-        "X-Filename": (CURRENT_DIR ? CURRENT_DIR + "/" : "") + name,
+        "X-Upload-Path": targetPath,
       },
       body: file,
     })

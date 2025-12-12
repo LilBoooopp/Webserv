@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../cgi/cgi.hpp"
+#include "../cgi/Cgi.hpp"
 #include "../config/Config.hpp"
 #include "../core/EpollReactor.hpp"
 #include "../http/Connection.hpp"
@@ -24,7 +24,7 @@ class Server {
 	std::map<int, Connection> conns_;
 	std::vector<char> inbuf_;
 	std::vector<ServerConf> cfg_;
-	cgiHandler cgiHandler_;
+	CgiHandler cgiHandler_;
 
 	void acceptReady();
 	void handleReadable(int fd);

@@ -1,12 +1,12 @@
 <?php
 
-// Read file path from query parameter
-$fileName = isset($_GET['file']) ? $_GET['file'] : null;
-error_log("delete.php received file parameter: " . $fileName);
+// Read file path from X-Delete-Path header
+$fileName = isset($_SERVER['HTTP_X_DELETE_PATH']) ? $_SERVER['HTTP_X_DELETE_PATH'] : null;
+error_log("delete.php received file path: " . $fileName);
 
 if (!$fileName) {
     http_response_code(400);
-    echo json_encode(['error' => 'Missing file parameter']);
+    echo json_encode(['error' => 'Missing X-Delete-Path header']);
     exit;
 }
 

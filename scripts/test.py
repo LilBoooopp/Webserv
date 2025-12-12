@@ -4,6 +4,8 @@ import socket
 import time
 import sys
 import threading
+import random
+import os
 from contextlib import closing
 
 HOST = "127.0.0.1"
@@ -11,7 +13,7 @@ PORT = 8080
 
 # Adjust this if your webserv needs a config file:
 # e.g. ["./webserv", "config/webserv.conf"]
-WEBSERV_CMD = ["./webserv"]
+WEBSERV_CMD = ["../webserv", "default.conf"]
 
 # How long to wait for the server to start responding
 SERVER_START_TIMEOUT = 5.0
@@ -38,7 +40,10 @@ def send_raw_request(raw_request):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.settimeout(SOCKET_TIMEOUT)
         s.connect((HOST, PORT))
-        s.sendall(raw_request.encode("ascii"))
+        if isinstance(raw_request, bytes):
+            s.sendall(raw_request)
+        else:
+            s.sendall(raw_request.encode("ascii"))
         chunks = []
         total = 0
         while total < MAX_READ_BYTES:
@@ -112,6 +117,95 @@ def run_test(name, raw_request, expect_status_prefix=None):
 
     except Exception as e:
         return HttpTestResult(name, ok=False, error=str(e))
+
+
+def run_concurrent(name, raw_request, count, expect_status_prefix=None):
+    results = []
+    lock = threading.Lock()
+
+    def worker(idx):
+        res = run_test(f"{name} [#{idx}]", raw_request, expect_status_prefix)
+        with lock:
+            results.append(res)
+
+    threads = []
+    for i in range(count):
+        t = threading.Thread(target=worker, args=(i,))
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+
+    ok_count = sum(1 for r in results if r.ok)
+    status_line = f"{ok_count}/{count} succeeded"
+    preview = None
+    if ok_count != count:
+        failures = [r.error or r.status_line for r in results if not r.ok][:3]
+        preview = " | ".join(f for f in failures if f)
+    return HttpTestResult(name, ok=(ok_count == count), status_line=status_line, preview=preview)
+
+
+def build_upload_request(path, body_bytes):
+    headers = [
+        "POST " + path + " HTTP/1.1",
+        "Host: localhost",
+        f"Content-Length: {len(body_bytes)}",
+        "Content-Type: application/octet-stream",
+        "X-Filename: stress.bin",
+        "",
+        "",
+    ]
+    return "\r\n".join(headers).encode("ascii") + body_bytes
+
+
+def build_chunked_request(path, chunks):
+    # chunks: list of bytes
+    lines = ["POST " + path + " HTTP/1.1", "Host: localhost", "Transfer-Encoding: chunked", "", ""]
+    raw = "\r\n".join(lines).encode("ascii")
+    for c in chunks:
+        raw += f"{len(c):X}\r\n".encode("ascii") + c + b"\r\n"
+    raw += b"0\r\n\r\n"
+    return raw
+
+
+def run_stress_suite():
+    results = []
+
+    # 100 concurrent GET /
+    get_req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
+    results.append(run_concurrent("Burst GET / x100", get_req, 100, expect_status_prefix="HTTP/1.1 "))
+
+    # 50 concurrent pipelined double GET
+    pipelined_req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
+    results.append(run_concurrent("Burst pipelined x50", pipelined_req, 50, expect_status_prefix="HTTP/1.1 "))
+
+    # 20 concurrent small uploads
+    small_body = os.urandom(1024)
+    small_upload = build_upload_request("/upload", small_body)
+    results.append(run_concurrent("Small uploads x20", small_upload, 20, expect_status_prefix="HTTP/1.1 "))
+
+    # 10 concurrent 64KB uploads
+    big_body = os.urandom(64 * 1024)
+    big_upload = build_upload_request("/upload", big_body)
+    results.append(run_concurrent("Big uploads 64KB x10", big_upload, 10, expect_status_prefix="HTTP/1.1 "))
+
+    # 30 concurrent chunked posts
+    chunks = [b"abcd" * 50, b"efgh" * 50]
+    chunked_req = build_chunked_request("/upload", chunks)
+    results.append(run_concurrent("Chunked uploads x30", chunked_req, 30, expect_status_prefix="HTTP/1.1 "))
+
+    # Delete test: upload once then delete
+    upload_name = f"stress_{random.randint(1, 1_000_000)}.txt"
+    upload_body = b"hello-delete"
+    upload_req = build_upload_request("/upload", upload_body)
+    upload_req = upload_req.replace(b"stress.bin", upload_name.encode("ascii"))
+    delete_req = "POST /cgi/delete.php?file=" + upload_name + " HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"
+    up_res = run_test("Upload for delete", upload_req, expect_status_prefix="HTTP/1.1 ")
+    results.append(up_res)
+    if up_res.ok:
+        results.append(run_test("Delete uploaded file", delete_req, expect_status_prefix="HTTP/1.1 "))
+
+    return results
 
 
 def wait_for_server():
@@ -226,12 +320,7 @@ def main():
         tests.append(
             run_test(
                 "POST / chunked body",
-                (
-                    "POST / HTTP/1.1\r\n"
-                    "Host: localhost\r\n"
-                    "Transfer-Encoding: chunked\r\n\r\n"
-                    "4\r\nTest\r\n0\r\n\r\n"
-                ),
+                ("POST / HTTP/1.1\r\n" "Host: localhost\r\n" "Transfer-Encoding: chunked\r\n\r\n" "4\r\nTest\r\n0\r\n\r\n"),
                 expect_status_prefix="HTTP/1.1 ",
             )
         )
@@ -247,10 +336,7 @@ def main():
         )
 
         # 10) Pipelined requests on same connection (2 GETs)
-        pipelined_req = (
-            "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
-            "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
-        )
+        pipelined_req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
         tests.append(
             run_test(
                 "Pipelined 2x GET /",
@@ -262,6 +348,19 @@ def main():
         # Print results
         print("============ TEST RESULTS ============\n")
         for t in tests:
+            status = "✅" if t.ok else "❌"
+            print(f"{status} {t.name}")
+            if t.status_line:
+                print(f"   Status: {t.status_line}")
+            if t.error:
+                print(f"   Error:  {t.error}")
+            if t.preview:
+                print(f"   Body preview: {t.preview}")
+            print()
+
+        print("============ STRESS SUITE ============\n")
+        stress_results = run_stress_suite()
+        for t in stress_results:
             status = "✅" if t.ok else "❌"
             print(f"{status} {t.name}")
             if t.status_line:

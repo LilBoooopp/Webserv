@@ -119,22 +119,50 @@ IHandler *Router::route(Connection &c, const HttpRequest &req, HttpResponse &res
 
 	if (matched_loc) {
 		const LocationConf &loc = *matched_loc;
-		Logger::info("Router: Matched location: %s", loc.path.c_str());
+		Logger::router("Matched location: %s", loc.path.c_str());
 
 		if (!checkAllowedMethod(req, loc, res)) {
+			Logger::router("unvalid method for \'%s\' location", loc.path.c_str());
 			return (new ErrorHandler(405));
 		}
 
 		if (loc.redirect_enabled) {
-			Logger::info("Router: Redirecting %s to %s (%d).", req.target.c_str(), loc.redirect_target.c_str(),
-				     loc.redirect_status);
+			Logger::router("Redirecting %s to %s (%d).", req.target.c_str(),
+				       loc.redirect_target.c_str(), loc.redirect_status);
 			return (new RedirectHandler(loc.redirect_status, loc.redirect_target));
 		}
 
-		Logger::info("Router: Using StaticHandler with location %s", loc.path.c_str());
+		Logger::router("Using StaticHandler with location %s", loc.path.c_str());
 		return (new StaticHandler(server_conf_, matched_loc));
 	}
 
-	Logger::info("Router: No location matched. Using server defaults.");
+	Logger::router("No location matched %s. Using server defaults.", req.target.c_str());
 	return (new StaticHandler(server_conf_, NULL));
+}
+
+void Router::redirectError(Connection &c) {
+	const std::map<int, std::string> &pages = server_conf_.error_pages;
+	std::map<int, std::string>::const_iterator it = pages.find(c.res.getStatus());
+	if (it != pages.end()) {
+		const ServerConf &srv = server_conf_;
+
+		std::string rel = it->second; // ex: "/errors/404.html"
+		std::string fullPath =
+		    safe_join_under_root(srv.root, rel); // genre "www/errors/404.html"
+
+		int fd = ::open(fullPath.c_str(), O_RDONLY);
+		if (fd >= 0) {
+			std::string body;
+			char buf[4096];
+			ssize_t r;
+			while ((r = ::read(fd, buf, sizeof(buf))) > 0)
+				body.append(buf, r);
+			::close(fd);
+			c.res.setBody(body);
+			c.res.setContentType("text/html");
+		} else {
+			Logger::response("error_page configured for %d but file '%s' not found",
+					 c.res.getStatus(), fullPath.c_str());
+		}
+	}
 }

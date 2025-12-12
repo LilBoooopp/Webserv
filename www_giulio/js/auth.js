@@ -88,10 +88,6 @@ function addScrollerProfileMenu() {
   addScrollerMenu("menu", [window.innerWidth - 60, 40], pageNames, fs);
 }
 
-function applyBackground(flag = window.DARKMODE === 1) {
-  document.documentElement.style.setProperty("background-color", flag ? "rgba(34, 34, 34, 1)" : "", "important");
-}
-
 function loadUsers(onLoad = null) {
   fetch("/cgi/auth/sessionManagment/getUserList.php")
     .then((response) => response.json())

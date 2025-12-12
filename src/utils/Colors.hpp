@@ -21,4 +21,7 @@
 
 #define HTTPCLR rgb(129, 192, 129)
 
+#define BLD "\x1b[1m"
+#define TSBLD "\x1b[0m"
+
 #endif

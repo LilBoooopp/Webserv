@@ -1,30 +1,30 @@
 <?php
-$uploadsDir = realpath(__DIR__ . '/../ressources/uploads');
-$currentDir = isset($_GET['dir']) ? $_GET['dir'] : '';
-$currentDir = ltrim($currentDir, '/');
-$currentDir = preg_replace('~\.\.+~', '', $currentDir); // strip .. segments
+$uploadsDir = realpath(__DIR__ . "/../ressources/uploads");
+$currentDir = isset($_GET["dir"]) ? $_GET["dir"] : "";
+$currentDir = ltrim($currentDir, "/");
+$currentDir = preg_replace("~\.\.+~", "", $currentDir); // strip .. segments
 
-$targetDir = realpath($uploadsDir . '/' . $currentDir);
+$targetDir = realpath($uploadsDir . "/" . $currentDir);
 if ($targetDir === false || strpos($targetDir, $uploadsDir) !== 0) {
-  $targetDir = $uploadsDir;
-  $currentDir = '';
+	$targetDir = $uploadsDir;
+	$currentDir = "";
 }
 
-$files = glob($targetDir . '/*');
-$fileData = array();
+$files = glob($targetDir . "/*");
+$fileData = [];
 foreach ($files as $file) {
-  $pathinfo = pathinfo($file);
-  $isDir = is_dir($file);
-  $ext = $isDir ? 'folder' : (isset($pathinfo['extension']) ? $pathinfo['extension'] : '');
-  $relativePath = trim(str_replace($uploadsDir, '', $file), '/');
-  $fileData[] = array(
-    'name' => basename($file),
-    'extension' => $ext,
-    'size' => $isDir ? 0 : filesize($file),
-    'path' => $file,
-    'relativePath' => $relativePath,
-    'isDir' => $isDir
-  );
+	$pathinfo = pathinfo($file);
+	$isDir = is_dir($file);
+	$ext = $isDir ? "folder" : (isset($pathinfo["extension"]) ? $pathinfo["extension"] : "");
+	$relativePath = trim(str_replace($uploadsDir, "", $file), "/");
+	$fileData[] = [
+		"name" => basename($file),
+		"extension" => $ext,
+		"size" => $isDir ? 0 : filesize($file),
+		"path" => $file,
+		"relativePath" => $relativePath,
+		"isDir" => $isDir,
+	];
 }
 ?>
 
@@ -49,6 +49,8 @@ foreach ($files as $file) {
       const files = <?php echo json_encode($fileData); ?>;
       const currentDir = <?php echo json_encode($currentDir); ?>;
       handleGDrive(files, currentDir);
+	  	addDarkModeButton();
+				initBackground(true);
     </script>
   </body>
 </html>

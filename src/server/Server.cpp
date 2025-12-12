@@ -21,33 +21,6 @@
 void Server::enableWrite(int fd) { reactor_.mod(fd, EPOLLIN | EPOLLOUT); }
 void Server::disableWrite(int fd) { reactor_.mod(fd, EPOLLIN); }
 
-void Server::redirectError(Connection &c) {
-	const std::map<int, std::string> &pages = cfg_[c.serverIdx].error_pages;
-	std::map<int, std::string>::const_iterator it = pages.find(c.res.getStatus());
-	if (it != pages.end()) {
-		const ServerConf &srv = cfg_[c.serverIdx];
-
-		std::string rel = it->second; // ex: "/errors/404.html"
-		std::string fullPath =
-		    safe_join_under_root(srv.root, rel); // genre "www/errors/404.html"
-
-		int fd = ::open(fullPath.c_str(), O_RDONLY);
-		if (fd >= 0) {
-			std::string body;
-			char buf[4096];
-			ssize_t r;
-			while ((r = ::read(fd, buf, sizeof(buf))) > 0)
-				body.append(buf, r);
-			::close(fd);
-			c.res.setBody(body);
-			c.res.setContentType("text/html");
-		} else {
-			Logger::response("error_page configured for %d but file '%s' not found",
-					 c.res.getStatus(), fullPath.c_str());
-		}
-	}
-}
-
 static int set_nonblock(int fd) {
 	int flags = fcntl(fd, F_GETFL, 0);
 	return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
@@ -220,10 +193,19 @@ void Server::handleReadable(int fd) {
 							    c.want_body > cfg_[c.serverIdx]
 									      .locations[0]
 									      .max_size) {
+								// Content-Length exceeds max_size:
+								// respond 413 and stop processing
 								c.res.setStatusFromCode(413);
 								c.res.setVersion(c.req.version);
 								c.state = WRITING_RESPONSE;
-								c.in.erase(0, endpos);
+								// Drop the parsed headers and any
+								// pending input/body to avoid
+								// reprocessing
+								c.in.clear();
+								c.body.clear();
+								c.want_body = 0;
+								c.is_chunked = false;
+								c.close_after = true;
 							} else {
 								// Remove head so that only the body
 								// is leftover
@@ -291,14 +273,21 @@ void Server::handleReadable(int fd) {
 							if (c.body.size() > cfg_[c.serverIdx]
 										.locations[0]
 										.max_size) {
+								// Body exceeds max_size: respond
+								// 413 and stop processing
 								c.res.setStatusFromCode(413);
 								c.state = WRITING_RESPONSE;
-							} else
+								c.in.clear();
+								c.want_body = 0;
+								c.is_chunked = false;
+								c.close_after = true;
+							} else {
 								c.state =
 								    WRITING_RESPONSE; // Full
 										      // request
 										      // body
 										      // decoded
+							}
 							break;
 						}
 						if (decode_left == 0)
@@ -329,9 +318,10 @@ void Server::handleReadable(int fd) {
 
 			// WRITING_RESPONSE
 			if (c.state == WRITING_RESPONSE) {
-				if (c.out.empty())
+				if (c.out.empty()) {
 					prepareResponse(fd, c);
-				c.res.printResponse(fd);
+					c.res.printResponse(fd);
+				}
 			}
 
 			// Continue reading (if handled < MAX_HANDLE_BYTES) or exit the loop when
@@ -352,6 +342,15 @@ void Server::prepareResponse(int fd, Connection &c) {
 	c.res.setVersion(req.version);
 
 	Router router(cfg_[c.serverIdx]);
+
+	if (c.res.getStatus() != 200) {
+		router.redirectError(c);
+		c.out = c.res.serialize(req.method == "HEAD");
+		enableWrite(fd);
+		return;
+	}
+	logRequest(req);
+
 	IHandler *handler = router.route(c, req, c.res);
 
 	std::string redirect_target = Router::getRedirectTarget(handler);
@@ -406,11 +405,11 @@ void Server::prepareResponse(int fd, Connection &c) {
 			}
 		}
 	}
-	// All other methods (POST, PUT, DELETE, etc.) without explicit handler
 	else
 		c.res.setStatusFromCode(405); // Method Not Allowed
 
-	redirectError(c);
+	if (c.res.getStatus() >= 400)
+		router.redirectError(c);
 	c.out = c.res.serialize(req.method == "HEAD");
 	enableWrite(fd);
 }
@@ -600,11 +599,10 @@ void Server::run() {
 					handleWritable(fd);
 			}
 			if (logged)
-				Logger::server("ready");
+				Logger::server("ready\n");
 			logged = false;
 		} else {
 			if (!logged) {
-				std::cout << std::endl;
 				Logger::server("waiting...");
 			}
 			logged = true;

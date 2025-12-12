@@ -27,7 +27,7 @@ function toggleMenu(p, active = true) {
     return;
   }
   if (selFiles.length) initOptMenu([p[0] - 100, p[1]], ["View", "Data", "Delete"], [inspectFiles, toggleInfoMenu, deleteFiles]);
-  else initOptMenu(p, ["Upload", "Repo"], [() => openFileDialog(uploadFile), null]);
+  else initOptMenu(p, ["Upload", "Repo"], [() => openFileDialog(uploadFile), uploadDirectory]);
 }
 
 var selBoxStart = null;
@@ -173,50 +173,83 @@ function handleGDrive(files) {
   const startX = cellWidth / 2;
   const totalRows = Math.ceil(files.length / cols);
 
-  files.forEach((file, i) => {
-    const row = Math.floor(i / cols);
-    const rowStartIndex = row * cols;
-    const itemsInRow = Math.min(cols, files.length - rowStartIndex);
-    const colInRow = i - rowStartIndex;
-    const offsetCol = Math.floor((cols - itemsInRow) / 2);
-    const x = startX + (offsetCol + colInRow) * cellWidth;
-    const y = startY + row * cellHeight;
+  function layoutFiles() {
+    const cols = 12;
+    const cellWidth = window.innerWidth / cols;
+    const cellHeight = 150;
+    const startY = 400;
+    const startX = cellWidth / 2;
 
-    file.posX = x;
-    file.posY = y;
+    // Remove existing DOM nodes if any (labels, backgrounds, icons)
+    for (const f of gFiles) {
+      if (f.labelDiv) {
+        f.labelDiv.remove();
+        f.labelDiv = null;
+      }
+      if (f.iconBgr) {
+        f.iconBgr.remove();
+        f.iconBgr = null;
+      }
+      if (f.iconImg) {
+        f.iconImg.remove();
+        f.iconImg = null;
+      }
+    }
 
-    const sizeKB = (file.size / 1024).toFixed(2);
-    const label = `${file.name}`;
-    const labelDiv = addDiv(label, [x - cellWidth * 0.45, y + 40]);
-    labelDiv.style.textAlign = "center";
-    labelDiv.style.width = cellWidth * 0.9 + "px";
-    labelDiv.style.whiteSpace = "normal";
-    labelDiv.style.wordWrap = "break-word";
-    labelDiv.style.fontSize = "12px";
-    file.labelDiv = labelDiv;
-    const iconBgr = writeBox(cellWidth * 0.8, cellHeight * 0.5, x - cellWidth * 0.4, y - 40, "rgba(0, 0, 0, 0.04)");
-    iconBgr.style.borderRadius = "20%";
-    iconBgr.style.display = "none";
-    file.iconBgr = iconBgr;
-    const iconExt = imageData[file.extension] ? file.extension : "file";
-    const iconImg = imageData[iconExt].cloneNode(true);
-    iconImg.style.userSelect = "none";
-    file.iconExt = iconExt;
-    file.iconImg = iconImg;
-    iconImg.addEventListener("mouseenter", () => {
-      hovFile = file;
-      iconImg.style.scale = 1.2;
+    gFiles.forEach((file, i) => {
+      const row = Math.floor(i / cols);
+      const rowStartIndex = row * cols;
+      const itemsInRow = Math.min(cols, gFiles.length - rowStartIndex);
+      const colInRow = i - rowStartIndex;
+      const offsetCol = Math.floor((cols - itemsInRow) / 2);
+      const x = startX + (offsetCol + colInRow) * cellWidth;
+      const y = startY + row * cellHeight;
+
+      file.posX = x;
+      file.posY = y;
+
+      const label = `${file.name}`;
+      const labelDiv = addDiv(label, [x - cellWidth * 0.45, y + 40]);
+      labelDiv.style.textAlign = "center";
+      labelDiv.style.width = cellWidth * 0.9 + "px";
+      labelDiv.style.whiteSpace = "normal";
+      labelDiv.style.wordWrap = "break-word";
+      labelDiv.style.fontSize = "12px";
+      file.labelDiv = labelDiv;
+
+      const iconBgr = writeBox(cellWidth * 0.8, cellHeight * 0.5, x - cellWidth * 0.4, y - 40, "rgba(0, 0, 0, 0.04)");
+      iconBgr.style.borderRadius = "20%";
+      iconBgr.style.display = selFiles.includes(file) ? "block" : "none";
+      file.iconBgr = iconBgr;
+
+      const iconExt = imageData[file.extension] ? file.extension : "file";
+      const iconImg = imageData[iconExt].cloneNode(true);
+      iconImg.style.userSelect = "none";
+      file.iconExt = iconExt;
+      file.iconImg = iconImg;
+      iconImg.addEventListener("mouseenter", () => {
+        hovFile = file;
+        iconImg.style.scale = 1.2;
+      });
+      iconImg.addEventListener("mouseleave", () => {
+        hovFile = null;
+        iconImg.style.scale = 1;
+      });
+      iconImg.style.width = "40px";
+      iconImg.style.height = "40px";
+      iconImg.style.position = "absolute";
+      iconImg.style.left = x - 20 + "px";
+      iconImg.style.top = y - 20 + "px";
+      document.body.appendChild(iconImg);
     });
-    iconImg.addEventListener("mouseleave", () => {
-      hovFile = null;
-      iconImg.style.scale = 1;
-    });
-    iconImg.style.width = "40px";
-    iconImg.style.height = "40px";
-    iconImg.style.position = "absolute";
-    iconImg.style.left = x - 20 + "px";
-    iconImg.style.top = y - 20 + "px";
-    document.body.appendChild(iconImg);
+  }
+
+  // Initial layout
+  layoutFiles();
+
+  // Re-render layout on window resize
+  window.addEventListener("resize", () => {
+    layoutFiles();
   });
 }
 
@@ -280,4 +313,23 @@ function uploadFile(files) {
       })
       .catch((err) => announce("Upload failed: " + err));
   }
+}
+
+function uploadDirectory() {
+  // Prompt for directory name
+  var dirName = prompt("Directory name:");
+  if (!dirName) return;
+
+  var path = (CURRENT_DIR ? CURRENT_DIR + "/" : "") + dirName + "/";
+  fetch("/upload", {
+    method: "POST",
+    headers: {
+      "X-Upload-Path": path,
+    },
+  })
+    .then((r) => r.text())
+    .then((t) => {
+      window.location.reload();
+    })
+    .catch((err) => announce("Upload failed: " + err));
 }

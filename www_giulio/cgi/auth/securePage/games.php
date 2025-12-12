@@ -3,7 +3,7 @@ session_start();
 
 if (empty($_SESSION["user_id"])) {
 	header("Location: /login.html");
-	exit;
+	exit();
 }
 
 $user = $_SESSION["username"] ?? null;
@@ -34,11 +34,11 @@ $darkmode = $_SESSION["darkmode"] ?? false;
 		window.PAGE_NAME = "Games";
 
 		addTitle();
-		applyBackground();
-		const games = ["Snake", "MineSweeper", "Logimage"];
+		const games = ["Snake", "MineSweeper"];
 		for (let i = 0; i < games.length; i++)
 			addButton(games[i], [c[0], c[1] + i * 50], () => {window.location.href = "/cgi/auth/securePage/games/" + games[i].toLowerCase() + ".php"});
 		addScrollerProfileMenu();
+		initBackground();
     </script>
   </body>
 </html>

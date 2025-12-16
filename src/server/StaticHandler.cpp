@@ -63,8 +63,7 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req,
 
   std::string request_path = req.target;
   std::string root_dir = server_conf_.root;
-  const std::vector<std::string> *index_files =
-      &server_conf_.files; // WARNING: index list??
+  const std::vector<std::string> *index_files = &location_conf_->index_files;
 
   if (location_conf_) {
     size_t loc_path_len = location_conf_->path.size();

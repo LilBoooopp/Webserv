@@ -85,6 +85,11 @@ bool Router::checkAllowedMethod(const HttpRequest &req, const LocationConf &loc,
 	const std::string &method = req.method;
 	bool allowed = false;
 	for (size_t i = 0; i < loc.methods.size(); ++i) {
+		// HEAD should be treated as GET for permission purposes
+		if (method == "HEAD" && loc.methods[i] == "GET") {
+			allowed = true;
+			break;
+		}
 		if (loc.methods[i] == method) {
 			allowed = true;
 			break;
@@ -140,11 +145,11 @@ IHandler *Router::route(Connection &c, const HttpRequest &req, HttpResponse &res
 	return (new StaticHandler(server_conf_, NULL));
 }
 
-void Router::redirectError(Connection &c) {
-	const std::map<int, std::string> &pages = server_conf_.error_pages;
+void Router::loadErrorPage(Connection &c, const ServerConf &conf) {
+	const std::map<int, std::string> &pages = conf.error_pages;
 	std::map<int, std::string>::const_iterator it = pages.find(c.res.getStatus());
 	if (it != pages.end()) {
-		const ServerConf &srv = server_conf_;
+		const ServerConf &srv = conf;
 
 		std::string rel = it->second; // ex: "/errors/404.html"
 		std::string fullPath =

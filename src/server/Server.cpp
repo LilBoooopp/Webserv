@@ -339,32 +339,34 @@ void Server::handleReadable(int fd) {
 // Build and serialize a response once the request/body are ready
 void Server::prepareResponse(int fd, Connection &c) {
 	const HttpRequest &req = c.req;
-	c.res.setVersion(req.version);
+	HttpResponse &res = c.res;
+	const ServerConf &conf = cfg_[c.serverIdx];
+	bool isHeadRequest = req.method == "HEAD";
 
-	Router router(cfg_[c.serverIdx]);
-
-	if (c.res.getStatus() != 200) {
-		router.redirectError(c);
-		c.out = c.res.serialize(req.method == "HEAD");
+	if (res.getStatus() != 200) {
+		Router::loadErrorPage(c, conf);
+		c.out = res.serialize(isHeadRequest);
 		enableWrite(fd);
 		return;
 	}
+	res.setVersion(req.version);
 	logRequest(req);
 
-	IHandler *handler = router.route(c, req, c.res);
+	Router router(conf);
+	IHandler *handler = router.route(c, req, res);
 
 	std::string redirect_target = Router::getRedirectTarget(handler);
-	if (!redirect_target.empty() && is_cgi(redirect_target, cfg_[c.serverIdx])) {
+	if (!redirect_target.empty() && is_cgi(redirect_target, conf)) {
 		c.req.target = redirect_target;
 		delete handler;
-		if (cgiHandler_.runCgi(c.req, c.res, c, fd))
+		if (cgiHandler_.runCgi(c.req, res, c, fd))
 			return;
-		c.res.setStatusFromCode(500);
+		res.setStatusFromCode(500);
 	} else {
-		handler->handle(c, req, c.res);
+		handler->handle(c, req, res);
 		delete handler;
-		if (is_cgi(req.target, cfg_[c.serverIdx])) {
-			if (cgiHandler_.runCgi(req, c.res, c, fd))
+		if (is_cgi(req.target, conf)) {
+			if (cgiHandler_.runCgi(req, res, c, fd))
 				return;
 		}
 	}
@@ -373,8 +375,8 @@ void Server::prepareResponse(int fd, Connection &c) {
 	if (req.method == "GET") {
 		const std::string kStreamHeader = "X-Stream-File";
 
-		if (c.res.hasHeader(kStreamHeader)) {
-			std::string file_path = c.res.getHeader(kStreamHeader);
+		if (res.hasHeader(kStreamHeader)) {
+			std::string file_path = res.getHeader(kStreamHeader);
 
 			// Try to open the file now, in non-streaming, blocking mode.
 			// We will only read it in small chunks later form handleWritable.
@@ -384,7 +386,7 @@ void Server::prepareResponse(int fd, Connection &c) {
 				c.streaming_file = true;
 
 				// Initialize remaining bytes from Content-Length
-				std::string cl = c.res.getHeader("Content-Length");
+				std::string cl = res.getHeader("Content-Length");
 				off_t remaining = 0;
 				if (!cl.empty()) {
 					std::istringstream iss(cl);
@@ -393,10 +395,10 @@ void Server::prepareResponse(int fd, Connection &c) {
 				c.file_remaining = remaining;
 
 				// Remove the internal header so the client doesn't see it.
-				c.res.eraseHeader(kStreamHeader);
+				res.eraseHeader(kStreamHeader);
 			} else {
 				// If open fails, fall back to a 404
-				c.res.setStatusFromCode(404);
+				res.setStatusFromCode(404);
 
 				// ensure no streaming
 				c.streaming_file = false;
@@ -404,13 +406,11 @@ void Server::prepareResponse(int fd, Connection &c) {
 				c.file_remaining = 0;
 			}
 		}
-	}
-	else
-		c.res.setStatusFromCode(405); // Method Not Allowed
-
-	if (c.res.getStatus() >= 400)
-		router.redirectError(c);
-	c.out = c.res.serialize(req.method == "HEAD");
+	} else if (!isHeadRequest)
+		res.setStatusFromCode(405);
+	if (res.getStatus() >= 400)
+		Router::loadErrorPage(c, conf);
+	c.out = res.serialize(isHeadRequest);
 	enableWrite(fd);
 }
 

@@ -1,12 +1,10 @@
 <?php
 require_once __DIR__ . "/../storage.php";
+header("Content-Type: application/json");
 session_start();
 
 if (empty($_SESSION["user_id"])) {
-	header("Content-Type: text/plain");
-	header("Status: 401 Unauthorized");
-	http_response_code(401);
-	echo "NOT_LOGGED_IN\n";
+	echo json_encode(["success" => false, "error" => "NOT_LOGGED_IN"]);
 	exit();
 }
 
@@ -15,10 +13,7 @@ $ctx = storage_open();
 $deleted = storage_delete_user($ctx, $user);
 
 if ($deleted === 0) {
-	header("Content-Type: text/plain");
-	header("Status: 404 Not Found");
-	http_response_code(404);
-	echo "USER_NOT_FOUND\n";
+	echo json_encode(["success" => false, "error" => "USER_NOT_FOUND"]);
 	exit();
 }
 
@@ -29,6 +24,4 @@ if (ini_get("session.use_cookies")) {
 }
 session_destroy();
 
-header("Content-Type: text/plain");
-http_response_code(200);
-echo "OK\n";
+echo json_encode(["success" => true]);

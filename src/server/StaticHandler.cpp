@@ -55,6 +55,58 @@ static bool read_file_small(const std::string &path, std::string &out) {
 	return (got_any);
 }
 
+std::string buildDirListing(const std::string &root, const std::string &uri) {
+	std::ostringstream html;
+
+	const std::string path = root + uri;
+	std::string prev = uri;
+	if (prev.size() > 1 && prev.back() == '/')
+		prev.pop_back();
+	size_t last = prev.find_last_of('/');
+	if (last != std::string::npos)
+		prev = prev.substr(0, last + 1);
+	else
+		prev = "/"; // fallback to root
+	html << "<html><head><title>Index of " << uri << "</title></head>\n";
+	html << "<body><h1>Index of " << uri << "</h1>\n";
+	html << "<table border=\"0\" cellpadding=\"10\">\n";
+	html << "<tr><th>Name</th><th>Type</th><th>Modified</th><th>Size</th></tr>\n";
+	html << "<tr><td><a href=\"" << prev << "\">../</a></td><td></td><td></td><td></td></tr>\n";
+
+	DIR *dir = opendir(path.c_str());
+	if (dir) {
+		struct dirent *entry;
+		while ((entry = readdir(dir)) != NULL) {
+			std::string name = entry->d_name;
+			if (name == "." || name == "..")
+				continue;
+			struct stat st;
+			stat((path + "/" + name).c_str(), &st);
+			time_t mtime = st.st_mtime;
+			struct tm *timeinfo = localtime(&mtime);
+			char buffer[80];
+			strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
+			std::string mtime_str(buffer);
+			std::string fileType = (is_dir(st)	      ? "dir"
+						: S_ISREG(st.st_mode) ? "file"
+								      : "other");
+			std::string showName = name + (fileType == "dir" ? "/" : "");
+			std::string href = uri;
+			if (!href.empty() && href.back() != '/')
+				href += '/';
+			href += name;
+			std::string sizeStr =
+			    (fileType == "dir") ? "-" : size_to_str(st.st_size / 1000) + "K";
+			html << "<tr><td><a href=\"" << href << "\">" << showName << "</a></td><td>"
+			     << fileType << "</td><td>" << mtime_str << "</td><td>" << sizeStr
+			     << "</td></tr>\n";
+		}
+		closedir(dir);
+	}
+	html << "</table></body></html>\n";
+	return html.str();
+}
+
 void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &res) {
 	// We assume: method validated (ONLY GET for now)
 	const bool is_head = (req.method == "HEAD");
@@ -64,14 +116,18 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &
 	std::string root_dir = server_conf_.root;
 	const std::vector<std::string> *index_files = &server_conf_.files; // WARNING: index list??
 
-	if (location_conf_) {
+	if (location_conf_ && location_conf_->has_root) {
 		size_t loc_path_len = location_conf_->path.size();
-		if (loc_path_len > 0) {
+		if (loc_path_len > 0 &&
+		    req.target.compare(0, loc_path_len, location_conf_->path) == 0) {
 			request_path.erase(0, loc_path_len);
 		}
-		if (!request_path.empty() && request_path[0] == '/')
-			request_path.erase(0, 1);
+	}
 
+	if (!request_path.empty() && request_path[0] == '/')
+		request_path.erase(0, 1);
+
+	if (location_conf_) {
 		if (location_conf_->has_root)
 			root_dir = location_conf_->root;
 
@@ -89,6 +145,16 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &
 	if (::stat(path.c_str(), &st) == 0) {
 		// Is a Directory
 		if (is_dir(st)) {
+			// const LocationConf *loc = findLocation(server_conf_, req.target);
+			if (location_conf_ && location_conf_->autoindex) {
+				Logger::response("Returning Directory List for path %s uri %s",
+						 path.c_str(), req.target.c_str());
+				std::string dirHtml = buildDirListing(root_dir, req.target);
+				res.setBody(dirHtml);
+				res.setContentType("text/html");
+				res.setStatus(200, "OK");
+				return;
+			}
 			// try index file: root/target[/] + cfg.index
 			if (path.size() == 0 || path[path.size() - 1] != '/')
 				path += '/';
@@ -122,7 +188,7 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &
 				}
 			}
 
-			res.setStatusFromCode(404);
+			res.setStatusFromCode(403);
 			res.ensureDefaultBodyIfEmpty();
 			return;
 

@@ -31,10 +31,9 @@ static std::string extractArguments(std::string &pathToCgi) {
 }
 
 bool is_cgi(const std::string &req_target, const ServerConf &cfg) {
-	if (std::strncmp(req_target.c_str(), "/cgi/", 5) == 0)
-		return true;
-	std::string interpreter = getInterpreter(req_target, cfg);
-	return !interpreter.empty();
+	if (std::strncmp(req_target.c_str(), "/cgi/", 5) != 0)
+		return false;
+	return !getInterpreter(req_target, cfg).empty();
 }
 
 bool CgiData::tryInit(Connection *c, const HttpRequest &req, int fd, const ServerConf &cfg) {

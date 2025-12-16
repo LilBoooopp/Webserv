@@ -156,22 +156,18 @@ bool CgiHandler::handleResponses() {
 				}
 
 				bool head_only = (conn->req.method == "HEAD");
-				std::string preview = data.out.substr(0, 300);
 				Logger::cgi("%s%s%s execution ended after %lums", YELLOW,
 					    data.file.c_str(), TS,
 					    (unsigned long)(nowMs - data.conn->start));
-				if (res.getStatus() == 401) {
-					Router router(resCfg);
-					router.redirectError(*conn);
-				}
+				if (res.getStatus() >= 400)
+					Router::loadErrorPage(*conn, resCfg);
 				res.printResponse(data.fd);
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;
 			}
 			cgiResponses_.erase(cgiResponses_.begin() + i);
-		} else {
+		} else
 			++i;
-		}
 	}
 	return anyProgress;
 }

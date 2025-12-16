@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-import cgi
+import re
 
 
 def respond(status_code, body, content_type="text/plain"):
@@ -9,6 +9,33 @@ def respond(status_code, body, content_type="text/plain"):
     sys.stdout.write(f"Content-Type: {content_type}\r\n")
     sys.stdout.write("\r\n")
     sys.stdout.write(body)
+
+
+def increment_filename(filepath):
+    """
+    If file exists, add/increment a _number suffix.
+    E.g., map.txt -> map_0.txt, map_9.txt -> map_10.txt
+    """
+    if not os.path.exists(filepath):
+        return filepath
+
+    base, ext = os.path.splitext(filepath)
+    match = re.search(r"_(\d+)$", base)
+
+    if match:
+        # Already has _number suffix, increment it
+        num = int(match.group(1))
+        base_without_num = base[: match.start()]
+        counter = num + 1
+        while os.path.exists(f"{base_without_num}_{counter}{ext}"):
+            counter += 1
+        return f"{base_without_num}_{counter}{ext}"
+    else:
+        # No suffix yet, add _0
+        counter = 0
+        while os.path.exists(f"{base}_{counter}{ext}"):
+            counter += 1
+        return f"{base}_{counter}{ext}"
 
 
 def main():
@@ -19,11 +46,11 @@ def main():
 
     # Get path from X-Upload-Path header (passed via HTTP_X_UPLOAD_PATH env var)
     filename = os.environ.get("HTTP_X_UPLOAD_PATH", "")
-
     if not filename:
         respond("400 Bad Request", "Missing X-Upload-Path header\n")
         return
 
+    mode = os.environ.get("HTTP_X_MODE", "create").lower()
     is_directory = filename.endswith("/")
 
     filename = os.path.normpath(filename)
@@ -52,6 +79,13 @@ def main():
 
     # Otherwise, treat as file upload
     dest = os.path.join(upload_dir, filename)
+
+    # If mode is "create" and file exists, increment filename
+    if mode == "create":
+        dest = increment_filename(dest)
+        # Extract the new filename for response
+        filename = os.path.relpath(dest, upload_dir)
+
     dest_dir = os.path.dirname(dest)
     try:
         os.makedirs(dest_dir, exist_ok=True)
@@ -62,7 +96,8 @@ def main():
     data = sys.stdin.buffer.read(content_length)
 
     try:
-        with open(dest, "wb") as f:
+        file_mode = "ab" if mode == "append" else "wb"
+        with open(dest, file_mode) as f:
             f.write(data)
     except Exception as e:
         respond("500 Internal Server Error", f"Failed to write file: {e}\n")

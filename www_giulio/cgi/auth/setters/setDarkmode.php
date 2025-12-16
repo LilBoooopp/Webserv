@@ -1,12 +1,10 @@
 <?php
 require_once __DIR__ . "/../storage.php";
+header("Content-Type: application/json");
 session_start();
 
 if (empty($_SESSION["user_id"])) {
-	http_response_code(401);
-	header("Status: 401 Unauthorized");
-	header("Content-Type: text/plain");
-	echo "UNAUTHORIZED\n";
+	echo json_encode(["success" => false, "error" => "UNAUTHORIZED"]);
 	exit();
 }
 
@@ -38,10 +36,7 @@ $darkMode = $darkMode === "1" || strtolower($darkMode) === "true" ? 1 : 0;
 // Persist user preference
 $user = storage_get_user($ctx, $_SESSION["user_id"]);
 if (!$user) {
-	http_response_code(404);
-	header("Status: 404 Not Found");
-	header("Content-Type: text/plain");
-	echo "USER NOT FOUND\n";
+	echo json_encode(["success" => false, "error" => "USER NOT FOUND"]);
 	exit();
 }
 $user["darkmode"] = $darkMode;
@@ -52,5 +47,4 @@ $_SESSION["darkmode"] = $darkMode;
 // Ensure session persistence before exiting
 session_write_close();
 
-header("Content-Type: text/plain");
-echo "OK\n";
+echo json_encode(["success" => true, "darkmode" => $darkMode]);

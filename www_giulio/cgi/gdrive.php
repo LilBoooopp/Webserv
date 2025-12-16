@@ -46,11 +46,12 @@ foreach ($files as $file) {
     <script src="/js/gDrive.js"></script>
 
     <script>
-      const files = <?php echo json_encode($fileData); ?>;
-      const currentDir = <?php echo json_encode($currentDir); ?>;
-      handleGDrive(files, currentDir);
-	  	addDarkModeButton();
-				initBackground(true);
+		window.DARKMODE = 1;
+      	const files = <?php echo json_encode($fileData); ?>;
+      	const currentDir = <?php echo json_encode($currentDir); ?>;
+      	handleGDrive(files, currentDir);
+		addDarkModeButton();
+		initBackground(true);
     </script>
   </body>
 </html>

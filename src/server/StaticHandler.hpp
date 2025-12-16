@@ -1,6 +1,7 @@
 #pragma once
 #include "../config/Config.hpp"
 #include "IHandler.hpp"
+#include <dirent.h>
 
 struct StaticHandler : IHandler {
 private:

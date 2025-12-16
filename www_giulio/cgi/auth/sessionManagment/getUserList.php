@@ -1,12 +1,10 @@
 <?php
 require_once __DIR__ . "/../storage.php";
+header("Content-Type: application/json");
 session_start();
 
 if (empty($_SESSION["user_id"])) {
-	http_response_code(401);
-	header("Status: 401 Unauthorized");
-	header("Content-Type: application/json");
-	echo json_encode(["error" => "UNAUTHORIZED"]);
+	echo json_encode(["success" => false, "error" => "UNAUTHORIZED"]);
 	exit();
 }
 

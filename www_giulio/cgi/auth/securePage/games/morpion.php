@@ -3,11 +3,12 @@ session_start();
 
 if (empty($_SESSION["user_id"])) {
 	header("Location: /login.html");
-	exit();
+	exit;
 }
 
 $user = $_SESSION["username"] ?? null;
 $darkmode = $_SESSION["darkmode"] ?? false;
+$snakeHighScore = $_SESSION["snakeHighScore"] ?? false;
 ?>
 
 <!DOCTYPE html>
@@ -20,24 +21,25 @@ $darkmode = $_SESSION["darkmode"] ?? false;
 
   <body>
     <div id="ui-root"></div>
+    <script>
+		window.CURRENT_USER = <?php echo json_encode($user); ?>;
+		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
+		window.HIGH_SCORE = <?php echo json_encode($snakeHighScore); ?>;
+		window.PAGE_NAME = "morpion";
+	</script>
 
     <script src="/js/div.js"></script>
     <script src="/js/buttons.js"></script>
     <script src="/js/auth.js"></script>
-    <script src="/js/snake.js"></script>
+    <script src="/js/games/morpion.js"></script>
     <script src="/js/inputField.js"></script>
+    <script src="/js/audio.js"></script>
 
     <script>
-		const c = [window.innerWidth / 2, window.innerHeight / 2];
-		window.CURRENT_USER = <?php echo json_encode($user); ?>;
-		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
-		window.PAGE_NAME = "Games";
-
 		addTitle();
-		const games = ["Snake", "MineSweeper", "Morpion"];
-		for (let i = 0; i < games.length; i++)
-			addButton(games[i], [c[0], c[1] + i * 50], () => {window.location.href = "/cgi/auth/securePage/games/" + games[i].toLowerCase() + ".php"});
+		initMorpion();
 		addScrollerProfileMenu();
+		addDarkModeButton();
 		initBackground();
     </script>
   </body>

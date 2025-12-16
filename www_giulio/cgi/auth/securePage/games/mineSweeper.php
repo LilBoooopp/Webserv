@@ -8,7 +8,7 @@ if (empty($_SESSION["user_id"])) {
 
 $user = $_SESSION["username"] ?? null;
 $darkmode = $_SESSION["darkmode"] ?? false;
-$snakeHighScore = $_SESSION["snakeHighScore"] ?? false;
+$minesweeperMaxLevel = $_SESSION["minesweeperMaxLevel"] ?? 1;
 ?>
 
 <!DOCTYPE html>
@@ -24,21 +24,24 @@ $snakeHighScore = $_SESSION["snakeHighScore"] ?? false;
     <script>
 		window.CURRENT_USER = <?php echo json_encode($user); ?>;
 		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
-		window.HIGH_SCORE = <?php echo json_encode($snakeHighScore); ?>;
+		window.MAX_LEVEL = <?php echo json_encode($minesweeperMaxLevel); ?>;
 		window.PAGE_NAME = "mineSweeper";
 	</script>
 
     <script src="/js/div.js"></script>
     <script src="/js/buttons.js"></script>
     <script src="/js/auth.js"></script>
-    <script src="/js/mineSweeper.js"></script>
+    <script src="/js/games/mineSweeper.js"></script>
+    <script src="/js/games/mineSweeperSolver.js"></script>
     <script src="/js/inputField.js"></script>
+    <script src="/js/audio.js"></script>
 
     <script>
 		addTitle();
 		initMinerGame();
 		addScrollerProfileMenu();
+		addDarkModeButton();
 		initBackground();
-    </script>
+	</script>
   </body>
 </html>

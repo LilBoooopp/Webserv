@@ -31,13 +31,15 @@ $snakeHighScore = $_SESSION["snakeHighScore"] ?? false;
     <script src="/js/div.js"></script>
     <script src="/js/buttons.js"></script>
     <script src="/js/auth.js"></script>
-    <script src="/js/snake.js"></script>
+    <script src="/js/games/snake.js"></script>
     <script src="/js/inputField.js"></script>
+    <script src="/js/audio.js"></script>
 
     <script>
 		addTitle();
 		initSnakeGame();
 		addScrollerProfileMenu();
+		addDarkModeButton();
 		initBackground();
     </script>
   </body>

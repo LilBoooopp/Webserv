@@ -1,70 +1,80 @@
 html,
 body {
-	margin: 0;
-	padding: 0;
-	background-color: rgb(170, 164, 206);
+  margin: 0;
+  padding: 0;
+  background-color: rgb(170, 164, 206);
 }
 
 #ui-root {
-	position: relative;
-	width: auto;
-	height: auto;
+  position: relative;
+  width: auto;
+  height: auto;
 }
 
 .infoBox {
-	opacity: 0;
-	transform: translateY(10px) scale(0.95);
-	transition:
-		opacity 0.25s ease,
-		transform 0.25s ease;
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .infoBox.show {
-	opacity: 1;
-	transform: translateY(0) scale(1);
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .infoBox.hide {
-	opacity: 0;
-	transform: translateY(-10px) scale(0.95);
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
 }
 
 .mineSweeperCell {
-	background-color: rgb(195, 195, 195);
-	box-shadow:
-		inset 2px 2px 0 0 rgb(187, 187, 187),
-		inset -2px -2px 0 0 rgb(192, 192, 192);
-	box-sizing: border-box;
-	user-select: none;
-	font-family: "Courier New", monospace;
-	font-weight: bold;
-}
-
-.mineSweeperCell.bomb {
-	background-color: rgb(200, 29, 29);
-	box-shadow:
-		inset 1px 1px 0 0 rgb(255, 100, 100),
-		inset -1px -1px 0 0 rgb(85, 10, 10);
+  background-color: rgb(195, 195, 195);
+  box-shadow: inset 2px 2px 0 0 rgb(187, 187, 187), inset -2px -2px 0 0 rgb(192, 192, 192);
+  box-sizing: border-box;
+  user-select: none;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
 }
 
 .mineSweeperCell.hidden {
-	background-color: rgb(195, 195, 195);
-	box-shadow:
-		inset 5px 5px 0 0 rgb(242, 242, 242),
-		inset -5px -5px 0 0 rgb(70, 70, 70);
+  background-color: rgb(195, 195, 195);
+  box-shadow: inset 5px 5px 0 0 rgb(242, 242, 242), inset -5px -5px 0 0 rgb(70, 70, 70);
+}
+
+.mineSweeperCell.flagged {
+  background: url("/ressources/img/mineSweeperIcons/flag.png") center/cover no-repeat;
+  background-color: rgb(195, 195, 195);
+}
+
+.mineSweeperCell.bomb {
+  background: url("/ressources/img/mineSweeperIcons/bomb.png") center/cover no-repeat;
+  background-color: rgb(205, 139, 139);
 }
 
 .audio-button {
-	user-select: none;
-	scale: 0.6;
-	transition: scale 0.2s ease-out;
-	cursor: pointer;
+  user-select: none;
+  scale: 0.6;
+  transition: scale 0.2s ease-out;
+  cursor: pointer;
 }
 
 .audio-button:hover {
-	scale: 0.8;
+  scale: 0.8;
 }
 
 .audio-button:active {
-	scale: 0.75;
+  scale: 0.75;
+}
+
+@font-face {
+  font-family: "Segment7";
+  src: url("../ressources/fonts/Segment7.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+.seven-seg {
+  font-family: "Segment7", monospace;
+  font-size: 48px;
+  color: #e53935; /* red LED look */
+  letter-spacing: 2px; /* space between digits */
 }

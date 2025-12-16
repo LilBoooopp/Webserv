@@ -1,12 +1,10 @@
 <?php
 require_once __DIR__ . "/../storage.php";
+header("Content-Type: application/json");
 session_start();
 
 if (empty($_SESSION["user_id"])) {
-	http_response_code(401);
-	header("Status: 401 Unauthorized");
-	header("Content-Type: text/plain");
-	echo "UNAUTHORIZED\n";
+	echo json_encode(["success" => false, "error" => "UNAUTHORIZED"]);
 	exit();
 }
 
@@ -31,26 +29,36 @@ if (empty($headers)) {
 $headersLower = array_change_key_case($headers, CASE_LOWER);
 $ctx = storage_open();
 
+// Accept both snakeHighScore and minesweeperMaxLevel
 $snakeHighScore = $_POST["snakeHighScore"] ?? "";
-$snakeHighScore = $snakeHighScore !== "" ? $snakeHighScore : $headersLower["x-snakehighscore"] ?? "";
-$snakeHighScore = (int) $snakeHighScore;
+$snakeHighScore = $snakeHighScore !== "" ? $snakeHighScore : ($headersLower["x-snakehighscore"] ?? "");
+$snakeHighScore = ($snakeHighScore === "" ? null : (int) $snakeHighScore);
+
+$minesweeperMaxLevel = $_POST["mineSweeperMaxLevel"] ?? "";
+$minesweeperMaxLevel = $minesweeperMaxLevel !== "" ? $minesweeperMaxLevel : ($headersLower["x-minesweepermaxlevel"] ?? "");
+$minesweeperMaxLevel = ($minesweeperMaxLevel === "" ? null : max(1, (int) $minesweeperMaxLevel));
 
 // Persist user preference
 $user = storage_get_user($ctx, $_SESSION["user_id"]);
 if (!$user) {
-	http_response_code(404);
-	header("Status: 404 Not Found");
-	header("Content-Type: text/plain");
-	echo "USER NOT FOUND\n";
+	echo json_encode(["success" => false, "error" => "USER NOT FOUND"]);
 	exit();
 }
-$user["snakeHighScore"] = $snakeHighScore;
+if ($snakeHighScore !== null) {
+	$user["snakeHighScore"] = $snakeHighScore;
+	$_SESSION["snakeHighScore"] = $snakeHighScore;
+}
+if ($minesweeperMaxLevel !== null) {
+	$user["minesweeperMaxLevel"] = $minesweeperMaxLevel;
+	$_SESSION["minesweeperMaxLevel"] = $minesweeperMaxLevel;
+}
 storage_update_user($ctx, $user);
-
-$_SESSION["snakeHighScore"] = $snakeHighScore;
 
 // Ensure session persistence before exiting
 session_write_close();
 
-header("Content-Type: text/plain");
-echo "OK\n";
+echo json_encode([
+	"success" => true,
+	"snakeHighScore" => $snakeHighScore,
+	"minesweeperMaxLevel" => $minesweeperMaxLevel,
+]);

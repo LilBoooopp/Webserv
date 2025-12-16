@@ -1,12 +1,10 @@
 <?php
 require_once __DIR__ . "/../storage.php";
+header("Content-Type: application/json");
 session_start();
 
 if (empty($_SESSION["user_id"])) {
-	http_response_code(401);
-	header("Status: 401 Unauthorized");
-	header("Content-Type: text/plain");
-	echo "UNAUTHORIZED\n";
+	echo json_encode(["success" => false, "error" => "UNAUTHORIZED"]);
 	exit();
 }
 
@@ -43,10 +41,7 @@ $_SESSION["secret"] = $secret;
 // Persist in storage for future sessions
 $user = storage_get_user($ctx, $_SESSION["user_id"]);
 if (!$user) {
-	http_response_code(404);
-	header("Status: 404 Not Found");
-	header("Content-Type: text/plain");
-	echo "USER NOT FOUND\n";
+	echo json_encode(["success" => false, "error" => "USER NOT FOUND"]);
 	exit();
 }
 $user["name"] = $name;
@@ -55,5 +50,10 @@ $user["email"] = $email;
 $user["secret"] = $secret;
 storage_update_user($ctx, $user);
 
-header("Content-Type: text/plain");
-echo "OK\n";
+echo json_encode([
+	"success" => true,
+	"name" => $name,
+	"tel" => $tel,
+	"email" => $email,
+	"secret" => $secret,
+]);

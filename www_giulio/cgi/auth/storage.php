@@ -34,7 +34,8 @@ function storage_ensure_sqlite_schema($db) {
         email TEXT,
         secret TEXT,
         darkmode INTEGER DEFAULT 0,
-        snakeHighScore INTEGER DEFAULT 0
+        snakeHighScore INTEGER DEFAULT 0,
+        minesweeperMaxLevel INTEGER DEFAULT 1
     )");
     $alterStatements = array(
         "ALTER TABLE users ADD COLUMN name TEXT",
@@ -42,7 +43,8 @@ function storage_ensure_sqlite_schema($db) {
         "ALTER TABLE users ADD COLUMN email TEXT",
         "ALTER TABLE users ADD COLUMN secret TEXT",
         "ALTER TABLE users ADD COLUMN darkmode INTEGER DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN snakeHighScore INTEGER DEFAULT 0"
+        "ALTER TABLE users ADD COLUMN snakeHighScore INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN minesweeperMaxLevel INTEGER DEFAULT 1"
     );
     foreach ($alterStatements as $sql) {
         try {
@@ -97,7 +99,7 @@ function storage_get_user($ctx, $username) {
 
 function storage_insert_user($ctx, $user) {
     if ($ctx['mode'] === 'sqlite') {
-        $stmt = $ctx['db']->prepare('INSERT INTO users (username, password, name, tel, email, secret, darkmode, snakeHighScore) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $ctx['db']->prepare('INSERT INTO users (username, password, name, tel, email, secret, darkmode, snakeHighScore, minesweeperMaxLevel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         return $stmt->execute(array(
             $user['username'],
             $user['password'],
@@ -107,6 +109,7 @@ function storage_insert_user($ctx, $user) {
             $user['secret'] ?? '',
             $user['darkmode'] ?? 0,
             $user['snakeHighScore'] ?? 0,
+            $user['minesweeperMaxLevel'] ?? 1,
         ));
     }
     $all = storage_file_read_all($ctx['file']);
@@ -121,7 +124,7 @@ function storage_insert_user($ctx, $user) {
 
 function storage_update_user($ctx, $user) {
     if ($ctx['mode'] === 'sqlite') {
-        $stmt = $ctx['db']->prepare('UPDATE users SET password = ?, name = ?, tel = ?, email = ?, secret = ?, darkmode = ?, snakeHighScore = ? WHERE username = ?');
+        $stmt = $ctx['db']->prepare('UPDATE users SET password = ?, name = ?, tel = ?, email = ?, secret = ?, darkmode = ?, snakeHighScore = ?, minesweeperMaxLevel = ? WHERE username = ?');
         return $stmt->execute(array(
             $user['password'] ?? '',
             $user['name'] ?? '',
@@ -130,6 +133,7 @@ function storage_update_user($ctx, $user) {
             $user['secret'] ?? '',
             $user['darkmode'] ?? 0,
             $user['snakeHighScore'] ?? 0,
+            $user['minesweeperMaxLevel'] ?? 1,
             $user['username'],
         ));
     }

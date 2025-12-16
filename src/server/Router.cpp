@@ -49,16 +49,12 @@ const LocationConf *Router::matchLocation(const std::string &path) const {
 
   for (size_t i = 0; i < server_conf_.locations.size(); ++i) {
     const LocationConf &loc = server_conf_.locations[i];
-    const std::string &loc_path = loc.path;
-
-    if (path.rfind(loc_path, 0) == 0) {
-      bool is_valid_match =
-          (loc_path.size() == path.size() ||
-           (loc_path.size() < path.size() && path[loc_path.size()] == '/'));
-
-      if (is_valid_match && loc_path.size() > longest_match_len) {
-        longest_match_len = loc_path.size();
-        best_match = &loc;
+    if (path.compare(0, loc.path.size(), loc.path) == 0) {
+      if (path.size() == loc.path.size() || path[loc.path.size()] == '/') {
+        if (loc.path.size() > longest_match_len || best_match == NULL) {
+          longest_match_len = loc.path.size();
+          best_match = &loc;
+        }
       }
     }
   }
@@ -75,30 +71,29 @@ const LocationConf *Router::matchLocation(const std::string &path) const {
  */
 bool Router::checkAllowedMethod(const HttpRequest &req, const LocationConf &loc,
                                 HttpResponse &res) const {
-  if (loc.methods.empty())
-    return (true);
+  if (loc.methods.empty()) {
+    if (req.method == "GET" || req.method == "HEAD")
+      return (true);
 
-  const std::string &method = req.method;
-  bool allowed = false;
-  for (size_t i = 0; i < loc.methods.size(); ++i) {
-    if (loc.methods[i] == method) {
-      allowed = true;
-      break;
-    }
-  }
-
-  if (!allowed) {
     res.setStatusFromCode(405);
-    std::string allow_header;
-    for (size_t i = 0; i < loc.methods.size(); ++i) {
-      if (i > 0)
-        allow_header += ", ";
-      allow_header += loc.methods[i];
-    }
-    res.setHeader("Allow", allow_header);
+    res.setHeader("Allow", "GET, HEAD");
     return (false);
   }
-  return (true);
+
+  for (size_t i = 0; i < loc.methods.size(); ++i) {
+    if (loc.methods[i] == req.method)
+      return (true);
+  }
+
+  res.setStatusFromCode(405);
+  std::string allow;
+  for (size_t i = 0; i < loc.methods.size(); ++i) {
+    if (i > 0)
+      allow += ", ";
+    allow += loc.methods[i];
+  }
+  res.setHeader("Allow", allow);
+  return (false);
 }
 
 /**
@@ -124,12 +119,16 @@ IHandler *Router::route(Connection &c, const HttpRequest &req,
 
     if (loc.redirect_enabled) {
       Logger::info("Router: Redirecting to %s (%d).",
-                    loc.redirect_target.c_str(), loc.redirect_status);
+                   loc.redirect_target.c_str(), loc.redirect_status);
       return (new RedirectHandler(loc.redirect_status, loc.redirect_target));
     }
 
+    if (loc.has_max_size && c.body.size() > loc.max_size) {
+      return new ErrorHandler(413);
+    }
+
     Logger::info("Router: Using StaticHandler with location %s",
-                  loc.path.c_str());
+                 loc.path.c_str());
     return (new StaticHandler(server_conf_, matched_loc));
   }
 

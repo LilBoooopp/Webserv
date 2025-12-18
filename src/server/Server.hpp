@@ -30,11 +30,11 @@ class Server {
 	void enableWrite(int fd);
 	void disableWrite(int fd);
 	void prepareResponse(int fd, Connection &c);
+	bool processRedirectOrCgi(int fd, Connection &c);
 
     public:
 	Server() : inbuf_(8192) {}
 	bool start(std::vector<ServerConf> &config);
-	void setConf(std::vector<ServerConf> config);
 	void run();
 	bool executeStdin();
 	void cleanup();

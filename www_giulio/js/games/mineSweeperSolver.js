@@ -10,7 +10,7 @@ function floodFillSolver(cells, w, h, cord) {
   if (cord[0] < -hw || cord[0] > hw + (w % 2) - 1 || cord[1] < -hh || cord[1] > hh + (h % 2) - 1) return;
   const idx = (cord[1] + hh) * w + (cord[0] + hw);
   const c = cells[idx];
-  if (c.hasBomb || c.revealed) return;
+  if (c.hasMine || c.revealed) return;
   reveal_solver(c);
   if (c.numBombs > 0) return;
   for (let dy = -1; dy <= 1; dy++) {
@@ -108,7 +108,7 @@ function countBombs(cd, cw, ch, cell) {
       if (c[0] < -hw || c[0] > hw + (cw % 2) - 1 || c[1] < -hh || c[1] > hh + (ch % 2) - 1) continue;
       const idx = (c[1] + hh) * cw + (c[0] + hw);
       const n = cd[idx];
-      if (n.hasBomb) numBombs++;
+      if (n.hasMine) numBombs++;
     }
   }
   return numBombs;
@@ -117,7 +117,7 @@ function countBombs(cd, cw, ch, cell) {
 function reveal_solver(c) {
   if (c.revealed) return;
   c.revealed = true;
-  if (!c.hasBomb) toReveal_solver--;
+  if (!c.hasMine) toReveal_solver--;
 }
 
 function isSolvable(cells, cw, ch, startCell, minTries = 0) {
@@ -126,19 +126,19 @@ function isSolvable(cells, cw, ch, startCell, minTries = 0) {
   var cd = [];
   for (const c of cells) {
     const copy = {
-      hasBomb: c.hasBomb,
+      hasMine: c.hasMine,
       revealed: c.revealed,
       cord: [c.cord[0], c.cord[1]],
       numBombs: c.numBombs,
     };
-    if (!copy.revealed && !copy.hasBomb) toReveal_solver++;
+    if (!copy.revealed && !copy.hasMine) toReveal_solver++;
     cd.push(copy);
   }
   var startCd = cd[cells.indexOf(startCell)];
   reveal_solver(startCd);
   step = 0;
   var solvable = recursiveSolve(cd, cw, ch, false);
-//   console.warn("Solver ended - steps: " + step + ", status: " + (solvable ? "SOLVABLE" : "UNSOLVABLE"));
+	//   console.warn("Solver ended - steps: " + step + ", status: " + (solvable ? "SOLVABLE" : "UNSOLVABLE"));
   return solvable;
 }
 

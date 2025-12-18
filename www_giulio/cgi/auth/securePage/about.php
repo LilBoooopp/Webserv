@@ -55,33 +55,35 @@ $secret = $_SESSION["secret"] ?? null;
 			formFields[label] = input;
 		}
 
-		addButton("Send", [c[0] - 10, c[1] + w * (formLabels.length + 1) ], () => {
-		const data = new URLSearchParams();
-		const headerData = {};
-		for (const label of formLabels) {
-			const input = formFields[label];
-			data.append(label, input.value);
-			headerData[label] = input.value;
-			console.log(label, "=>", input.value);
-		}
-		fetch("/cgi/auth/setters/setAbout.php", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/x-www-form-urlencoded",
-				"X-Name": headerData.name ?? "",
-				"X-Tel": headerData.tel ?? "",
-				"X-Email": headerData.email ?? "",
-				"X-Secret": headerData.secret ?? "",
-			},
-			body: data.toString(),
-		})
-			.then((res) => res.text().then((t) => ({ res, t })))
-			.then(({ res, t }) => {
-			if (res.ok && t.trim() === "OK") announce("Saved");
-				else announce(t || "Error saving");
+		function f(){
+			const data = new URLSearchParams();
+			const headerData = {};
+			for (const label of formLabels) {
+				const input = formFields[label];
+				data.append(label, input.value);
+				headerData[label] = input.value;
+				console.log(label, "=>", input.value);
+			}
+			fetch("/cgi/auth/setters/setAbout.php", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					"X-Name": headerData.name ?? "",
+					"X-Tel": headerData.tel ?? "",
+					"X-Email": headerData.email ?? "",
+					"X-Secret": headerData.secret ?? "",
+				},
+				body: data.toString(),
 			})
-			.catch(() => announce("Can't save data"));
-		});
+				.then((res) => res.text().then((t) => ({ res, t })))
+				.then(({ res, t }) => {
+				if (res.ok && t.trim() === "OK") announce("Saved");
+					else announce(t || "Error saving");
+				})
+				.catch(() => announce("Can't save data"));
+		}
+
+		addButton("Send", [c[0] - 10, c[1] + w * (formLabels.length + 1) ], f, null, null, "POST /cgi/auth/setters/setAbout.php\n - Content-Type: application/x-www-form-urlencoded\n - X-Name: ...\n - X-Tel: ...\n - X-Email: ...\n - X-Secret: ...");
 		addScrollerProfileMenu();
 		initBackground();
     </script>

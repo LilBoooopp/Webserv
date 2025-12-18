@@ -134,8 +134,17 @@ void HttpResponse::printResponse(int fd) {
 		return;
 	std::string contentType = this->getHeader("Content-Type");
 	const char *clr = rgba(146, 122, 152, 1);
-	Logger::response("%s responded to fd %d: %s%s", SERV_CLR, fd,
-			 getStatus() == 200 ? GREEN : RED, getHead().c_str());
+	std::string label;
+	if (!body_.empty() && getStatus() == 200) {
+		std::ostringstream oss;
+		oss << " - " << contentType << " - '" << VALUECLR << body_.substr(0, 12) << GREY;
+		if (body_.length() > 12)
+			oss << "...(" << body_.length() << ")";
+		oss << "'";
+		label = oss.str();
+	}
+	Logger::response("at fd %d: %s%s%s %s", fd, getStatus() == 200 ? GREEN : RED,
+			 getHead().c_str(), TS, label.c_str());
 	for (std::map<std::string, std::string>::const_iterator it = this->headers_.begin();
 	     it != this->headers_.end(); it++) {
 		Logger::header("%s%-20s < %s", clr, it->first.c_str(), it->second.c_str());

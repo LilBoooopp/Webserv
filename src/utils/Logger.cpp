@@ -1,6 +1,4 @@
-#include "Logger.hpp"
-#include "Chrono.hpp"
-#include "Colors.hpp"
+#include "Utils.hpp"
 #include <sstream>
 
 bool Logger::channels[loggerChannelsCount] = {
@@ -27,9 +25,9 @@ static void vlog(LogChannel want, const char *tag, const char *fmt, const char *
 	}
 	if (tag) {
 		if (want == LOG_HEADER || want == LOG_CONNECTION)
-			std::fprintf(stderr, "%s%s%s", clr, tag, TS);
+			std::fprintf(stderr, "%s%-15s%-8s", clr, tag, TS);
 		else
-			std::fprintf(stderr, "%s%s%s %-6s %s", rgb(163, 163, 163),
+			std::fprintf(stderr, "%s%-15s%s %-8s%-8s", rgb(163, 163, 163),
 				     getTimestamp().c_str(), clr, tag, TS);
 	}
 

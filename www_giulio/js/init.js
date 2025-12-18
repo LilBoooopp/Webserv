@@ -20,12 +20,13 @@ function init() {
   const cgiX = colX[2];
   const postX = colX[3];
 
-  addButton("LOGIN", [navX, c[1] + 25], () => (window.location.href = "login.html"));
-  addButton("/ressources", [navX, c[1] + 25 + rowSpacing], () => (window.location.href = "/ressources"));
+  addButton("LOGIN", [navX, c[1] + 25], () => (window.location.href = "login.html"), null, null, "GET /login.html HTTP/1.1");
+  addButton("/ressources", [navX, c[1] + 25 + rowSpacing], () => (window.location.href = "/ressources"), null, null, "GET /ressources HTTP/1.1");
 
-  addButton("SPAM", [reqX, c[1] + 25], loopRequest);
-  addButton("not found", [reqX, c[1] + 25 + rowSpacing], () => (window.location.href = "/notfound"));
-  addButton("bad url", [reqX, c[1] + 25 + rowSpacing * 2], () => (window.location.href = "awfin/qwq1||//#"));
+  addButton("SPAM", [reqX, c[1] + 25], loopRequest, null, null, "GET / HTTP/1.1 (x1000)");
+  addButton("not found", [reqX, c[1] + 25 + rowSpacing], () => (window.location.href = "/notfound"), null, null, "GET /notfound HTTP/1.1");
+  addButton("bad url", [reqX, c[1] + 25 + rowSpacing * 2], () => (window.location.href = "awfin/qwq1||//#"), null, null, "GET awfin/qwq1||//# HTTP/1.1");
+  addButton("Unauthorized", [reqX, c[1] + 25 + rowSpacing * 3], () => (window.location.href = "/ressources/secret/secret.txt"), null, null, "GET /ressources/secret/secret.txt HTTP/1.1");
 
   const cgPaths = ["printArg.py", "infinite.py", "hugeResponse.py"];
   for (let i = 0; i < cgPaths.length; i++) {
@@ -33,9 +34,9 @@ function init() {
   }
   addInfiniteRequestButton([cgiX, c[1] + 25 + rowSpacing * cgPaths.length]);
   var y = -1;
-  addButton("GDRIVE", [postX, c[1] + 25 + ++y * rowSpacing], () => (window.location.href = "/cgi/gdrive.php"));
-  addButton("1 Byte", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(1));
-  addButton("1 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(1_000_000));
-  addButton("10 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(10_000_000));
-  addButton("1 GB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(999_999_999));
+  addButton("GDRIVE", [postX, c[1] + 25 + ++y * rowSpacing], () => (window.location.href = "/cgi/gdrive.php"), null, null, "GET /cgi/drive.php HTTP/1.1");
+  addButton("1 Byte", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(1), null, null, "POST /uploads/postBytes/1.txt");
+  addButton("1 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(1_000_000), null, null, "POST /uploads/postBytes/1000000.txt");
+  addButton("10 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(10_000_000), null, null, "POST /uploads/postBytes/10000000.txt");
+  addButton("1 GB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(999_999_999), null, null, "POST /uploads/postBytes/999999999.txt");
 }

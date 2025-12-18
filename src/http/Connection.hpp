@@ -1,6 +1,6 @@
 #pragma once
-#include "../utils/Chrono.hpp"
-#include "../utils/Logger.hpp"
+#include "../config/Config.hpp"
+#include "../utils/Utils.hpp"
 #include "ChunkedDecoder.hpp"
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
@@ -8,7 +8,14 @@
 #include <string>
 #include <sys/types.h>
 
-enum ConnState { READING_HEADERS, READING_BODY, READY_TO_RESPOND, WRITING_RESPONSE, CLOSING };
+enum ConnState {
+	READING_HEADERS,
+	READING_BODY,
+	READY_TO_RESPOND,
+	WRITING_RESPONSE,
+	WAITING,
+	CLOSING
+};
 
 class Connection {
     public:
@@ -24,7 +31,6 @@ class Connection {
 	bool responded;
 	bool peer_closed;
 	bool close_after;
-
 	ConnState state;
 	size_t want_body; // expected body length (from Content-Length)
 	bool is_chunked;  // trye if TE: chunked
@@ -33,7 +39,6 @@ class Connection {
 	HttpRequest req;
 
 	HttpResponse res;
-	int serverIdx; // index for different server confs
 
 	ChunkedDecoder decoder;
 
@@ -41,8 +46,10 @@ class Connection {
 	int file_fd;	      // fd of file being streamed, -1 if none
 	off_t file_remaining; // bytes left to send
 	bool streaming_file;  // true if we still need to stream body from file
-	time_t last_active; // for idle timeout
-
-	Connection(void);
+	time_t last_active;   // for idle timeout
+	const ServerConf &cfg;
+	const LocationConf *loc;
+	Connection(const ServerConf &cfg);
+	Connection &operator=(const Connection &other);
 	void printStatus(const std::string &label);
 };

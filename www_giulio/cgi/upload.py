@@ -50,7 +50,7 @@ def main():
         respond("400 Bad Request", "Missing X-Upload-Path header\n")
         return
 
-    mode = os.environ.get("HTTP_X_MODE", "create").lower()
+    mode = os.environ.get("HTTP_X_MODE", "replace").lower()
     is_directory = filename.endswith("/")
 
     filename = os.path.normpath(filename)

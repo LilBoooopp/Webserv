@@ -1,0 +1,43 @@
+Since I changed a lot of things, I thought it would be 
+
+- Replaced Connection's ServerIdx property with cfg, which references the config file linked to the port of the fd.
+- Simplified functions calls by removing arguments HttpReq/HttpRes/ServerConf from functions that also take a Connection object as argument, as those attributes can be accessed from the Connection object.
+- Added public *Loc to Connection's properties, which points to NULL by default.
+- Replaced convoluted IHandler system with a much simpler setup:
+
+		- Router::route
+			Looks for a matching connection for the request path
+			Sets the connection's *loc to the match (to root if none is found)
+			compare the request's method to the matched location allowed methods, set error if not found.
+
+		- (only for GET/HEAD requests) Router::handle is called based on the the return of Router::route.
+			- if the target is a directory => 
+				if loc.hasIndex: return index
+				else if autoindex -> return dir-listing
+				else return error
+			- if the target is a regular file =>
+				if it doesnt exist -> return error
+			 	else setContentType, headers etc...
+
+www_giulio:
+
+	- Changed POST / DELETE calls that previously targetted cgi to simply make the request 
+		(eg: POST /uploads/audio/new.mp3 will be routed to /ressources/uploads/audio/new.mp3 in config)
+
+	- Every button now has an hover effect that displays what it requests to the server when clicked.
+
+	- Improved MineSweeper which now generate valid maps and is generally more fun to play (terribly out of scope)
+
+
+test.py:
+
+	Added POST / DELETE / cgi tests
+
+Logger:
+
+	Refined logs format, tabulations, colors and global design of the logger system
+
+Cleanup:
+
+	Added a Cleanup function which kills asynchroneous Cgi processes, closes all connections etc..
+	Added a SIGTERM and SIGQUIT handlers which calls the Cleanup function

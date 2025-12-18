@@ -28,7 +28,7 @@ class CgiHandler {
 	const std::vector<ServerConf> *cfg_;
 
     public:
-	bool runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd);
+	bool runCgi(Connection &c, int fd);
 	bool handleResponses();
 	void setConfig(const std::vector<ServerConf> &cfg);
 	void killAsyncProcesses();
@@ -36,8 +36,6 @@ class CgiHandler {
 };
 
 bool is_cgi(const std::string &req_target, const ServerConf &cfg);
-void placeFileInDir(const std::string &name, const std::string &fileContent,
-		    const std::string &dir);
 std::string getInterpreter(const std::string &path, const ServerConf &conf);
 void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,
 		     std::string &queryString, const ServerConf &conf);

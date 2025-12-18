@@ -17,11 +17,12 @@ foreach ($files as $file) {
 	$isDir = is_dir($file);
 	$ext = $isDir ? "folder" : (isset($pathinfo["extension"]) ? $pathinfo["extension"] : "");
 	$relativePath = trim(str_replace($uploadsDir, "", $file), "/");
+	$webPath = "/uploads/" . $relativePath;
 	$fileData[] = [
 		"name" => basename($file),
 		"extension" => $ext,
 		"size" => $isDir ? 0 : filesize($file),
-		"path" => $file,
+		"path" => $webPath,
 		"relativePath" => $relativePath,
 		"isDir" => $isDir,
 	];
@@ -44,6 +45,7 @@ foreach ($files as $file) {
     <script src="/js/auth.js"></script>
     <script src="/js/inputField.js"></script>
     <script src="/js/gDrive.js"></script>
+    <script src="/js/audio.js"></script>
 
     <script>
 		window.DARKMODE = 1;

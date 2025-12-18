@@ -194,12 +194,12 @@ def run_stress_suite():
     chunked_req = build_chunked_request("/upload", chunks)
     results.append(run_concurrent("Chunked uploads x30", chunked_req, 30, expect_status_prefix="HTTP/1.1 "))
 
-    # Delete test: upload once then delete
     upload_name = f"stress_{random.randint(1, 1_000_000)}.txt"
     upload_body = b"hello-delete"
-    upload_req = build_upload_request("/upload", upload_body)
-    upload_req = upload_req.replace(b"stress.bin", upload_name.encode("ascii"))
-    delete_req = "POST /cgi/delete.php?file=" + upload_name + " HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"
+    # Upload directly to /upload/<filename> using standard POST
+    upload_req = build_upload_request(f"/upload/{upload_name}", upload_body)
+    # Delete using standard DELETE to the same path (no CGI)
+    delete_req = f"DELETE /upload/{upload_name} HTTP/1.1\r\n" "Host: localhost\r\n" "\r\n"
     up_res = run_test("Upload for delete", upload_req, expect_status_prefix="HTTP/1.1 ")
     results.append(up_res)
     if up_res.ok:

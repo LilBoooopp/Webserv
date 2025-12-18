@@ -14,18 +14,25 @@ function initAudioPlayer(p = [100, 50]) {
   }
 
   function addDeleteButton(pos) {
-    var button = addButton("X", pos, () => {
-      if (!mus.isUploaded) {
-        return;
-      }
-      fetch(`/uploads/audio/${mus.name}.mp3`, {
-        method: "DELETE",
-      })
-        .then((r) => {
-          if (r.ok) window.location.reload();
+    var button = addButton(
+      "X",
+      pos,
+      () => {
+        if (!mus.isUploaded) {
+          return;
+        }
+        fetch(`/uploads/audio/${mus.name}.mp3`, {
+          method: "DELETE",
         })
-        .catch((err) => console.warn("Failed to delete uploaded audio:", err));
-    }, null, null, "DELETE /uploads/audio/mus.mp3 HTTP/1.1");
+          .then((r) => {
+            if (r.ok) window.location.reload();
+          })
+          .catch((err) => console.warn("Failed to delete uploaded audio:", err));
+      },
+      null,
+      null,
+      "DELETE /uploads/audio/mus.mp3 HTTP/1.1"
+    );
     button.style.scale = ".3";
     button.addEventListener("mouseenter", () => (button.style.scale = ".5"));
     button.addEventListener("mouseleave", () => (button.style.scale = ".3"));
@@ -34,7 +41,7 @@ function initAudioPlayer(p = [100, 50]) {
   }
 
   function loadUploadedAudio() {
-    fetch("/cgi/list.php?dir=audio")
+    fetch("/cgi-bin/list.php?dir=audio")
       .then((r) => r.json())
       .then((files) => {
         files.forEach((file) => {
@@ -228,9 +235,9 @@ function initAudioPlayer(p = [100, 50]) {
 
   const button = addButton("Upload", [p[0], volumeSliderY + 65], () => openFileDialog(uploadFile), null, "rgba(255, 255, 255, 0.24)", "POST /uploads/audio HTTP/1.1");
   button.style.backgroundColor = "rgba(255, 255, 255, 0.01)";
-//   button.style.scale = 0.8;
-//   button.addEventListener("mouseenter", () => (button.style.scale = 1));
-//   button.addEventListener("mouseleave", () => (button.style.scale = 0.8));
+  //   button.style.scale = 0.8;
+  //   button.addEventListener("mouseenter", () => (button.style.scale = 1));
+  //   button.addEventListener("mouseleave", () => (button.style.scale = 0.8));
 }
 function playSound(src, volume = 1) {
   var au = new Audio(src);

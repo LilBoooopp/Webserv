@@ -344,7 +344,7 @@ function saveMaxLevel() {
   if (window.MAX_LEVEL === undefined || maxLevel > window.MAX_LEVEL) {
     window.MAX_LEVEL = maxLevel;
     const body = new URLSearchParams({ mineSweeperMaxLevel: maxLevel });
-    fetch("/cgi/auth/setters/setScore.php", {
+    fetch("/cgi-bin/auth/setters/setScore.php", {
       method: "POST",
       credentials: "same-origin",
       headers: {

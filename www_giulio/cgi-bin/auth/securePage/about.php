@@ -64,7 +64,7 @@ $secret = $_SESSION["secret"] ?? null;
 				headerData[label] = input.value;
 				console.log(label, "=>", input.value);
 			}
-			fetch("/cgi/auth/setters/setAbout.php", {
+			fetch("/cgi-bin/auth/setters/setAbout.php", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/x-www-form-urlencoded",
@@ -83,7 +83,7 @@ $secret = $_SESSION["secret"] ?? null;
 				.catch(() => announce("Can't save data"));
 		}
 
-		addButton("Send", [c[0] - 10, c[1] + w * (formLabels.length + 1) ], f, null, null, "POST /cgi/auth/setters/setAbout.php\n - Content-Type: application/x-www-form-urlencoded\n - X-Name: ...\n - X-Tel: ...\n - X-Email: ...\n - X-Secret: ...");
+		addButton("Send", [c[0] - 10, c[1] + w * (formLabels.length + 1) ], f, null, null, "POST /cgi-bin/auth/setters/setAbout.php\n - Content-Type: application/x-www-form-urlencoded\n - X-Name: ...\n - X-Tel: ...\n - X-Email: ...\n - X-Secret: ...");
 		addScrollerProfileMenu();
 		initBackground();
     </script>

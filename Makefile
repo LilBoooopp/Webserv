@@ -11,7 +11,7 @@ SRC_SRC =  \
 	main.cpp
 SRC = $(addprefix $(SRC_DIR), $(SRC_SRC))
 
-CGI_DIR = src/cgi/
+CGI_DIR = src/cgi-bin/
 CGI_SRC =  \
 	Execute.cpp \
 	CgiTools.cpp \

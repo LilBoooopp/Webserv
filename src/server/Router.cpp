@@ -62,9 +62,8 @@ bool Router::route(Connection &c) {
 	if (matched_loc) {
 		c.loc = matched_loc;
 		const LocationConf &loc = *matched_loc;
-		Logger::router(
-		    "%smatched request's target to location \'%s%s%s\' in %s%s%s", GREY, YELLOW,
-		    loc.path.c_str(), GREY, TS, c.cfg.names[0].c_str(), GREY);
+		Logger::router("%smatched request's target to location \'%s%s%s\' in %s%s%s", GREY,
+			       YELLOW, loc.path.c_str(), GREY, TS, c.cfg.names[0].c_str(), GREY);
 
 		if (!checkAllowedMethod(c, loc)) {
 			Logger::router("unvalid method for \'%s\' location", loc.path.c_str());
@@ -81,8 +80,8 @@ bool Router::route(Connection &c) {
 			return true;
 		}
 	} else
-		Logger::router("%sNo location match for \'%s%s%s\'. Using server defaults \'/\'.", GREY, TS,
-			       c.req.target.c_str(), GREY);
+		Logger::router("%sNo location match for \'%s%s%s\'. Using server defaults \'/\'.",
+			       GREY, TS, c.req.target.c_str(), GREY);
 	return false;
 }
 
@@ -128,4 +127,10 @@ std::string Router::resolvePath(const ServerConf &conf, const LocationConf *loc,
 	if (loc && loc->has_root)
 		root_dir = loc->root;
 	return safe_join_under_root(root_dir, request_path);
+}
+
+void Router::finalizeResponse(Connection &c) {
+	if (c.res.getStatus() >= 400)
+		Router::loadErrorPage(c);
+	c.out = c.res.serialize(c.req.method == "HEAD");
 }

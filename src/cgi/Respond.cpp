@@ -155,14 +155,13 @@ bool CgiHandler::handleResponses() {
 					res.setBody(err);
 				}
 
-				bool head_only = (conn->req.method == "HEAD");
 				Logger::cgi("%s%s%s execution ended after %s%lums", YELLOW,
 					    data.file.c_str(), GREY, LGREY,
 					    (unsigned long)(nowMs - data.conn->start));
 				if (res.getStatus() >= 400)
 					Router::loadErrorPage(*conn);
 				res.printResponse(data.fd);
-				conn->out = res.serialize(head_only);
+				conn->out = res.serialize(conn->req.method == "HEAD");
 				conn->state = WRITING_RESPONSE;
 			}
 			cgiResponses_.erase(cgiResponses_.begin() + i);

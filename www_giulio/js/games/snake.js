@@ -127,7 +127,7 @@ function onGameOver() {
   if (window.HIGH_SCORE === undefined || score > window.HIGH_SCORE) {
     window.HIGH_SCORE = score;
     const body = new URLSearchParams({ snakeHighScore: score });
-    fetch("/cgi/auth/setters/setScore.php", {
+    fetch("/cgi-bin/auth/setters/setScore.php", {
       method: "POST",
       credentials: "same-origin",
       headers: {

@@ -35,8 +35,10 @@ $darkmode = $_SESSION["darkmode"] ?? false;
 
 		addTitle();
 		const games = ["Snake", "MineSweeper", "Morpion"];
-		for (let i = 0; i < games.length; i++)
-			addButton(games[i], [c[0], c[1] + i * 50], () => {window.location.href = "/cgi/auth/securePage/games/" + games[i].toLowerCase() + ".php"});
+		for (let i = 0; i < games.length; i++){
+			const destination = "/cgi/auth/securePage/games/" + games[i].toLowerCase() + ".php"
+			addButton(games[i], [c[0], c[1] + i * 50], () => {window.location.href = destination}, null, null, `GET ${destination} HTTP/1.1`);
+		}
 		addScrollerProfileMenu();
 		initBackground();
     </script>

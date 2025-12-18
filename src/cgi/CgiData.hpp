@@ -12,7 +12,6 @@ struct CgiData {
 	std::string interp;
 	std::string file;
 	std::string path;
-	std::map<std::string, std::string> headers;
 	Connection *conn;
 	int fd;
 	int readFd;
@@ -22,6 +21,6 @@ struct CgiData {
 	std::string out;
 	bool noRead;
 	CgiData() : conn(NULL), readFd(-1), pid(-1), start(0), bytesRead(0), noRead(false) {}
-	bool tryInit(Connection *c, const HttpRequest &req, int fd, const ServerConf &cfg);
+	bool tryInit(Connection &c, int fd);
 	void log(bool execSuccess);
 };

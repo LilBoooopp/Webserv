@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . "/../storage.php";
 
 header("Content-Type: application/json");

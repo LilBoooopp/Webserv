@@ -37,15 +37,17 @@ HTTP_SRC =  \
 	ChunkedDecoder.cpp \
 	Connection.cpp \
 	HttpParser.cpp \
-	HttpResponse.cpp
+	HttpResponse.cpp \
+	HttpRequest.cpp
 HTTP = $(addprefix $(HTTP_DIR), $(HTTP_SRC))
 
 SERVER_DIR = src/server/
 SERVER_SRC =  \
 	Listener.cpp \
+	Router_Handler.cpp \
 	Router.cpp \
-	Server.cpp \
-	StaticHandler.cpp
+	Server_Response.cpp \
+	Server.cpp
 SERVER = $(addprefix $(SERVER_DIR), $(SERVER_SRC))
 
 UTILS_DIR = src/utils/
@@ -77,7 +79,7 @@ GRAY='\033[2;37m'
 CURSIVE='\033[3m'
 BLUE='\033[34m'
 MAGENTA='\033[35m'
-CYAN='\033[36m'
+URLCLR='\033[36m'
 WHITE='\033[37m'
 BOLD='\033[1m'
 

@@ -1,19 +1,11 @@
-#include "StaticHandler.hpp"
 #include "../config/Config.hpp"
-#include "../utils/Colors.hpp"
-#include "../utils/Logger.hpp"
-#include "../utils/Mime.hpp"
-#include "../utils/Path.hpp"
-
-#include "../utils/Logger.hpp"
+#include "../utils/Utils.hpp"
+#include "Router.hpp"
 #include <fcntl.h>
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
-
-static bool is_dir(const struct stat &st) { return (S_ISDIR(st.st_mode)); }
-static bool is_reg(const struct stat &st) { return (S_ISREG(st.st_mode)); }
 
 // Threshold above which we stream instead of loading into memory
 static const off_t STREAM_THRESHOLD = 256 * 1024; // 256 KB
@@ -32,8 +24,6 @@ static std::string size_to_str(off_t n) {
  * @return true on sucess, false on any open/read failure.
  */
 static bool read_file_small(const std::string &path, std::string &out) {
-	Logger::request("GET file path: %s", path.c_str());
-
 	int fd = ::open(path.c_str(), O_RDONLY);
 	if (fd < 0)
 		return (false);
@@ -107,54 +97,38 @@ std::string buildDirListing(const std::string &root, const std::string &uri) {
 	return html.str();
 }
 
-void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &res) {
+static void respondWithDirListing(Connection &c) {
+	std::string dirHtml = buildDirListing(c.cfg.root, c.req.target);
+	c.res.setContentType("text/html");
+	if (c.req.method == "HEAD") {
+		c.res.setStatus(200, "OK");
+		c.res.setHeader("Content-Length", size_to_str(static_cast<off_t>(dirHtml.size())));
+	} else {
+		c.res.setStatus(200, "OK");
+		c.res.setBody(dirHtml);
+	}
+}
+
+void Router::handle(Connection &c) {
 	// We assume: method validated (ONLY GET for now)
-	const bool is_head = (req.method == "HEAD");
-	(void)c;
+	const std::string &method = c.req.method;
+	const bool is_head = (method == "HEAD");
 
-	std::string request_path = req.target;
-	std::string root_dir = server_conf_.root;
-	const std::vector<std::string> *index_files = &server_conf_.files; // WARNING: index list??
+	const std::vector<std::string> *index_files = &c.cfg.files;
 
-	if (location_conf_ && location_conf_->has_root) {
-		size_t loc_path_len = location_conf_->path.size();
-		if (loc_path_len > 0 &&
-		    req.target.compare(0, loc_path_len, location_conf_->path) == 0) {
-			request_path.erase(0, loc_path_len);
-		}
-	}
-
-	if (!request_path.empty() && request_path[0] == '/')
-		request_path.erase(0, 1);
-
-	if (location_conf_) {
-		if (location_conf_->has_root)
-			root_dir = location_conf_->root;
-
-		if (location_conf_->has_index)
-			index_files = &location_conf_->index_files;
-	}
+	if (c.loc && c.loc->has_index)
+		index_files = &c.loc->index_files;
 
 	// Map the request target to a safe filesystem path under cfg.root
-	std::string path = safe_join_under_root(root_dir, request_path);
+	std::string path = Router::resolvePath(c.cfg, c.loc, c.req.target);
 
-	Logger::request("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, req.target.c_str(), TS, GREY,
-			path.c_str());
+	Logger::router("%srouted %s%s%s -> %s%s", GREY, URLCLR, c.req.target.c_str(), GREY,
+		       URLCLR, path.c_str());
 
 	struct stat st;
 	if (::stat(path.c_str(), &st) == 0) {
 		// Is a Directory
 		if (is_dir(st)) {
-			// const LocationConf *loc = findLocation(server_conf_, req.target);
-			if (location_conf_ && location_conf_->autoindex) {
-				Logger::response("Returning Directory List for path %s uri %s",
-						 path.c_str(), req.target.c_str());
-				std::string dirHtml = buildDirListing(root_dir, req.target);
-				res.setBody(dirHtml);
-				res.setContentType("text/html");
-				res.setStatus(200, "OK");
-				return;
-			}
 			// try index file: root/target[/] + cfg.index
 			if (path.size() == 0 || path[path.size() - 1] != '/')
 				path += '/';
@@ -162,45 +136,67 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &
 			if (!index_files->empty()) {
 				std::string idx = path + index_files->at(0);
 
-				if (::stat(idx.c_str(), &st) == 0 && is_reg(st)) {
-					res.setContentType(mime_from_path(idx));
+				if (file_exists(idx) && is_reg(idx)) {
+					c.res.setContentType(mime_from_path(idx));
 					if (is_head) {
-						res.setStatus(200, "OK");
-						res.setHeader("Content_Length",
-							      size_to_str(st.st_size));
+						c.res.setStatus(200, "OK");
+						c.res.setHeader("Content_Length",
+								size_to_str(st.st_size));
 						return;
 					}
 
 					if (st.st_size <= STREAM_THRESHOLD) {
 						std::string body;
 						if (read_file_small(idx, body)) {
-							res.setStatus(200, "OK");
-							res.setBody(body);
+							c.res.setStatus(200, "OK");
+							c.res.setBody(body);
 							return;
 						}
 					} else {
-						res.setStatus(200, "OK");
-						res.setHeader("Content_Length",
-							      size_to_str(st.st_size));
-						res.setHeader("X-Stream-File", idx);
+						c.res.setStatus(200, "OK");
+						c.res.setHeader("Content_Length",
+								size_to_str(st.st_size));
+						c.res.setHeader("X-Stream-File", idx);
 						return;
 					}
+				} else {
+					if (c.loc && c.loc->autoindex) {
+						Logger::response(
+						    "index \'%s\' missing -> dir listing",
+						    idx.c_str());
+						respondWithDirListing(c);
+						return;
+					}
+					// Index file configured but doesn't exist → 404
+					Logger::response("index \'%s\' missing -> 404",
+							 idx.c_str());
+					c.res.setStatusFromCode(404);
+					c.res.ensureDefaultBodyIfEmpty();
+					return;
 				}
+			} else if (c.loc && c.loc->autoindex) {
+				Logger::response("location at path %s doesn't have an index "
+						 "-> dir listing",
+						 path.c_str());
+				respondWithDirListing(c);
+				return;
 			}
-
-			res.setStatusFromCode(403);
-			res.ensureDefaultBodyIfEmpty();
+			// Directory exists but no index configured and no autoindex → 403
+			Logger::response("directory %s has no index file "
+					 "configured -> sending 403",
+					 path.c_str());
+			c.res.setStatusFromCode(403);
+			c.res.ensureDefaultBodyIfEmpty();
 			return;
-
 		}
 		// Is a Regular File
 		else if (is_reg(st)) {
-			res.setContentType(mime_from_path(path));
+			c.res.setContentType(mime_from_path(path));
 			// For HEAD, we don't read the file, we just set headers
 			if (is_head) {
-				res.setStatus(200, "OK");
+				c.res.setStatus(200, "OK");
 				// Use stat's size for Content_Length
-				res.setHeader("Content-Length", size_to_str(st.st_size));
+				c.res.setHeader("Content-Length", size_to_str(st.st_size));
 				return;
 			}
 
@@ -208,22 +204,22 @@ void StaticHandler::handle(Connection &c, const HttpRequest &req, HttpResponse &
 			if (st.st_size <= STREAM_THRESHOLD) {
 				std::string body;
 				if (read_file_small(path, body)) {
-					res.setStatus(200, "OK");
-					res.setBody(body);
-					// For GET, HttpResponse::serialize() can establish
-					// Content-Length from body.size()
+					c.res.setStatus(200, "OK");
+					c.res.setBody(body);
+					// For GET, HttpResponse::serialize() can
+					// establish Content-Length from body.size()
 					return;
 				}
 			} else {
 				// Large file: mark for streaming
-				res.setStatus(200, "OK");
-				res.setHeader("Content-Length", size_to_str(st.st_size));
+				c.res.setStatus(200, "OK");
+				c.res.setHeader("Content-Length", size_to_str(st.st_size));
 				// Internal hint for Server: path to stream
-				res.setHeader("X-Stream-File", path);
+				c.res.setHeader("X-Stream-File", path);
 				return;
 			}
 		}
 	}
-	res.setStatusFromCode(404);
-	res.ensureDefaultBodyIfEmpty();
+	c.res.setStatusFromCode(404);
+	c.res.ensureDefaultBodyIfEmpty();
 }

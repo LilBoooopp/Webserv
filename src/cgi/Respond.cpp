@@ -100,22 +100,22 @@ bool CgiHandler::handleResponses() {
 			cgiResponses_.erase(cgiResponses_.begin() + i);
 			continue;
 		}
-		const ServerConf &resCfg = (*cfg_)[data.conn->serverIdx];
+		const ServerConf &cfg = data.conn->cfg;
 		char buf[4096];
 		bool finished = false;
 
 		std::string err;
 		ssize_t n = read(data.readFd, buf, sizeof(buf));
 		if (n > 0) {
-			Logger::cgi("%d bytes read from fd %d", n, data.readFd);
+			Logger::cgi("%s%d bytes%s read from %s%s%s's output [fd %d]", VALUECLR, n, GREY, URLCLR, data.file.c_str(), GREY, data.readFd);
 			data.out.append(buf, n);
 			data.bytesRead += n;
 			anyProgress = true;
-			if (data.bytesRead > resCfg.locations[0].cgi_maxOutput) {
+			if (data.bytesRead > cfg.locations[0].cgi_maxOutput) {
 				err = "CGI output exceeded server limit";
 				Logger::error("cgi stopping %s execution after %lu bytes (max %lu)",
 					      data.file.c_str(), (unsigned long)data.bytesRead,
-					      (unsigned long)resCfg.locations[0].cgi_maxOutput);
+					      (unsigned long)cfg.locations[0].cgi_maxOutput);
 				kill(data.pid, SIGKILL);
 				finished = true;
 			}
@@ -125,8 +125,8 @@ bool CgiHandler::handleResponses() {
 			finished = true;
 		unsigned long nowMs = now_ms();
 		// Use the CGI start time (not the connection start) to measure timeout
-		if (!finished && resCfg.locations[0].cgi_timeout_ms > 0 &&
-		    nowMs - data.start >= resCfg.locations[0].cgi_timeout_ms) {
+		if (!finished && cfg.locations[0].cgi_timeout_ms > 0 &&
+		    nowMs - data.start >= cfg.locations[0].cgi_timeout_ms) {
 			unsigned long elapsed = nowMs - data.start;
 			err = "CGI timed out";
 			Logger::error("stopping \'%s%s%s\' execution - timed out after %lums",
@@ -156,11 +156,11 @@ bool CgiHandler::handleResponses() {
 				}
 
 				bool head_only = (conn->req.method == "HEAD");
-				Logger::cgi("%s%s%s execution ended after %lums", YELLOW,
-					    data.file.c_str(), TS,
+				Logger::cgi("%s%s%s execution ended after %s%lums", YELLOW,
+					    data.file.c_str(), GREY, LGREY,
 					    (unsigned long)(nowMs - data.conn->start));
 				if (res.getStatus() >= 400)
-					Router::loadErrorPage(*conn, resCfg);
+					Router::loadErrorPage(*conn);
 				res.printResponse(data.fd);
 				conn->out = res.serialize(head_only);
 				conn->state = WRITING_RESPONSE;
@@ -179,28 +179,4 @@ void CgiHandler::detachConnection(Connection *conn) {
 		if (cgiResponses_[i].conn == conn)
 			cgiResponses_[i].conn = NULL;
 	}
-}
-
-void placeFileInDir(const std::string &name, const std::string &fileContent,
-		    const std::string &dir) {
-	struct stat st;
-	if (::stat(dir.c_str(), &st) != 0) {
-		Logger::error("Error creating file: dir %s not found", dir.c_str());
-		return;
-	}
-	std::string full = dir;
-	if (!full.empty() && full[full.size() - 1] != '/')
-		full += "/";
-	full += name;
-
-	std::ofstream file(full.c_str());
-	if (!file.is_open()) {
-		Logger::error("Error creating file: %s", full.c_str());
-		return;
-	}
-
-	file << fileContent;
-	file.close();
-
-	Logger::info("File created: %s", full.c_str());
 }

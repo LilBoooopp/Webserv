@@ -5,3 +5,4 @@
 #include "Logger.hpp"
 #include "Mime.hpp"
 #include "Path.hpp"
+#include "File.hpp"

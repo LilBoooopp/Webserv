@@ -11,8 +11,12 @@ var hasStarted = false;
 var cellW;
 var cellH;
 
-var flagImageSrc = "/ressources/img/mineSweeperIcons/flag";
-var bombImageSrc = "/ressources/img/mineSweeperIcons/bomb";
+function toggleFlagMode() {
+  clickFlag = !clickFlag;
+  flagIcon.style.backgroundImage = "url(/ressources/img/mineSweeperIcons/" + (clickFlag ? "flag.png" : "flagOff.png") + ")";
+}
+var clickFlag = false;
+var flagIcon = initIcon("/ressources/img/mineSweeperIcons/flagOff.png", [100, 100], [40, 40], "", 30, () => toggleFlagMode());
 
 var levelsBtns = null;
 updateLvlButtons();
@@ -41,25 +45,34 @@ function updateLvlButtons(amount = 11) {
 }
 
 window.addEventListener("contextmenu", (e) => e.preventDefault());
+
+var keys = {};
 window.addEventListener("keydown", (e) => {
   k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === "shift") toggleFlagMode();
+});
+
+window.addEventListener("keyup", (e) => {
+  k = "";
+  keys[e.key.toLowerCase()] = false;
 });
 
 function reveal(c, when = 0) {
   if (c.revealed) return;
   c.revealed = true;
-  if (!c.hasBomb) toReveal--;
+  if (!c.hasMine) toReveal--;
   revealD.textContent = "To Reveal: " + toReveal;
   c.classList.remove("flagged");
   if (when === 0) {
     c.classList.remove("hidden");
-    if (c.hasBomb) c.classList.add("bomb");
+    if (c.hasMine) c.classList.add("mine");
   } else
     setTimeout(() => {
       c.classList.remove("hidden");
-      if (c.hasBomb) c.classList.add("bomb");
+      if (c.hasMine) c.classList.add("mine");
     }, when);
-  if (c.hasBomb || !c.numBombs) return;
+  if (c.hasMine || !c.numBombs) return;
   if (when === 0) c.textContent = c.numBombs;
   else
     setTimeout(() => {
@@ -82,7 +95,7 @@ function floodFillMiner(cells, w, h, cord, revDur = 0) {
   const idx = (cord[1] + hh) * w + (cord[0] + hw);
 
   const c = cells[idx];
-  if (c.hasBomb || c.revealed) return;
+  if (c.hasMine || c.revealed) return;
   reveal(c, revDur);
   if (revDur) {
     revDur += 25;
@@ -107,8 +120,8 @@ function setNeighCountAroundCell(centerCell, w, h) {
       if (c[0] < -hw || c[0] > hw + (w % 2) - 1 || c[1] < -hh || c[1] > hh + (h % 2) - 1) continue;
       const idx = (c[1] + hh) * w + (c[0] + hw);
       const cell = cells[idx];
-      if (cell.hasBomb) continue;
-      cell.numBombs += centerCell.hasBomb ? 1 : -1;
+      if (cell.hasMine) continue;
+      cell.numBombs += centerCell.hasMine ? 1 : -1;
     }
   }
 }
@@ -126,7 +139,7 @@ function getNeighCount(cells, cell, w, h) {
       if (c[0] < -hw || c[0] > hw + (w % 2) - 1 || c[1] < -hh || c[1] > hh + (h % 2) - 1) continue;
       const idx = (c[1] + hh) * w + (c[0] + hw);
       const cell = cells[idx];
-      if (cell.hasBomb) numBombs++;
+      if (cell.hasMine) numBombs++;
     }
   }
   cell.numBombs = numBombs;
@@ -135,7 +148,7 @@ function getNeighCount(cells, cell, w, h) {
 
 function getRevealCount(cells) {
   var revCount = 0;
-  for (const c of cells) if (!c.hasBomb) revCount++;
+  for (const c of cells) if (!c.hasMine) revCount++;
   return revCount;
 }
 
@@ -146,7 +159,7 @@ function setRevealCount(count = getRevealCount(cells)) {
 }
 
 function validateMineIndex(startCell, rIndex, margins = 2) {
-  if (cells[rIndex] == startCell || cells[rIndex].hasBomb) return false;
+  if (cells[rIndex] == startCell || cells[rIndex].hasMine) return false;
   if (margins <= 0) return true;
   if (Math.abs(cells[rIndex].cord[0] - startCell.cord[0]) >= margins) return true;
   return Math.abs(cells[rIndex].cord[1] - startCell.cord[1]) >= margins;
@@ -157,14 +170,14 @@ function placeRandomMine(startCell) {
   while (!validateMineIndex(startCell, rIndex, 2)) {
     var rIndex = Math.floor(Math.random() * cells.length);
   }
-  cells[rIndex].hasBomb = true;
+  cells[rIndex].hasMine = true;
   setNeighCountAroundCell(cells[rIndex], cellW, cellH);
 }
 
 function resetCell(c) {
   c.numBombs = 0;
   c.textContent = "";
-  c.hasBomb = false;
+  c.hasMine = false;
 }
 
 function placeMinesRandomly(startCell, amount) {
@@ -188,7 +201,7 @@ function loadValidMap(cells, w, h) {
         var ch = mapText[i];
         if (ch === "\n") continue;
         if (ch === "1") {
-          cells[idx].hasBomb = true;
+          cells[idx].hasMine = true;
           setNeighCountAroundCell(cells[idx], cellW, cellH);
         }
         idx++;
@@ -204,7 +217,7 @@ function loadValidMap(cells, w, h) {
 function writeValidMap(cells) {
   var map = "";
   for (let y = 0; y < cellH; y++) {
-    for (let x = 0; x < cellW; x++) map += cells[y * cellW + x].hasBomb ? "1" : "0";
+    for (let x = 0; x < cellW; x++) map += cells[y * cellW + x].hasMine ? "1" : "0";
     map += "\n";
   }
 
@@ -229,17 +242,15 @@ function startPlayableGrid(startCell) {
   var perc = curLevel + 10;
   var numMines = Math.round((cells.length / 100) * perc);
   placeMinesRandomly(startCell, numMines);
-  var maxTries = 20;
+  var maxTries = 100;
   var curTry = 0;
   while (curTry++ < maxTries && !isSolvable(cells, cellW, cellH, startCell)) placeMinesRandomly(startCell, numMines);
-  if (curTry >= maxTries) {
-    console.warn("Couldn't find a solvable grid in " + maxTries);
-  } else {
-    console.warn("Solvable grid generated in " + curTry + " tries");
-    // writeValidMap(cells);
-  }
-  setRevealCount();
+  var solved = curTry < maxTries;
+  if (solved) console.warn("Couldn't find a solvable grid in " + maxTries);
+  else console.warn("Solvable grid generated in " + curTry + " tries");
+  if (!solved) announce("NEEDS GUESSES!", 2000, "red");
   console.warn("REV COUNT IS " + toReveal + " bombs " + (cells.length - toReveal));
+  setRevealCount();
 }
 
 function initGrid(diff) {
@@ -262,7 +273,7 @@ function initGrid(diff) {
       cell.style.textContent = "";
       cell.classList.add("mineSweeperCell", "hidden");
       cell.style.userSelect = "none";
-      cell.hasBomb = false;
+      cell.hasMine = false;
       cell.revealed = false;
       cell.x = parseFloat(cell.style.left);
       cell.y = parseFloat(cell.style.top);
@@ -280,23 +291,27 @@ function initGrid(diff) {
         cell.style.left = cell.x + "px";
         cell.style.top = cell.y + "px";
         if (cell.revealed || gameOver) return;
-        playClick();
-        if (e.button === 2) {
+        if (e.button === 2 || clickFlag) {
+          playClick();
           cell.classList.toggle("flagged");
           cell.flagged = !cell.flagged;
           return;
         }
         if (cell.flagged) return;
+        playClick();
         if (!hasStarted) {
           startPlayableGrid(cell);
           hasStarted = true;
         }
         floodFillMiner(cells, cellW, cellH, cell.cord, 0);
         reveal(cell, cells.length);
-        if (!cell.hasBomb) {
+        if (!cell.hasMine) {
           getNeighCount(cells, cell, cellW, cellH);
         } else {
-          for (const c of cells) reveal(c);
+          for (const c of cells) {
+            if (c.hasMine) reveal(c);
+          }
+          cell.style.backgroundColor = "red";
           gameOver = true;
           announce("Game Over", 2000, "red");
           return;

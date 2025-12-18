@@ -10,7 +10,7 @@ std::string getInterpreter(const std::string &path, const ServerConf &conf) {
 	std::string ext = path.substr(dotPos + 1, searchEnd - dotPos - 1);
 	if (ext != "py" && ext != "php")
 		return "";
-	const LocationConf *loc = findLocation(conf, path);
+	const LocationConf *loc = Router::matchLocation(conf, path);
 	if (!loc)
 		return "";
 	if (ext == "py" && loc->has_py)
@@ -36,26 +36,24 @@ bool is_cgi(const std::string &req_target, const ServerConf &cfg) {
 	return !getInterpreter(req_target, cfg).empty();
 }
 
-bool CgiData::tryInit(Connection *c, const HttpRequest &req, int fd, const ServerConf &cfg) {
-	method = req.method;
-	requestUri = req.target;
-	std::map<std::string, std::string>::const_iterator itCT = req.headers.find("Content-Type");
-	contentType = (itCT != req.headers.end()) ? itCT->second : "";
-	itCT = req.headers.find("Content-Length");
-	contentLength = (itCT != req.headers.end()) ? itCT->second : to_string(c->body.size());
-	headers = c->req.headers;
+bool CgiData::tryInit(Connection &c, int fd) {
+	method = c.req.method;
+	requestUri = c.req.target;
+	contentType = c.req.getHeader("Content-Length");
+	contentLength = c.req.getHeader("Content-Length");
+	if (contentLength.empty())
+		contentLength = to_string(c.body.size());
 	this->fd = fd;
-	conn = c;
-	parseCgiRequest(requestUri, this->path, this->file, this->queryString, cfg);
-	interp = getInterpreter(requestUri, cfg);
+	conn = &c;
+	parseCgiRequest(requestUri, this->path, this->file, this->queryString, c.cfg);
+	interp = getInterpreter(requestUri, c.cfg);
 	if (interp.empty()) {
 		Logger::cgi("No Interpreter found for cgi request's target '%s'",
 			    requestUri.c_str());
 		return false;
 	}
-	struct stat st;
 	std::string full = this->path + this->file;
-	if (::stat(full.c_str(), &st) != 0) {
+	if (!file_exists(full)) {
 		Logger::cgi("file not found: \'%s\' target: \'%s', returning 404", full.c_str(),
 			    requestUri.c_str());
 		return false;
@@ -67,9 +65,9 @@ void parseCgiRequest(const std::string &target, std::string &dir, std::string &f
 		     std::string &queryString, const ServerConf &conf) {
 
 	std::string joined = safe_join_under_root(conf.root, target);
-	Logger::cgi("%s rooted %s%s%s -> %s%s", SERV_CLR, GREY, target.c_str(), TS, GREY,
+	Logger::cgi("%srouted %s%s%s -> %s%s", GREY, URLCLR, target.c_str(), GREY, URLCLR,
 		    joined.c_str());
-	Logger::cgi("Parsing cgi request: \'%s\'", joined.c_str());
+	Logger::cgi("%sParsing cgi request: \'%s%s%s\'", GREY, URLCLR, joined.c_str(), GREY);
 	queryString = extractArguments(joined);
 
 	size_t pos = joined.find_last_of('/');

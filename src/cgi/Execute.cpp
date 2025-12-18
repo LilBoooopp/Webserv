@@ -17,8 +17,8 @@ static std::vector<char *> buildCgiEnv(CgiData &data, const ServerConf &cfg,
 	envStrings.push_back("SCRIPT_NAME=" + data.file);
 	envStrings.push_back("SCRIPT_FILENAME=" + data.file);
 
-	for (std::map<std::string, std::string>::iterator it = data.headers.begin();
-	     it != data.headers.end(); ++it) {
+	for (std::map<std::string, std::string>::iterator it = data.conn->req.headers.begin();
+	     it != data.conn->req.headers.end(); ++it) {
 		std::string key = "HTTP_";
 		for (size_t i = 0; i < it->first.size(); ++i) {
 			char c = it->first[i];
@@ -62,7 +62,8 @@ static void writeBody(const std::string &reqBody, int fd) {
 			continue;
 		break;
 	}
-	Logger::cgi("[BODY] \'%s\' -> cgi", reqBody.c_str());
+	if (Logger::channels[LOG_BODY])
+		Logger::cgi("[BODY] \'%s\' -> cgi", reqBody.c_str());
 }
 
 static bool execute(CgiData &data, const ServerConf &cfg, const std::string &reqBody) {
@@ -116,53 +117,42 @@ static bool execute(CgiData &data, const ServerConf &cfg, const std::string &req
 	return true;
 }
 
-bool CgiHandler::runCgi(const HttpRequest &req, HttpResponse &res, Connection &c, int fd) {
-	const ServerConf &cfg = (*cfg_)[c.serverIdx];
+bool CgiHandler::runCgi(Connection &c, int fd) {
 
-	std::string interpreter = getInterpreter(req.target, cfg);
+	std::string interpreter = getInterpreter(c.req.target, c.cfg);
 	if (interpreter.empty()) {
 		Logger::cgi("No Interpreter found for cgi request's target \'%s\'",
-			    req.target.c_str());
-		res.setStatus(500, "No Interpreter");
-		res.setBody("no interpreter");
-		res.setContentType("text/plain");
+			    c.req.target.c_str());
+		c.res.setStatus(500, "No Interpreter");
+		c.res.setBody("no interpreter");
+		c.res.setContentType("text/plain");
 		return false;
 	}
 
 	CgiData data;
-	if (!data.tryInit(&c, req, fd, cfg)) {
-		res.setStatus(404, "Not Found");
-		res.setBody("not found");
-		res.setContentType("text/plain");
+	if (!data.tryInit(c, fd)) {
+		c.res.setStatus(404, "Not Found");
+		c.res.setBody("not found");
+		c.res.setContentType("text/plain");
 		return false;
 	}
 
-	bool execSuccess = execute(data, cfg, c.body);
+	bool execSuccess = execute(data, c.cfg, c.body);
 
 	if (execSuccess) {
-		bool isAsync = false;
-		for (std::map<std::string, std::string>::iterator it = data.headers.begin();
-		     it != data.headers.end(); ++it) {
-			std::string key = it->first;
-			for (size_t i = 0; i < key.size(); ++i)
-				key[i] = std::tolower(static_cast<unsigned char>(key[i]));
-			if (key == "x-async") {
-				isAsync = true;
-				break;
-			}
-		}
+		bool isAsync = c.req.hasHeader("x-async");
 		if (isAsync) {
 			close(data.readFd);
-			res.setStatus(202, "Accepted");
-			res.setBody("");
-			res.setContentType("text/plain");
+			c.res.setStatus(202, "Accepted");
+			c.res.setBody("");
+			c.res.setContentType("text/plain");
 			asyncPids_.push_back(data.pid);
 		} else
 			cgiResponses_.push_back(data);
 	} else {
-		res.setStatus(500, "CGI Execution Failed");
-		res.setBody("cgi error");
-		res.setContentType("text/plain");
+		c.res.setStatus(500, "CGI Execution Failed");
+		c.res.setBody("cgi error");
+		c.res.setContentType("text/plain");
 	}
 	return true;
 }

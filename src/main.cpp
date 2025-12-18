@@ -19,11 +19,15 @@ void signalHandler(int signum) {
 }
 
 std::string getDefaultConfig() {
-	std::cout << ".conf needed, use default.conf?" << std::endl;
+	return "default.conf";
+	std::cout << ".conf needed, use default.conf? ";
 	std::string res;
 	std::getline(std::cin, res);
-	if (res.empty() || !std::strncmp(res.c_str(), "yes", 1))
+	if (res.empty() || !std::strncmp(res.c_str(), "yes", 1)) {
+		std::string def = "default.conf";
+		std::cout << "Using default.conf\n";
 		return "default.conf";
+	}
 	return "";
 }
 
@@ -44,7 +48,6 @@ int main(int argc, char **argv) {
 			  << config.getErrorMessage() << std::endl;
 		return (1);
 	}
-
 	config.debug_print();
 
 	std::vector<ServerConf> servers = config.getServers();
@@ -53,14 +56,11 @@ int main(int argc, char **argv) {
 		std::perror("webserv: start failed (is another instance running?");
 		return (1);
 	}
-	s.setConf(servers);
 
-	// Setup signal handlers
 	g_server = &s;
 	signal(SIGINT, signalHandler);
 	signal(SIGTERM, signalHandler);
 
-	std::cout << "started" << std::endl;
 	s.run();
 	return (0);
 }

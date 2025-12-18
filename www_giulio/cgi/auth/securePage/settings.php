@@ -46,7 +46,7 @@ $darkmode = $_SESSION["darkmode"] ?? false;
 		// 	applyBackground();
 		// 	window.location.href = "/cgi/auth/securePage/settings.php";
 		// });
-		addDarkModeButton(c);
+		addDarkModeButton([-window.innerWidth / 2 + 50, window.innerHeight / 2]);
 		initBackground();
 		addScrollerProfileMenu();
     </script>

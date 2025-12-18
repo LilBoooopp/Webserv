@@ -24,7 +24,7 @@ static void vlog(LogChannel want, const char *tag, const char *fmt, const char *
 		return;
 	}
 	if (tag) {
-		if (want == LOG_HEADER || want == LOG_CONNECTION)
+		if (want == LOG_HEADER)
 			std::fprintf(stderr, "%s%-15s%-8s", clr, tag, TS);
 		else
 			std::fprintf(stderr, "%s%-15s%s %-8s%-8s", rgb(163, 163, 163),
@@ -50,7 +50,7 @@ static void log_internal(LogChannel level, const char *tag, const char *color, c
 
 LOGGER_IMPL(info, "INFO", LOG_INFO, BLUE)
 LOGGER_IMPL(server, "SERVER", LOG_SERVER, rgba(82, 96, 149, 1))
-LOGGER_IMPL(connection, "Connection ", LOG_CONNECTION, rgba(111, 82, 149, 1))
+LOGGER_IMPL(connection, "CONN", LOG_CONNECTION, rgba(111, 82, 149, 1))
 LOGGER_IMPL(cgi, "CGI", LOG_CGI, rgba(190, 145, 103, 1))
 LOGGER_IMPL(router, "ROUTER", LOG_ROUTER, rgba(109, 190, 103, 1))
 LOGGER_IMPL(request, "REQUEST", LOG_REQUEST, rgba(76, 156, 116, 1))

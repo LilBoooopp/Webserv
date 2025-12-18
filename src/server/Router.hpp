@@ -19,4 +19,5 @@ class Router {
 	static const LocationConf *matchLocation(const ServerConf &conf, const std::string &path);
 	static bool route(Connection &c);
 	static void handle(Connection &c);
+	static void finalizeResponse(Connection &c);
 };

@@ -9,7 +9,6 @@ if (empty($_SESSION["user_id"])) {
 $user = $_SESSION["username"] ?? null;
 $darkmode = $_SESSION["darkmode"] ?? false;
 ?>
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -24,23 +23,32 @@ $darkmode = $_SESSION["darkmode"] ?? false;
     <script src="/js/div.js"></script>
     <script src="/js/buttons.js"></script>
     <script src="/js/auth.js"></script>
-    <script src="/js/snake.js"></script>
     <script src="/js/inputField.js"></script>
 
     <script>
-		const c = [window.innerWidth / 2, window.innerHeight / 2];
 		window.CURRENT_USER = <?php echo json_encode($user); ?>;
 		window.DARKMODE = <?php echo json_encode($darkmode); ?>;
-		window.PAGE_NAME = "Games";
+		window.PAGE_NAME = "settings";
 
 		addTitle();
-		const games = ["Snake", "MineSweeper", "Morpion"];
-		for (let i = 0; i < games.length; i++){
-			const destination = "/cgi/auth/securePage/games/" + games[i].toLowerCase() + ".php"
-			addButton(games[i], [c[0], c[1] + i * 50], () => {window.location.href = destination}, null, null, `GET ${destination} HTTP/1.1`);
-		}
-		addScrollerProfileMenu();
+		const c = [window.innerWidth / 2, window.innerHeight / 2];
+		// addToggleButton("DarkMode", [c[0], c[1]], window.DARKMODE === 1, (value) => {
+		// const body = new URLSearchParams({ darkmode: value ? 1 : 0 });
+		// fetch("/cgi-bin/auth/setters/setDarkmode.php", {
+		// 		method: "POST",
+		// 		credentials: "same-origin",
+		// 		headers: {
+		// 		"Content-Type": "application/x-www-form-urlencoded",
+		// 		"X-Darkmode": value ? "1" : "0",
+		// 	},
+		// 	body: body.toString(),
+		// 	}).catch(() => announce("Can't save darkmode"));
+		// 	applyBackground();
+		// 	window.location.href = "/cgi-bin/auth/securePage/settings.php";
+		// });
+		addDarkModeButton([-window.innerWidth / 2 + 50, window.innerHeight / 2]);
 		initBackground();
+		addScrollerProfileMenu();
     </script>
   </body>
 </html>

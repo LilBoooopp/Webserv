@@ -82,11 +82,8 @@ static void handleDelete(Connection &c) {
 
 // Build and serialize a response once the request/body are ready
 void Server::prepareResponse(int fd, Connection &c) {
-	bool isHead = c.req.method == "HEAD";
-
 	if (c.res.getStatus() != 200) {
-		Router::loadErrorPage(c);
-		c.out = c.res.serialize(isHead);
+		Router::finalizeResponse(c);
 		enableWrite(fd);
 		return;
 	}
@@ -94,7 +91,10 @@ void Server::prepareResponse(int fd, Connection &c) {
 	c.req.log();
 	c.res.setVersion(c.req.version);
 	if (is_cgi(c.req.target, c.cfg)) {
-		cgiHandler_.runCgi(c, fd);
+		if (!cgiHandler_.runCgi(c, fd)) {
+			Router::finalizeResponse(c);
+			enableWrite(fd);
+		}
 		return;
 	}
 	if (!Router::route(c) && (c.req.method == "GET" || c.req.method == "HEAD"))
@@ -107,9 +107,6 @@ void Server::prepareResponse(int fd, Connection &c) {
 		handleDelete(c);
 	else if (c.req.method != "HEAD")
 		c.res.setStatusFromCode(405);
-
-	if (c.res.getStatus() >= 400)
-		Router::loadErrorPage(c);
-	c.out = c.res.serialize(isHead);
+	Router::finalizeResponse(c);
 	enableWrite(fd);
 }

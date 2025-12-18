@@ -29,14 +29,14 @@ function toggleMenu(p, active = true) {
   if (selFiles.length) {
     var options = ["View", "Data", "Duplicate", "Delete"];
     var functions = [inspectFiles, toggleInfoMenu, duplicate, deleteFiles];
-    var infos = [`GET /ressources/uploads/${selFiles[0].path} HTTP/1.1`, "ToggleInfoMenu", `POST /cgi/upload.py HTTP/1.1`, `DELETE ${selFiles[0].path} HTTP/1.1`];
+    var infos = [`GET /ressources/uploads/${selFiles[0].path} HTTP/1.1`, "ToggleInfoMenu", `POST /cgi-bin/upload.py HTTP/1.1`, `DELETE ${selFiles[0].path} HTTP/1.1`];
     if (selFiles[0].isDir) {
       for (let x = 0; x < 3; x++) {
         options.pop();
         functions.pop();
         infos.pop();
       }
-      infos[0] = "GET /cgi/gdrive.php?dir=... " + selFiles[0].path + " HTTP/1.1";
+      infos[0] = "GET /cgi-bin/gdrive.php?dir=... " + selFiles[0].path + " HTTP/1.1";
     }
     initOptMenu([p[0] - 100, p[1]], options, functions, infos);
   } else initOptMenu(p, ["Upload", "Repo"], [() => openFileDialog(uploadFiles), uploadDirectory], ["OpenFileDialog", "uploadDirectory"]);
@@ -79,7 +79,7 @@ window.addEventListener("mousedown", (e) => {
   else if (hovFile) {
     playClick();
     if (selFiles.includes(hovFile) && !keys["shift"]) {
-      if (hovFile.extension === "folder" || hovFile.isDir) window.location.href = "/cgi/gdrive.php?dir=" + encodeURIComponent(hovFile.relativePath);
+      if (hovFile.extension === "folder" || hovFile.isDir) window.location.href = "/cgi-bin/gdrive.php?dir=" + encodeURIComponent(hovFile.relativePath);
       else window.location.href = "/ressources/uploads/" + hovFile.relativePath;
       return;
     }
@@ -275,7 +275,7 @@ function inspectFiles() {
   for (let i = 0; i < selFiles.length; i++) {
     const f = selFiles[i];
     if (f.extension === "folder" || f.isDir) {
-      window.location.href = "/cgi/gdrive.php?dir=" + encodeURIComponent(f.relativePath);
+      window.location.href = "/cgi-bin/gdrive.php?dir=" + encodeURIComponent(f.relativePath);
     } else {
       window.location.href = "/ressources/uploads/" + f.relativePath;
     }
@@ -319,7 +319,7 @@ function duplicate() {
     const start = performance.now();
 
     const targetPath = (CURRENT_DIR ? CURRENT_DIR + "/" : "") + name;
-    fetch("/cgi/upload.py", {
+    fetch("/cgi-bin/upload.py", {
       method: "POST",
       headers: {
         "Content-Type": file.type || "application/octet-stream",
@@ -342,7 +342,7 @@ function uploadDirectory() {
   if (!dirName) return;
 
   var path = (CURRENT_DIR ? CURRENT_DIR + "/" : "") + dirName + "/";
-  fetch("/cgi/upload.py", {
+  fetch("/cgi-bin/upload.py", {
     method: "POST",
     headers: {
       "X-Upload-Path": path,
@@ -393,7 +393,7 @@ function uploadFiles(files) {
     const start = performance.now();
 
     const targetPath = (CURRENT_DIR ? CURRENT_DIR + "/" : "") + name;
-    fetch("/cgi/upload.py", {
+    fetch("/cgi-bin/upload.py", {
       method: "POST",
       headers: {
         "Content-Type": file.type || "application/octet-stream",

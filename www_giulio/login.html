@@ -32,8 +32,8 @@
 
         const loginBtn = document.querySelector('button[name="action"][value="login"]');
         const registerBtn = document.querySelector('button[name="action"][value="register"]');
-        addInfo(loginBtn, "POST /cgi/auth/sessionManagment/login.php HTTP/1.1\n - username: ...\n - password: ...");
-        addInfo(registerBtn, "POST /cgi/auth/sessionManagment/register.php HTTP/1.1\n - username: ...\n - password: ...");
+        addInfo(loginBtn, "POST /cgi-bin/auth/sessionManagment/login.php HTTP/1.1\n - username: ...\n - password: ...");
+        addInfo(registerBtn, "POST /cgi-bin/auth/sessionManagment/register.php HTTP/1.1\n - username: ...\n - password: ...");
       }
       init();
     </script>

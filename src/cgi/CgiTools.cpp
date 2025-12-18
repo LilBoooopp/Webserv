@@ -31,9 +31,11 @@ static std::string extractArguments(std::string &pathToCgi) {
 }
 
 bool is_cgi(const std::string &req_target, const ServerConf &cfg) {
-	if (std::strncmp(req_target.c_str(), "/cgi/", 5) != 0)
-		return false;
-	return !getInterpreter(req_target, cfg).empty();
+	(void)cfg;
+	return (std::strncmp(req_target.c_str(), "/cgi-bin/", 5) == 0);
+	// if (std::strncmp(req_target.c_str(), "/cgi-bin/", 5) != 0)
+	// 	return false;
+	// return !getInterpreter(req_target, cfg).empty();
 }
 
 bool CgiData::tryInit(Connection &c, int fd) {

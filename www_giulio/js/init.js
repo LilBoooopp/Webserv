@@ -34,7 +34,7 @@ function init() {
   }
   addInfiniteRequestButton([cgiX, c[1] + 25 + rowSpacing * cgPaths.length]);
   var y = -1;
-  addButton("GDRIVE", [postX, c[1] + 25 + ++y * rowSpacing], () => (window.location.href = "/cgi/gdrive.php"), null, null, "GET /cgi/drive.php HTTP/1.1");
+  addButton("GDRIVE", [postX, c[1] + 25 + ++y * rowSpacing], () => (window.location.href = "/cgi-bin/gdrive.php"), null, null, "GET /cgi-bin/drive.php HTTP/1.1");
   addButton("1 Byte", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(1), null, null, "POST /uploads/postBytes/1.txt");
   addButton("1 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(1_000_000), null, null, "POST /uploads/postBytes/1000000.txt");
   addButton("10 MB", [postX, c[1] + 25 + ++y * rowSpacing], () => postBytes(10_000_000), null, null, "POST /uploads/postBytes/10000000.txt");

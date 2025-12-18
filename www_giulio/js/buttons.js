@@ -52,7 +52,15 @@ function announceResponse(response, _text) {
   announce("Status " + response.status + " " + _text);
 }
 
-function cgiButton(label, scriptPath, pos = [0, 0], arg = null, onEnd = () => {window.location.href = scriptPath}) {
+function cgiButton(
+  label,
+  scriptPath,
+  pos = [0, 0],
+  arg = null,
+  onEnd = () => {
+    window.location.href = scriptPath;
+  }
+) {
   function f() {
     let url = scriptPath;
     if (arg != null) url += "?arg=" + encodeURIComponent(arg);
@@ -154,7 +162,7 @@ function addToggleButton(label, p, active, onClick) {
 
 function addDeleteAccountButton(p) {
   function f() {
-    fetch("/cgi/auth/sessionManagment/delete.php", {
+    fetch("/cgi-bin/auth/sessionManagment/delete.php", {
       method: "POST",
     })
       .then(async (res) => {
@@ -169,12 +177,12 @@ function addDeleteAccountButton(p) {
         announce("error while deleting account");
       });
   }
-  addButton("Delete Account", [p[0], p[1]], f, null, null, "POST /cgi/auth/sessionManagment/delete.php HTTP/1.1");
+  addButton("Delete Account", [p[0], p[1]], f, null, null, "POST /cgi-bin/auth/sessionManagment/delete.php HTTP/1.1");
 }
 
 function addInfiniteRequestButton(p) {
   function f() {
-    fetch("/cgi/test/infinite.py", {
+    fetch("/cgi-bin/test/infinite.py", {
       method: "POST",
       headers: {
         "X-Async": "1",
@@ -191,7 +199,7 @@ function addInfiniteRequestButton(p) {
         announce("error in No Timeout CGI call");
       });
   }
-  addButton("No Timeout CGI", [p[0], p[1]], f, null, null, "POST /cgi/test/infinite.py HTTP/1.1\nX-Async: 1");
+  addButton("No Timeout CGI", [p[0], p[1]], f, null, null, "POST /cgi-bin/test/infinite.py HTTP/1.1\nX-Async: 1");
 }
 
 function addToggleButton(label, p, startActive, onSwitch, info = null) {
@@ -203,15 +211,22 @@ function addToggleButton(label, p, startActive, onSwitch, info = null) {
   handle.style.borderRadius = "50%";
   handle.style.transition = "transform 0.2s ease-out";
   handle.value = startActive;
-  var btn = addButton("", p, () => {
-    if (performance.now() - handle.lastToggle < 500) return;
-    onSwitch();
-    handle.lastToggle = performance.now();
-    handle.value = !handle.value;
-    var am = handle.value ? 0 : 10;
-    if (startActive) am *= -1;
-    handle.style.transform = "translateX(" + am + "px)";
-  }, null, null, info);
+  var btn = addButton(
+    "",
+    p,
+    () => {
+      if (performance.now() - handle.lastToggle < 500) return;
+      onSwitch();
+      handle.lastToggle = performance.now();
+      handle.value = !handle.value;
+      var am = handle.value ? 0 : 10;
+      if (startActive) am *= -1;
+      handle.style.transform = "translateX(" + am + "px)";
+    },
+    null,
+    null,
+    info
+  );
   btn.style.width = "10px";
 }
 
@@ -221,7 +236,7 @@ function addDarkModeButton(offset = [0, 0]) {
     window.DARKMODE = !window.DARKMODE;
     if (window.CURRENT_USER !== undefined) {
       const body = new URLSearchParams({ darkmode: window.DARKMODE ? 1 : 0 });
-      fetch("/cgi/auth/setters/setDarkmode.php", {
+      fetch("/cgi-bin/auth/setters/setDarkmode.php", {
         method: "POST",
         credentials: "same-origin",
         headers: {
@@ -233,7 +248,7 @@ function addDarkModeButton(offset = [0, 0]) {
     }
     applyBackground(window.DARKMODE);
   }
-  addToggleButton("DARK", p, true, f, "POST /cgi/auth/setters/setDarkmode.php\n - Content-Type: 'application/x-www-form-urlencoded'\n - X-Darkmode: buttonValue");
+  addToggleButton("DARK", p, true, f, "POST /cgi-bin/auth/setters/setDarkmode.php\n - Content-Type: 'application/x-www-form-urlencoded'\n - X-Darkmode: buttonValue");
 }
 
 function addBackButton(p) {

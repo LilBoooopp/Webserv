@@ -347,6 +347,10 @@ void Server::handleReadable(int fd) {
       if (c.state == WRITING_RESPONSE) {
         if (c.out.empty()) {
           prepareResponse(fd, c);
+
+          if (c.state == WAITING_CGI)
+            break;
+
           c.res.printResponse(fd);
         }
       }
@@ -431,6 +435,9 @@ void Server::handleWritable(int fd) {
         c.file_remaining = 0;
       }
     }
+
+    if (c.state == WAITING_CGI)
+      return;
 
     // No data left to send an no more file to stream
     if (!c.responded)

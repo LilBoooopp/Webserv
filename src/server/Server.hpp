@@ -17,25 +17,26 @@
 
 class CgiHandler;
 class Server {
-	EpollReactor reactor_;
-	std::vector<Listener> listener_;
-	std::map<int, Connection> conns_;
-	std::vector<char> inbuf_;
-	std::vector<ServerConf> cfg_;
-	CgiHandler cgiHandler_;
+  EpollReactor reactor_;
+  std::vector<Listener> listener_;
+  std::map<int, Connection> conns_;
+  std::vector<char> inbuf_;
+  std::vector<ServerConf> cfg_;
+  CgiHandler cgiHandler_;
 
-	void acceptReady();
-	void handleReadable(int fd);
-	void handleWritable(int fd);
-	void enableWrite(int fd);
-	void disableWrite(int fd);
-	void prepareResponse(int fd, Connection &c);
-	bool processRedirectOrCgi(int fd, Connection &c);
+  void acceptReady();
+  void handleReadable(int fd);
+  void handleWritable(int fd);
+  void enableWrite(int fd);
+  void disableWrite(int fd);
+  void prepareResponse(int fd, Connection &c);
+  bool processRedirectOrCgi(int fd, Connection &c);
+  void checkTimeouts();
 
-    public:
-	Server() : inbuf_(8192) {}
-	bool start(std::vector<ServerConf> &config);
-	void run();
-	bool executeStdin();
-	void cleanup();
+public:
+  Server() : inbuf_(8192) {}
+  bool start(std::vector<ServerConf> &config);
+  void run();
+  bool executeStdin();
+  void cleanup();
 };

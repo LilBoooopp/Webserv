@@ -296,14 +296,13 @@ void CgiHandler::checkCgiTimeouts() {
         reactor_->del(data.readFd);
       close(data.readFd);
 
-      if (data.conn) {
-        data.conn->res.setStatus(504, "Gateway Timeout");
-        Router::loadErrorPage(*(data.conn));
-        data.conn->out = data.conn->res.serialize(false);
-        data.conn->state = WRITING_RESPONSE;
-        if (reactor_)
-          reactor_->mod(data.fd, EPOLLIN | EPOLLOUT);
-      }
+      data.conn->res.setStatus(504, "Gateway Timeout");
+      Router::loadErrorPage(*(data.conn));
+      data.conn->out = data.conn->res.serialize(false);
+      data.conn->state = WRITING_RESPONSE;
+
+      if (reactor_)
+        reactor_->mod(data.fd, EPOLLIN | EPOLLOUT);
       cgiResponses_.erase(cgiResponses_.begin() + i);
     }
   }

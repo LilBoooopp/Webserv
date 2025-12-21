@@ -11,9 +11,17 @@ const LocationConf *Router::matchLocation(const ServerConf &conf,
     const std::string &loc_path = loc.path;
 
     if (path.rfind(loc_path, 0) == 0) {
-      bool is_valid_match = (loc_path.size() == path.size() ||
-                             (loc_path.size() < path.size() &&
-                              (path[loc_path.size() - 1] == '/')));
+      bool is_valid_match = false;
+
+      if (loc_path.size() == path.size()) {
+        is_valid_match = true;
+      } else if (loc_path.size() < path.size()) {
+        if (loc_path[loc_path.size() - 1] == '/') {
+          is_valid_match = true;
+        } else if (path[loc_path.size()] == '/') {
+          is_valid_match = true;
+        }
+      }
 
       if (is_valid_match && loc_path.size() > longest_match_len) {
         longest_match_len = loc_path.size();
@@ -120,14 +128,11 @@ std::string Router::resolvePath(const ServerConf &conf, const LocationConf *loc,
   std::string request_path = target;
   std::string root_dir = conf.root;
   if (loc && loc->has_root) {
+    root_dir = loc->root;
     size_t loc_path_len = loc->path.size();
     if (loc_path_len > 0 && target.compare(0, loc_path_len, loc->path) == 0)
       request_path.erase(0, loc_path_len);
   }
-  if (!request_path.empty() && request_path[0] == '/')
-    request_path.erase(0, 1);
-  if (loc && loc->has_root)
-    root_dir = loc->root;
   return safe_join_under_root(root_dir, request_path);
 }
 

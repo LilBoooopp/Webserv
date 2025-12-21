@@ -64,7 +64,7 @@ struct LocationConf {
       : redirect_enabled(false), redirect_status(0), has_root(false),
         has_index(false), autoindex_set(false), autoindex(false),
         upload_enabled(false), has_py(false), has_php(false),
-        cgi_timeout_ms(5000), cgi_maxOutput(1024 * 1024), has_max_size(false),
+        cgi_timeout_ms(10000), cgi_maxOutput(1024 * 1024), has_max_size(false),
         max_size(1024 * 1024) {}
 };
 

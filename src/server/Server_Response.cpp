@@ -97,6 +97,8 @@ void Server::prepareResponse(int fd, Connection &c) {
     if (!cgiHandler_.runCgi(c, fd)) {
       Router::finalizeResponse(c);
       enableWrite(fd);
+    } else {
+      c.state = WAITING_CGI;
     }
     return;
   }

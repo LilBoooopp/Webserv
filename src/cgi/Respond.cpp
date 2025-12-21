@@ -201,15 +201,23 @@ void CgiHandler::handleMessage(int fd) {
   ssize_t n = read(fd, buf, sizeof(buf));
 
   if (n > 0) {
+    Logger::cgi("%s%d bytes%s read from %s%s%s's output [fd %d]", VALUECLR, n,
+                GREY, URLCLR, data.file.c_str(), GREY, data.readFd);
     data.out.append(buf, n);
     data.bytesRead += n;
 
     if (data.bytesRead > cfg.locations[0].cgi_maxOutput) {
-      Logger::error("CGI output exceeded server limit");
+      err = "CGI output exceeded server limit";
+      Logger::error("cgi stpoping %s execution after %lu bytes (max %lu)",
+                    data.file.c_str(), (unsigned long)data.bytesRead,
+                    (unsigned long)cfg.locations[0].cgi_maxOutput);
       kill(data.pid, SIGKILL);
       finished = true;
     }
   } else if (n == 0) {
+    finished = true;
+  } else {
+    err = "Read error on CGI pipe";
     finished = true;
   }
 
@@ -218,7 +226,7 @@ void CgiHandler::handleMessage(int fd) {
       reactor_->del(fd);
     close(fd);
 
-    int status;
+    int status = 0;
     waitpid(data.pid, &status, WNOHANG);
 
     if (data.conn) {
@@ -237,6 +245,10 @@ void CgiHandler::handleMessage(int fd) {
         res.setStatusFromCode(502);
         res.setBodyIfEmpty(err);
       }
+
+      Logger::cgi("%s%s%s execution ended after %s%lums", YELLOW,
+                  data.file.c_str(), GREY, LGREY,
+                  (unsigned long)(now_ms() - data.conn->start));
 
       if (res.getStatus() >= 400) {
         Router::loadErrorPage(*(data.conn));
@@ -258,6 +270,21 @@ void CgiHandler::checkCgiTimeouts() {
 
   for (int i = cgiResponses_.size() - 1; i >= 0; --i) {
     CgiData &data = cgiResponses_[i];
+
+    if (data.conn == NULL) {
+      Logger::cgi("Orphanned CGI process %d (connection closed), killing...",
+                  data.pid);
+      kill(data.pid, SIGKILL);
+      waitpid(data.pid, NULL, WNOHANG);
+
+      if (reactor_)
+        reactor_->del(data.readFd);
+      close(data.readFd);
+
+      cgiResponses_.erase(cgiResponses_.begin() + i);
+      continue;
+    }
+
     size_t limit = data.conn->cfg.locations[0].cgi_timeout_ms;
 
     if (limit > 0 && (now - data.start) > limit) {

@@ -5,7 +5,6 @@
 struct CgiData {
   pid_t pid;
   int readFd;
-  int writeFd;
   size_t start;
   size_t bytesRead;
 
@@ -23,9 +22,7 @@ struct CgiData {
   int fd;
   std::string out;
   bool noRead;
-  CgiData()
-      : pid(-1), readFd(-1), writeFd(-1), bytesRead(0), conn(NULL),
-        noRead(false) {}
+  CgiData() : pid(-1), readFd(-1), bytesRead(0), conn(NULL), noRead(false) {}
   bool tryInit(Connection &c, int fd);
   void log(bool execSuccess);
 };

@@ -36,7 +36,7 @@ class Server {
 public:
   Server() : inbuf_(8192) {}
   bool start(std::vector<ServerConf> &config);
-  void run();
-  bool executeStdin();
+  int run();
+  int executeStdin();
   void cleanup();
 };

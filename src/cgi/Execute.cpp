@@ -1,14 +1,5 @@
 #include "Cgi.hpp"
 
-static void removeData(std::vector<CgiData> &list, int fd) {
-  for (size_t i = 0; i < list.size(); ++i) {
-    if (list[i].readFd == fd) {
-      list.erase(list.begin() + i);
-      return;
-    }
-  }
-}
-
 static std::vector<char *> buildCgiEnv(CgiData &data, const ServerConf &cfg,
                                        std::vector<std::string> &envStrings) {
   envStrings.clear();

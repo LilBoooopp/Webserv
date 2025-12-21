@@ -56,6 +56,7 @@ bool Server::start(std::vector<ServerConf> &config) {
     if (!reactor_.add(listener_[i].fd(), EPOLLIN))
       return (false);
   }
+  cgiHandler_.init(&reactor_);
   cgiHandler_.setConfig(config);
   cfg_ = config;
   return (true);
@@ -443,7 +444,7 @@ void Server::handleWritable(int fd) {
   }
 }
 
-bool Server::executeStdin() {
+int Server::executeStdin() {
   char buff[50];
 
   ssize_t sr = read(0, buff, sizeof(buff) - 1);
@@ -458,8 +459,10 @@ bool Server::executeStdin() {
     const char *clr = "\033[H\033[2J\033[3J";
     write(1, clr, std::strlen(clr));
     return false;
-  } else if (std::strcmp(buff, "quit") == 0) {
-    return true;
+  } else if (std::strcmp(buff, "quit") == 0 || std::strcmp(buff, "q") == 0) {
+    return (1);
+  } else if (std::strcmp(buff, "r") == 0 || std::strcmp(buff, "refresh") == 0) {
+    return (2);
   } else if (std::strcmp(buff, "buff") == 0) {
     std::cout.write(&inbuf_[0], 200);
     std::cout << std::endl;
@@ -507,7 +510,7 @@ bool Server::executeStdin() {
   return false;
 }
 
-void Server::run() {
+int Server::run() {
   bool logged = false;
   reactor_.add(STDIN_FILENO, EPOLLIN);
 
@@ -519,9 +522,9 @@ void Server::run() {
       for (int i = 0; i < n; ++i) {
         int fd = events[i].data.fd;
         if (fd == 0) {
-          if (executeStdin()) {
+          if (int run = executeStdin()) {
             cleanup();
-            return;
+            return (run);
           }
           logged = false;
           continue;
@@ -535,19 +538,28 @@ void Server::run() {
           continue;
         }
 
-        if (ev & (EPOLLHUP | EPOLLERR)) {
-          std::map<int, Connection>::iterator it = conns_.find(fd);
-          if (it != conns_.end())
+        std::map<int, Connection>::iterator it = conns_.find(fd);
+        if (it != conns_.end()) {
+          if (ev & (EPOLLHUP | EPOLLERR)) {
             cgiHandler_.detachConnection(&it->second);
-          reactor_.del(fd);
-          ::close(fd);
-          conns_.erase(fd);
+            reactor_.del(fd);
+            ::close(fd);
+            conns_.erase(fd);
+            continue;
+          }
+          if (ev & EPOLLIN)
+            handleReadable(fd);
+          if (ev & EPOLLOUT)
+            handleWritable(fd);
           continue;
         }
-        if (ev & EPOLLIN)
-          handleReadable(fd);
-        if (ev & EPOLLOUT)
-          handleWritable(fd);
+
+        if (cgiHandler_.hasFd(fd)) {
+          if (ev & EPOLLIN) {
+            cgiHandler_.handleMessage(fd);
+          }
+          continue;
+        }
       }
       if (logged)
         Logger::server("ready\n");
@@ -560,7 +572,8 @@ void Server::run() {
     }
 
     checkTimeouts();
-    cgiHandler_.handleResponses();
+    cgiHandler_.checkCgiTimeouts();
+    //  cgiHandler_.handleResponses();
 
     for (std::map<int, Connection>::iterator it = conns_.begin();
          it != conns_.end(); ++it) {

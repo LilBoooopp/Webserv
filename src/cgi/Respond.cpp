@@ -107,7 +107,8 @@ bool CgiHandler::handleResponses() {
 		std::string err;
 		ssize_t n = read(data.readFd, buf, sizeof(buf));
 		if (n > 0) {
-			Logger::cgi("%s%d bytes%s read from %s%s%s's output [fd %d]", VALUECLR, n, GREY, URLCLR, data.file.c_str(), GREY, data.readFd);
+			Logger::cgi("%s%d bytes%s read from %s%s%s's output [fd %d]", VALUECLR, n,
+				    GREY, URLCLR, data.file.c_str(), GREY, data.readFd);
 			data.out.append(buf, n);
 			data.bytesRead += n;
 			anyProgress = true;

@@ -430,16 +430,19 @@ bool Server::executeStdin() {
 		buff[--sr] = '\0';
 	if (sr == 0)
 		return false;
-	if (std::strcmp(buff, "clear") == 0) {
+	std::string input = buff;
+	if (input == "clear") {
 		const char *clr = "\033[H\033[2J\033[3J";
 		write(1, clr, std::strlen(clr));
 		return false;
-	} else if (std::strcmp(buff, "quit") == 0) {
+	} else if (input == "clean") {
+		cgiHandler_.killAsyncProcesses();
+	} else if (input == "quit")
 		return true;
-	} else if (std::strcmp(buff, "buff") == 0) {
+	else if (input == "buff") {
 		std::cout.write(&inbuf_[0], 200);
 		std::cout << std::endl;
-	} else if (std::strcmp(buff, "list") == 0) {
+	} else if (input == "list") {
 		unsigned long n = conns_.size();
 		Logger::timer("%u %sconnection%c", n, YELLOW, n > 1 ? 's' : ' ');
 		for (std::map<int, Connection>::iterator it = conns_.begin(); it != conns_.end();
@@ -449,7 +452,7 @@ bool Server::executeStdin() {
 			std::string label = oss.str();
 			it->second.printStatus(label);
 		}
-	} else if (std::strncmp(buff, "log", 3) == 0) {
+	} else if (input == "log") {
 		if (buff[3]) {
 			std::string str = buff + 4;
 			std::vector<std::string> arr;

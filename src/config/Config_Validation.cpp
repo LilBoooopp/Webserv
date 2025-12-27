@@ -43,9 +43,9 @@ void Config::apply_defaults() {
 bool Config::valid_config() {
   for (size_t i = 0; i < _servers.size(); ++i) {
     if (_servers[i].hosts.empty())
-      setError(-1, "Missing host in server");
+      setError(_servers[i].line_start, "Missing host in server");
     if (_servers[i].root.empty())
-      setError(-1, "Missing root in server");
+      setError(_servers[i].line_start, "Missing root in server");
     if (_isError)
       return (false);
   }

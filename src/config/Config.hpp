@@ -74,6 +74,7 @@ struct ServerConf {
 	std::string py_path;
 	bool has_php;
 	std::string php_path;
+	int line_start;
 
 	std::string root;
 	std::vector<std::string> files;

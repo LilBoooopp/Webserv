@@ -16,6 +16,7 @@ void Config::parse_server(std::vector<std::string> &tokens, ServerConf &server,
       setError(line, "Invalid listen syntax, expected 'Listen IP:PORT ;'");
       return;
     }
+    server.line_start = line;
     std::string host_port = tokens[1];
     HostPort res;
     size_t pos = host_port.find(':');

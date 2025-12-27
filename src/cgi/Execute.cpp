@@ -140,12 +140,12 @@ bool CgiHandler::runCgi(Connection &c, int fd) {
 	bool execSuccess = execute(data, c.cfg, c.body);
 
 	if (execSuccess) {
-		bool isAsync = c.req.hasHeader("x-async");
-		if (isAsync) {
+		if (c.req.hasHeader("x-async")) {
 			close(data.readFd);
 			c.res.setStatus(202, "Accepted");
 			c.res.setBody("");
 			c.res.setContentType("text/plain");
+			Router::finalizeResponse(c);
 			asyncPids_.push_back(data.pid);
 		} else
 			cgiResponses_.push_back(data);
@@ -153,6 +153,7 @@ bool CgiHandler::runCgi(Connection &c, int fd) {
 		c.res.setStatus(500, "CGI Execution Failed");
 		c.res.setBody("cgi error");
 		c.res.setContentType("text/plain");
+		Router::finalizeResponse(c);
 	}
 	return true;
 }

@@ -72,7 +72,7 @@ function getMountainColor() {
 }
 
 function getRandomColor() {
-  	return `rgb(${r_range(0, 255)}, ${r_range(0, 255)}, ${r_range(0, 255)})`;
+  	return `rgb(${r_range_int(0, 255)}, ${r_range_int(0, 255)}, ${r_range_int(0, 255)})`;
 }
 
 function recolorImage(imgPath, tintColor, callback) {

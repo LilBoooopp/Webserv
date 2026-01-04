@@ -1,6 +1,5 @@
 function handleAuth(e) {
   e.preventDefault();
-
   const form = e.target;
   const btn = e.submitter;
   const action = btn ? btn.value : "login";

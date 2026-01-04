@@ -34,7 +34,7 @@ $darkmode = $_SESSION["darkmode"] ?? false;
 		window.PAGE_NAME = "Games";
 
 		addTitle();
-		const games = ["Snake", "MineSweeper", "Morpion"];
+		const games = ["Snake", "MineSweeper", "Morpion", "Rope"];
 		for (let i = 0; i < games.length; i++){
 			const destination = "/cgi-bin/auth/securePage/games/" + games[i].toLowerCase() + ".php"
 			addButton(games[i], [c[0], c[1] + i * 50], () => {window.location.href = destination}, null, null, `GET ${destination} HTTP/1.1`);

@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fstream>
+#include <map>
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -23,29 +24,28 @@
 struct CgiData;
 
 class CgiHandler {
-private:
-  std::vector<CgiData> cgiResponses_;
-  std::vector<pid_t> asyncPids_;
-  const std::vector<ServerConf> *cfg_;
-  EpollReactor *reactor_;
+    private:
+	std::map<int, CgiData> cgiResponses_; // Map fd -> CgiData for O(log n) lookup
+	std::vector<pid_t> asyncPids_;
+	const std::vector<ServerConf> *cfg_;
+	EpollReactor *reactor_;
 
-public:
-  CgiHandler() : cfg_(NULL), reactor_(NULL) {}
-  void init(EpollReactor *reactor) { reactor_ = reactor; }
-  void setConfig(const std::vector<ServerConf> &cfg);
+    public:
+	CgiHandler() : cfg_(NULL), reactor_(NULL) {}
+	void init(EpollReactor *reactor) { reactor_ = reactor; }
+	void setConfig(const std::vector<ServerConf> &cfg);
 
-  bool runCgi(Connection &c, int fd);
-  // bool handleResponses();
-  void handleMessage(int fd);
-  void checkCgiTimeouts();
-  void killAsyncProcesses();
-  void detachConnection(Connection *conn);
+	bool runCgi(Connection &c, int fd);
+	// bool handleResponses();
+	void handleMessage(int fd);
+	void checkCgiTimeouts();
+	void killAsyncProcesses();
+	void detachConnection(Connection *conn);
 
-  bool hasFd(int fd);
+	bool hasFd(int fd);
 };
 
 bool is_cgi(const std::string &req_target, const ServerConf &cfg);
 std::string getInterpreter(const std::string &path, const ServerConf &conf);
-void parseCgiRequest(const std::string &target, std::string &dir,
-                     std::string &file, std::string &queryString,
-                     const ServerConf &conf);
+void parseCgiRequest(const std::string &target, std::string &dir, std::string &file,
+		     std::string &queryString, const ServerConf &conf);

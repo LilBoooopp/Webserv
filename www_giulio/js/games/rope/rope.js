@@ -14,7 +14,7 @@ class RopeSegment {
     var angle = Math.atan2(this.pos.y - anchorObject.pos.y, this.pos.x - anchorObject.pos.x);
     var dir = new Vec2(Math.cos(angle), Math.sin(angle));
     if (anchorObject.type === "CIRCLE") {
-      return scale_v2(dir, anchorObject.size.x * 1.2);
+      return scale_v2(dir, anchorObject.size.x);
     } else if (anchorObject.type === "SQUARE") {
       const hw = anchorObject.size.x / 2;
       const hh = anchorObject.size.y / 2;
@@ -28,9 +28,9 @@ class RopeSegment {
   }
 
   attachToShape(anchorObject = null, anchorOffset = this.getAnchorOffset(anchorObject)) {
-    if (anchorObject.child) return;
     this.anchorObject = anchorObject;
-    this.anchorObject.child = this;
+    this.anchorObject.attachedSegments.push(this);
+    if (this.anchorObject) this.isAnchor = false;
     if (anchorOffset) this.anchorOffset = anchorOffset;
   }
 
@@ -53,12 +53,15 @@ class RopeSegment {
   }
 
   applyAnchorPullForces() {
-    if (!this.anchorObject) return;
+    var shape = this.anchorObject;
+    if (!shape) return;
 
     // Calculate where segment should be attached to anchor
-    this.anchorPos = add_v2(this.anchorObject.pos, this.anchorOffset);
+    const anchoredPos = add_v2(shape.pos, this.anchorOffset);
+    this.anchorPos = rotate_v2(anchoredPos, shape.center, shape.angle);
 
-    // Check if this segment is being overstretched by neighboring segments
+    this.pos = this.anchorPos;
+    return;
     const neighbors = this.rope.segments;
     const myIndex = neighbors.indexOf(this);
     let totalPull = new Vec2(0, 0);
@@ -89,11 +92,11 @@ class RopeSegment {
 
     const pullMagnitude = Math.sqrt(totalPull.x * totalPull.x + totalPull.y * totalPull.y);
     if (pullMagnitude > 0) {
-      const stiffness = 0.1;
-      this.anchorObject.pos.x += totalPull.x * stiffness;
-      this.anchorObject.pos.y += totalPull.y * stiffness;
+      const stiffness = 0.5;
+      shape.pos.x += totalPull.x * stiffness;
+      shape.pos.y += totalPull.y * stiffness;
 
-      this.anchorPos = add_v2(this.anchorObject.pos, this.anchorOffset);
+      this.anchorPos = add_v2(shape.pos, this.anchorOffset);
     }
 
     // Segment follows final anchor position
@@ -105,7 +108,7 @@ class RopeSegment {
 
     if (this.anchorObject) {
       this.applyAnchorPullForces();
-      return; // Anchored segments don't do regular physics
+      return;
     }
 
     var rope = this.rope;
@@ -135,6 +138,13 @@ class RopeSegment {
     newPos.x = clamp(newPos.x, rope.thick, window.innerWidth - rope.thick);
     this.pos = newPos;
   }
+
+  remove() {
+    if (this.anchorObject) {
+      var idx = this.anchorObject.attachedSegments.indexOf(this);
+      if (idx !== -1) this.anchorObject.attachedSegments.splice(idx, 1);
+    }
+  }
 }
 
 class Rope {
@@ -144,9 +154,11 @@ class Rope {
     this.damp = _damp;
     this.gravity = new Vec2(gravity.x, gravity.y);
     this.color = color;
+    this.isRigid = false;
     this.groundFriction = ropeGroundFriction;
     this.color2 = getRandomColor();
     this.thick = thick;
+    this.stripesOccurence = r_range_int(0, 50);
     this.init(start, end);
   }
 
@@ -254,11 +266,28 @@ class Rope {
     }
   }
 
+  rigidifySegments() {
+    for (let i = 0; i < this.segments.length - 1; i++) {
+      const seg = this.segments[i];
+      const nextSeg = this.segments[i + 1];
+      const distance = magnitude_v2(seg.pos, nextSeg.pos) || 0.0001;
+      const diff = distance - this.segSpace;
+      if (Math.abs(diff) > 0.001) {
+        const angle = Math.atan2(nextSeg.pos.y - seg.pos.y, nextSeg.pos.x - seg.pos.x);
+        nextSeg.pos = new Vec2(seg.pos.x + Math.cos(angle) * this.segSpace, seg.pos.y + Math.sin(angle) * this.segSpace);
+      }
+    }
+  }
+
   applyCollisions(n) {
     for (let i = 0; i < this.segments.length; i++) {
       let a = this.segments[i];
       if (a.isAnchor) continue;
-      for (const b of shapes) this.handleShapeCollision(a, b);
+      for (const s of shapes) {
+        if (this.handleShapeCollision(a, s) && input.keys["shift"] && s === selShape && !s.attachedSegments.length) {
+          a.attachToShape(s);
+        }
+      }
       if (n % SelfCollisionsInterval === 0) {
         var closeSegments = colGrid.getAtPos(a.pos.x, a.pos.y);
         for (const b of closeSegments) {
@@ -279,6 +308,7 @@ class Rope {
       this.applyConstraits();
       if (colGrid.active && n % collisionSegmentInteval === 0) this.applyCollisions(n);
     }
+    if (this.isRigid) this.rigidifySegments();
   }
 
   handleShapeCollision(seg, shape = null) {
@@ -288,10 +318,6 @@ class Rope {
         var shapeSize = new Vec2(shape.size.x + this.thick, shape.size.y + this.thick);
         var shapePos = new Vec2(shape.pos.x - this.thick / 2, shape.pos.y - this.thick / 2);
         if (!pointInRect(seg.pos, shapePos, shapeSize)) return false;
-        if (seg === selSegment && mouse.pressed && !seg.anchorObject) {
-          seg.attachToShape(shape);
-          return;
-        }
         let left = Math.abs(seg.pos.x - shapePos.x);
         let right = Math.abs(seg.pos.x - (shapePos.x + shapeSize.x));
         let top = Math.abs(seg.pos.y - shapePos.y);
@@ -306,7 +332,6 @@ class Rope {
           if (overstretch > 0) {
             const dir = this.getSegmentNormal(seg);
             // shape.angle = Math.atan2(dir.y, dir.x);
-            if (shape === selShape && input.keys["shift"]) seg.attachToShape(shape);
             var damping = Math.min(1, overstretch / (this.segSpace * 0.3)); // Clamp to 0-1
             shape.vel.x *= 0.5 - damping * 0.4;
             shape.vel.y *= 0.9 - damping * 0.3;
@@ -336,17 +361,12 @@ class Rope {
         var distSq = dx * dx + dy * dy;
         var radSq = discRad * discRad;
         if (distSq >= radSq) return false;
-        if (seg === selSegment && mouse.pressed && !seg.anchorObject) {
-          seg.attachToShape(shape);
-          return;
-        }
+
         var dist = Math.sqrt(distSq) || 0.0001;
         var pushDist = discRad;
         seg.pos.x = discCenter.x + (dx / dist) * pushDist;
         seg.pos.y = discCenter.y + (dy / dist) * pushDist;
-        if (shape === selShape) {
-          if (input.keys["shift"]) seg.attachToShape(shape);
-        } else {
+        if (shape !== selShape) {
           var overstretch = this.getSegmentOverstretchAmount(seg, seg.pos.x, seg.pos.y, 0.8);
           if (overstretch > 0) {
             if (!this.isSnake && !this.segments[this.segments.length - 1].isAnchor) {
@@ -403,8 +423,8 @@ class Rope {
     for (let i = 0; i < this.segAmount - 1; i++) {
       var seg = this.segments[i];
       var nextSegment = this.segments[i + 1];
-      var segIsAnchor = seg.isAnchor;
-      var nextIsAnchor = nextSegment.isAnchor;
+      var segIsAnchor = seg.isAnchor || seg.anchorObject;
+      var nextIsAnchor = nextSegment.isAnchor || nextSegment.anchorObject;
       var delta = sub_v2(seg.pos, nextSegment.pos);
       var dist = Math.sqrt(delta.x * delta.x + delta.y * delta.y);
       var diff = dist - this.segSpace;
@@ -437,7 +457,7 @@ class Rope {
       var curClr = lineClr;
       if (this.segments[i].anchorObject) curClr = this.segments[i].anchorObject.color;
       else if (this.color2) curClr = addColor(lineClr, this.color2, i / this.segAmount);
-      if (this.isSnake && i % 2 === 0) curClr = addColor(curClr, "black", 0.2);
+      if (this.stripesOccurence && i % this.stripesOccurence === 0) curClr = addColor(curClr, "black", 0.2);
       var seg = this.segments[i];
       var isColliding = false;
       var colWidth = Math.max(lineWidth, 8);
@@ -476,6 +496,7 @@ class Rope {
     var idx = ropes.indexOf(rope);
     if (idx === -1) return;
     if (selSegment && selSegment.rope === rope) selSegment = null;
+    for (const s of this.segments) s.remove();
     ropes.splice(idx, 1);
   }
 
@@ -484,242 +505,5 @@ class Rope {
     ropes.push(rope);
     if (!isAnchored) rope.segments[0].setAnchor(null);
     return rope;
-  }
-}
-
-class RopeEntity extends Rope {
-  constructor(start, end = null, color = getRandomColor(), thick = 20, _segAmount = segAmount, _segSpace = segSpace, damp = dampingFactor) {
-    super(start, end, color, thick, segAmount, segSpace, damp);
-    this.vel = new Vec2(r_range(-5, 5), r_range(-5, 5));
-    this.segments[0].isAnchor = false;
-    this.maxVel = new Vec2(8, 5);
-    this.steerFactor = new Vec2(0.1, 0.02);
-    this.steerSpeed = mult_v2(this.maxVel, this.steerFactor);
-    this.groundFriction = 0.94;
-    this.jumpChance = 100;
-    this.grounded = false;
-  }
-
-  jump(force = 10) {
-    this.vel.y = -this.maxVel.y * force;
-    setTimeout(() => (this.vel.y = 0), 200);
-  }
-
-  steerAgent(headPos = this.segments[0].pos) {
-    if (headPos.x <= this.thick * 4) this.vel.x += this.steerSpeed.x;
-    else if (headPos.x >= window.innerWidth - this.thick * 4) this.vel.x -= this.steerSpeed.x;
-    else this.vel.x = clamp(this.vel.x + (Math.random() * 2 - 1) * this.steerSpeed.x, -this.maxVel.x, this.maxVel.x);
-
-    if (headPos.y <= this.thick * 4) this.vel.y += this.steerSpeed.y;
-    else if (headPos.y >= window.innerHeight - this.thick * 4) this.vel.y -= this.steerSpeed.y;
-    else this.vel.y = clamp(this.vel.y + (Math.random() * 2 - 1) * this.steerSpeed.y, -this.maxVel.y, this.maxVel.y);
-    if (this.grounded && r_range_int(0, this.jumpChance) == 0) this.jump(10);
-    return add_v2(headPos, this.vel);
-  }
-
-  controlSnake(headPos = this.segments[0].pos) {
-    if (input.keyClicked === " " && this.grounded) {
-      this.jump();
-      return headPos;
-    }
-    if (this.vel.y < -this.maxVel.y) this.vel.y += 1;
-    var inputVec = input.wasd;
-    var max = mult_v2(this.maxVel, new Vec2(2, 2));
-    var steerSpeed = 1;
-    if (!inputVec.x) this.vel.x *= 0.8;
-    else this.vel.x = clamp(this.vel.x + inputVec.x * steerSpeed, -max.x, max.x);
-    if (inputVec.y) this.vel.y = clamp(this.vel.y + inputVec.y * steerSpeed, -max.y, max.y);
-    return add_v2(headPos, this.vel);
-  }
-
-  getHeadMovement() {
-    if (this === player) return this.controlSnake();
-    else return this.steerAgent();
-  }
-
-  handleEntityCollisions() {
-    var a = this.segments[0];
-    for (const s of this.segments) {
-      var p = s.pos;
-      var closeSegments = colGrid.getAtPos(p.x, p.y);
-      for (const b of closeSegments) {
-        if (b.type === "CIRCLE" && circleOverlap(a.pos, this.thick, b.pos, b.size.x)) {
-          b.vel = add_v2(b.vel, scale_v2(this.vel, 2));
-          var dx = b.pos.x - a.pos.x;
-          var dy = b.pos.y - a.pos.y;
-          var dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
-          var pushDist = (this.thick + b.size.x) / 2 - dist;
-          if (pushDist > 0) {
-            b.pos.x += (dx / dist) * pushDist * 0.5;
-            b.pos.y += (dy / dist) * pushDist * 0.5;
-          }
-        } else if (b.type === "SQUARE" && circleInRect(a.pos, this.thick, b.pos, b.size)) {
-          b.vel = add_v2(b.vel, scale_v2(this.vel, 2));
-          var closestX = Math.max(b.pos.x, Math.min(a.pos.x, b.pos.x + b.size.x));
-          var closestY = Math.max(b.pos.y, Math.min(a.pos.y, b.pos.y + b.size.y));
-          var dx = a.pos.x - closestX;
-          var dy = a.pos.y - closestY;
-          var dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
-          var pushDist = this.thick / 2 - dist;
-          if (pushDist > 0) {
-            b.pos.x += (dx / dist) * pushDist * 0.5;
-            b.pos.y += (dy / dist) * pushDist * 0.5;
-          }
-        } else if (Math.abs(this.segments.indexOf(a) - this.segments.indexOf(b)) > 2) this.handleSegCollision(a, b, 0.2);
-      }
-    }
-  }
-
-  update() {
-    var newP = this.getHeadMovement();
-    this.handleEntityCollisions();
-    this.segments[0].pos = newP;
-    super.update();
-  }
-
-  control() {
-    player = this;
-  }
-
-  renderEntity() {
-    var lastSegP = this.segments[0].pos;
-    var w = this.thick / 4;
-    var cVel = clamp_v2(this.vel, new Vec2(3, 3));
-    var eye1P = [lastSegP.x - w / 2 + cVel.x, lastSegP.y - w / 2 + cVel.y];
-    var eye2P = [lastSegP.x - w / 2 + cVel.x * 0.7, lastSegP.y - w / 2 + cVel.y * 0.7];
-
-    drawCircle2(ctx, eye1P, w, "white", "rgba(0, 0, 0, 1)", 2);
-    drawCircle2(ctx, eye2P, w, "rgba(206, 202, 202, 1)", "rgba(0, 0, 0, 1)", 2);
-    drawCircle2(ctx, [eye2P[0] + cVel.x * 0.25 + w / 16, eye2P[1] + cVel.y * 0.25 + w / 16], w / 4, "black", null, 0);
-  }
-
-  render() {
-    super.render();
-    this.renderEntity();
-    if (this === player) drawText(ctx, [this.segments[0].pos.x, this.segments[0].pos.y - 50], "YOU", "white", null, 12);
-  }
-
-  static instantiate(pos, thick = r_range(5, 20)) {
-    var entity = new this(pos, null, getRandomColor(), thick, segAmount, r_range(1, 5));
-    ropes.push(entity);
-    return entity;
-  }
-}
-
-class Snake extends RopeEntity {
-  constructor(start, end = null, color = getRandomColor(), thick = 20, _segAmount = segAmount, _segSpace = segSpace, damp = dampingFactor) {
-    super(start, end, color, thick, segAmount, segSpace, damp);
-    this.type = "SNAKE";
-  }
-
-  static instantiate(pos, thick = r_range(5, 20)) {
-    var snake = new Snake(pos, null, getRandomColor(), thick, segAmount, r_range(1, 5));
-    ropes.push(snake);
-    return snake;
-  }
-}
-
-class Spider {
-  constructor(pos, bodySize = 15, legCount = 8, legLength = 40, legThickness = 3) {
-    this.pos = new Vec2(pos.x, pos.y);
-    this.vel = new Vec2(r_range(-5, 5), r_range(-5, 5));
-    this.bodySize = bodySize;
-    this.legCount = legCount;
-    this.legLength = legLength;
-    this.legThickness = legThickness;
-    this.color = getRandomColor();
-    this.maxVel = new Vec2(8, 5);
-    this.type = "SPIDER";
-    this.steerFactor = new Vec2(0.1, 0.02);
-    this.steerSpeed = mult_v2(this.maxVel, this.steerFactor);
-    this.grounded = false;
-    this.jumpChance = 100;
-    this.gravity = new Vec2(gravity.x, gravity.y);
-
-    this.body = new Shape(pos, new Vec2(bodySize, bodySize), "CIRCLE", this.color);
-    shapes.push(this.body);
-    this.legs = [];
-    this.initLegs(this.body);
-  }
-
-  initLegs() {
-    const angleStep = (Math.PI * 2) / this.legCount;
-    for (let i = 0; i < this.legCount; i++) {
-      const angle = angleStep * i;
-      const legStart = new Vec2(this.pos.x + Math.cos(angle) * this.bodySize, this.pos.y + Math.sin(angle) * this.bodySize);
-      const legEnd = new Vec2(this.pos.x + Math.cos(angle) * (this.bodySize + this.legLength), this.pos.y + Math.sin(angle) * (this.bodySize + this.legLength));
-      const legOffset = new Vec2(Math.cos(angle) * this.bodySize, Math.sin(angle) * this.bodySize);
-      const leg = new Rope(legStart, legEnd, this.color, this.legThickness, 15, 3);
-      leg.spiderParent = this;
-      leg.legAngle = angle;
-      leg.segments[leg.segments.length - 1].setAnchor(null);
-      leg.segments[0].attachToShape(this.body, legOffset);
-      this.legs.push(leg);
-      ropes.push(leg);
-    }
-  }
-
-  getBodyMovement() {
-    if (this === player) return this.controlSpider();
-    else return this.steerAgent();
-  }
-
-  update() {
-    this.grounded = false;
-    var newPos = this.getBodyMovement();
-
-    this.body.update();
-    return;
-    // Handle gravity and collisions
-    this.vel.y += this.gravity.y * dt * 10;
-    const floorY = window.innerHeight - this.bodySize / 2;
-    if (newPos.y >= floorY) {
-      this.vel.y *= -0.4;
-      newPos.y = floorY;
-      this.grounded = true;
-    }
-
-    newPos.x = clamp(newPos.x, this.bodySize, window.innerWidth - this.bodySize);
-    this.pos = newPos;
-
-    // Update all legs to follow body
-    const angleStep = (Math.PI * 2) / this.legCount;
-    for (let i = 0; i < this.legs.length; i++) {
-      const leg = this.legs[i];
-      const angle = angleStep * i;
-
-      // Anchor first segment to body
-      leg.segments[0].pos = new Vec2(this.pos.x + Math.cos(angle) * this.bodySize, this.pos.y + Math.sin(angle) * this.bodySize);
-      leg.segments[0].prevPos = leg.segments[0].pos;
-      leg.segments[0].setAnchor();
-    }
-  }
-
-  control() {
-    player = this;
-  }
-
-  render() {
-    var w = this.bodySize / 3;
-    var cVel = clamp_v2(this.vel, new Vec2(2, 2));
-    var eye1P = [this.pos.x - w / 2 + cVel.x, this.pos.y - w / 2 + cVel.y];
-    var eye2P = [this.pos.x + w / 2 + cVel.x, this.pos.y - w / 2 + cVel.y];
-
-    drawCircle2(ctx, eye1P, w / 2, "white", "rgba(0, 0, 0, 1)", 1);
-    drawCircle2(ctx, eye2P, w / 2, "white", "rgba(0, 0, 0, 1)", 1);
-
-    if (this === player) drawText(ctx, [this.pos.x, this.pos.y - this.bodySize - 30], "YOU", "white", null, 12);
-  }
-
-  static instantiate(pos) {
-    var spider = new Spider(pos, 15, 8, 40, 3);
-    return spider;
-  }
-
-  static remove(spider) {
-    for (const leg of spider.legs) {
-      Rope.remove(leg);
-    }
-    if (player === spider) player = null;
   }
 }

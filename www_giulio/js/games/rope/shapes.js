@@ -65,6 +65,8 @@ class AirPusher {
       var cp = clamp_v2(newP, new Vec2(window.innerWidth, window.innerHeight));
       this.place(cp);
       this.angle -= input.arrows.x * 0.05;
+      if (this.angle < Math.PI) this.angle += Math.PI * 2;
+      else if (this.angle > Math.PI) this.angle -= Math.PI * 2;
       this.radius = clamp(this.radius + input.arrows.y * 10, 1, window.innerWidth / 2);
     }
     var size = 20;
@@ -128,6 +130,7 @@ class Shape {
     this.gravity = _gravity;
     this.pos = pos;
     this.newPos;
+    this.attachedSegments = [];
     this.size = size;
     this.type = type;
     this.color = color;

@@ -64,3 +64,6 @@ struct Logger {
 };
 
 std::string toUpper(const std::string &s);
+
+std::string bytesToStr(size_t value, bool useColor = false);
+std::string timeToStr(size_t value, bool useColor = false);

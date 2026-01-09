@@ -8,7 +8,6 @@
 #include "../utils/Logger.hpp"
 #include "../utils/Path.hpp"
 #include "Listener.hpp"
-#include "Router.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <fcntl.h>
@@ -46,19 +45,19 @@ static int set_nonblock(int fd) {
  * @param config
  * @return true if started successfully, false if not
  */
-bool Server::start(std::vector<ServerConf> &config) {
-  listener_.reserve(config.size());
-  uint32_t ip_be = config[0].hosts[0].host;
-  for (size_t i = 0; i < config.size(); i++) {
+bool Server::start() {
+  cfg_ = conf_.getServers();
+  listener_.reserve(cfg_.size());
+  uint32_t ip_be = cfg_[0].hosts[0].host;
+  for (size_t i = 0; i < cfg_.size(); i++) {
     listener_.push_back(Listener());
-    if (!listener_[i].bindAndListen(ip_be, config[i].hosts[0].port))
+    if (!listener_[i].bindAndListen(ip_be, cfg_[i].hosts[0].port))
       return (false);
     if (!reactor_.add(listener_[i].fd(), EPOLLIN))
       return (false);
   }
   cgiHandler_.init(&reactor_);
-  cgiHandler_.setConfig(config);
-  cfg_ = config;
+  cgiHandler_.setConfig(cfg_);
   return (true);
 }
 
@@ -468,6 +467,8 @@ int Server::executeStdin() {
     return false;
   } else if (std::strcmp(buff, "quit") == 0 || std::strcmp(buff, "q") == 0) {
     return (1);
+  } else if (std::strcmp(buff, "conf") == 0) {
+    conf_.debug_print();
   } else if (std::strcmp(buff, "r") == 0 || std::strcmp(buff, "refresh") == 0) {
     return (2);
   } else if (std::strcmp(buff, "buff") == 0) {

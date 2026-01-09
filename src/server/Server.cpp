@@ -7,9 +7,7 @@
 #include "../utils/Colors.hpp"
 #include "../utils/Logger.hpp"
 #include "../utils/Path.hpp"
-#include "IHandler.hpp"
 #include "Listener.hpp"
-#include "Router.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <fcntl.h>
@@ -21,31 +19,23 @@
 void Server::enableWrite(int fd) { reactor_.mod(fd, EPOLLIN | EPOLLOUT); }
 void Server::disableWrite(int fd) { reactor_.mod(fd, EPOLLIN); }
 
-void Server::redirectError(Connection &c) {
-  const std::map<int, std::string> &pages = cfg_[c.serverIdx].error_pages;
-  std::map<int, std::string>::const_iterator it = pages.find(c.res.getStatus());
-  if (it != pages.end()) {
-    const ServerConf &srv = cfg_[c.serverIdx];
+void Server::cleanup() {
+	Logger::server("Cleaning up server resources...");
+	cgiHandler_.killAsyncProcesses();
 
-    std::string rel = it->second; // ex: "/errors/404.html"
-    std::string fullPath =
-        safe_join_under_root(srv.root, rel); // genre "www/errors/404.html"
+	for (std::map<int, Connection>::iterator it = conns_.begin(); it != conns_.end(); ++it) {
+		reactor_.del(it->first);
+		close(it->first);
+	}
+	conns_.clear();
 
-    int fd = ::open(fullPath.c_str(), O_RDONLY);
-    if (fd >= 0) {
-      std::string body;
-      char buf[4096];
-      ssize_t r;
-      while ((r = ::read(fd, buf, sizeof(buf))) > 0)
-        body.append(buf, r);
-      ::close(fd);
-      c.res.setBody(body);
-      c.res.setContentType("text/html");
-    } else {
-      Logger::response("error_page configured for %d but file '%s' not found",
-                       c.res.getStatus(), fullPath.c_str());
-    }
-  }
+	for (size_t i = 0; i < listener_.size(); ++i) {
+		reactor_.del(listener_[i].fd());
+		close(listener_[i].fd());
+	}
+	listener_.clear();
+
+	Logger::server("Cleanup complete");
 }
 
 static int set_nonblock(int fd) {
@@ -61,49 +51,91 @@ static int set_nonblock(int fd) {
  * @param config
  * @return true if started successfully, false if not
  */
-bool Server::start(std::vector<ServerConf> &config) {
-  listener_.reserve(config.size());
-  uint32_t ip_be = config[0].hosts[0].host;
-  for (size_t i = 0; i < config.size(); i++) {
-    listener_.push_back(Listener());
-    if (!listener_[i].bindAndListen(ip_be, config[i].hosts[0].port))
-      return (false);
-    if (!reactor_.add(listener_[i].fd(), EPOLLIN))
-      return (false);
-  }
-  cgiHandler_.setConfig(config);
-
-  return (true);
-}
-
-void Server::setConf(std::vector<ServerConf> config) {
-  cfg_ = config;
-  std::cout << "index: " << cfg_[0].locations[0].index_files[0] << std::endl;
+bool Server::start() {
+	cfg_ = conf_.getServers();
+	listener_.reserve(cfg_.size());
+	uint32_t ip_be = cfg_[0].hosts[0].host;
+	for (size_t i = 0; i < cfg_.size(); i++) {
+		listener_.push_back(Listener());
+		if (!listener_[i].bindAndListen(ip_be, cfg_[i].hosts[0].port)) {
+			Logger::error("Bind and Listen error, IP %d PORT %d", ip_be,
+				      cfg_[i].hosts[0].port);
+			return (false);
+		}
+		if (!reactor_.add(listener_[i].fd(), EPOLLIN)) {
+			Logger::error("reactor couldn't add listener at index %d", i);
+			return (false);
+		}
+	}
+	cgiHandler_.init(&reactor_);
+	cgiHandler_.setConfig(cfg_);
+	return (true);
 }
 
 /**
  * @brief Assigns incomming connections' fds to the previously bound listeners
  */
 void Server::acceptReady(void) {
-  for (size_t i = 0; i < listener_.size(); i++) {
-    if (listener_[i].fd() < 0) {
-      Logger::connection("unvalid fd %d", listener_[i].fd());
-      return;
-    }
-    for (;;) {
-      int cfd = ::accept(listener_[i].fd(), 0, 0);
-      if (cfd < 0) {
-        break;
-      }
-      set_nonblock(cfd);
-      Connection c;
-      c.start = now_ms();
-      c.serverIdx = i;
-      conns_[cfd] = c;
-      reactor_.add(cfd, EPOLLIN);
-      Logger::connection("fd %d%s accepted", cfd, GREEN);
-    }
-  }
+	for (size_t i = 0; i < listener_.size(); i++) {
+		if (listener_[i].fd() < 0) {
+			Logger::connection("unvalid fd %d", listener_[i].fd());
+			return;
+		}
+		for (;;) {
+			int cfd = ::accept(listener_[i].fd(), 0, 0);
+			if (cfd < 0) {
+				break;
+			}
+			set_nonblock(cfd);
+			Connection c(cfg_[i]);
+			c.start = now_ms();
+			c.last_active = c.start;
+			conns_.insert(std::make_pair(cfd, c));
+			reactor_.add(cfd, EPOLLIN);
+			Logger::connection("fd %d%s accepted", cfd, GREEN);
+		}
+	}
+}
+
+void Server::checkTimeouts() {
+	unsigned long current_time = now_ms();
+
+	std::map<int, Connection>::iterator it = conns_.begin();
+	while (it != conns_.end()) {
+		Connection &c = it->second;
+
+		if (c.state == WAITING_CGI) {
+			++it;
+			continue;
+		}
+
+		if ((current_time - c.last_active) > c.cfg.timeout_ms) {
+			int fd = it->first;
+			Logger::response("FD %d timed out (idle for %lu ms)", fd,
+					 (current_time - c.last_active));
+
+			bool is_mid_request = (c.state == READING_BODY) ||
+					      (c.state == READING_HEADERS && !c.in.empty());
+
+			if (is_mid_request) {
+				Logger::response("fd %d sending 408 Request Timeout", fd);
+
+				HttpResponse timeout_res(408);
+				timeout_res.setHeader("Connection", "close");
+			}
+
+			cgiHandler_.detachConnection(&c);
+			reactor_.del(fd);
+			::close(fd);
+
+			std::map<int, Connection>::iterator next = it;
+			++next;
+			conns_.erase(it);
+			it = next;
+		} else {
+			++it;
+		}
+	}
 }
 
 /**
@@ -112,19 +144,21 @@ void Server::acceptReady(void) {
  * @param fd of the socket associated with the current client being handled
  */
 void Server::handleReadable(int fd) {
-  Connection &c = conns_[fd];
+	Connection &c = conns_.at(fd);
 
   const size_t MAX_HANDLE_BYTES =
       16 * 1024; // max bytes to read from socket per iteration
   const size_t MAX_DECODE_BYTES =
       16 * 1024; // max bytes to consume from c.in for body parsin per iteration
 
-  size_t handled = 0;
-  while (handled < MAX_HANDLE_BYTES) {
-    ssize_t r = ::read(fd, &inbuf_[0], inbuf_.size());
-    if (r > 0) {
-      handled += static_cast<size_t>(r);
-      c.in.append(&inbuf_[0], static_cast<size_t>(r));
+	c.last_active = now_ms();
+
+	size_t handled = 0;
+	while (handled < MAX_HANDLE_BYTES) {
+		ssize_t r = ::read(fd, &inbuf_[0], inbuf_.size());
+		if (r > 0) {
+			handled += static_cast<size_t>(r);
+			c.in.append(&inbuf_[0], static_cast<size_t>(r));
 
       // Header cap defense
       // if (c.state == READING_HEADERS && c.in.size() > MAX_HANDLE_BYTES)
@@ -165,63 +199,97 @@ void Server::handleReadable(int fd) {
             bool has_cl = false;
             size_t content_length = 0;
 
-            // Check for Content-Length header
-            std::map<std::string, std::string>::iterator itCL =
-                c.req.headers.find("content-length");
-            if (itCL != c.req.headers.end() && !bad) {
-              has_cl = true;
-              const std::string &s = itCL->second;
-              size_t acc = 0;
-              for (size_t k = 0; k < s.size(); ++k) {
-                if (s[k] < '0' || s[k] > '9') {
-                  acc = static_cast<size_t>(-1);
-                  break;
-                }
-                acc = acc * 10 + static_cast<size_t>(s[k] - '0');
-              }
-              if (acc == static_cast<size_t>(-1))
-                bad = true;
-              else
-                content_length = acc;
-            }
+						// Check for Content-Length header
+						std::string str = c.req.getHeader("content-length");
+						if (!str.empty()) {
+							has_cl = true;
+							const std::string &s = str;
+							size_t acc = 0;
+							for (size_t k = 0; k < s.size(); ++k) {
+								if (s[k] < '0' || s[k] > '9') {
+									acc =
+									    static_cast<size_t>(-1);
+									break;
+								}
+								acc =
+								    acc * 10 +
+								    static_cast<size_t>(s[k] - '0');
+							}
+							if (acc == static_cast<size_t>(-1))
+								bad = true;
+							else
+								content_length = acc;
+						}
 
-            // Check for Transfer-Encoding: chunked
-            std::map<std::string, std::string>::iterator itTE =
-                c.req.headers.find("transfer-encoding");
-            if (itTE != c.req.headers.end() && !bad) {
-              std::string v = itTE->second;
-              for (size_t k = 0; k < v.size(); ++k)
-                v[k] = (char)std::tolower((unsigned char)v[k]);
-              if (v.find("chunked") != std::string::npos)
-                has_te_chunked = true;
-            }
+						if (!bad) {
+							// Check for Transfer-Encoding: chunked
+							std::string str =
+							    c.req.getHeader("transfer-encoding");
+							if (!str.empty()) {
+								std::string v = str;
+								for (size_t k = 0; k < v.size();
+								     ++k)
+									v[k] = (char)std::tolower(
+									    (unsigned char)v[k]);
+								if (v.find("chunked") !=
+								    std::string::npos)
+									has_te_chunked = true;
+							}
+						}
 
             // Having both CL and TE:chunked is invalid
             if (has_cl && has_te_chunked)
               bad = true;
 
-            if (bad) {
-              // Malformed or conflicint headers
-              c.res.setStatusFromCode(400);
-              c.res.setVersion(c.req.version);
-              c.state = WRITING_RESPONSE;
-              c.in.erase(0, endpos);
-            } else {
-              c.is_chunked = has_te_chunked;
-              c.want_body = has_cl ? content_length : 0;
-              c.body.clear();
+						if (bad) {
+							// Malformed or conflicint headers
+							c.res.setStatusFromCode(400);
+							c.res.setVersion(c.req.version);
+							c.state = WRITING_RESPONSE;
+							c.in.erase(0, endpos);
+						} else {
+							c.is_chunked = has_te_chunked;
+							c.want_body = has_cl ? content_length : 0;
 
-              // size limit for non-chunked CL bodies
-              if (has_cl &&
-                  c.want_body > cfg_[c.serverIdx].locations[0].max_size) {
-                c.res.setStatusFromCode(413);
-                c.res.setVersion(c.req.version);
-                c.state = WRITING_RESPONSE;
-                c.in.erase(0, endpos);
-              } else {
-                // Remove head so that only the body
-                // is leftover
-                c.in.erase(0, endpos);
+							if (c.want_body > 0 || c.is_chunked) {
+								std::stringstream ss;
+								ss << "/tmp/webserv_temp_" << fd
+								   << "_" << now_ms();
+								c.temp_filename = ss.str();
+
+								c.temp_fd = open(
+								    c.temp_filename.c_str(),
+								    O_CREAT | O_WRONLY | O_TRUNC,
+								    0644);
+								if (c.temp_fd < 0) {
+									c.res.setStatusFromCode(
+									    500);
+									c.state = WRITING_RESPONSE;
+									return;
+								}
+							}
+
+							// size limit for non-chunked CL bodies
+							if (has_cl &&
+							    c.want_body >
+								c.cfg.locations[0].max_size) {
+								// Content-Length exceeds max_size:
+								// respond 413 and stop processing
+								c.res.setStatusFromCode(413);
+								c.res.setVersion(c.req.version);
+								c.state = WRITING_RESPONSE;
+								// Drop the parsed headers and any
+								// pending input/body to avoid
+								// reprocessing
+								c.in.clear();
+								c.body.clear();
+								c.want_body = 0;
+								c.is_chunked = false;
+								c.close_after = true;
+							} else {
+								// Remove head so that only the body
+								// is leftover
+								c.in.erase(0, endpos);
 
                 // Pre-consume body bytes for
                 // Content-Length requests
@@ -265,56 +333,91 @@ void Server::handleReadable(int fd) {
               consumed = decode_left;
             decode_left -= consumed;
 
-            if (st == ChunkedDecoder::NEED_MORE)
-              break;
-            if (st == ChunkedDecoder::ERROR) {
-              c.res.setStatusFromCode(400);
-              c.state = WRITING_RESPONSE;
-              break;
-            }
-            if (st == ChunkedDecoder::DONE) {
-              // Final size check after full decoding
-              if (c.body.size() > cfg_[c.serverIdx].locations[0].max_size) {
-                c.res.setStatusFromCode(413);
-                c.state = WRITING_RESPONSE;
-              } else
-                c.state = WRITING_RESPONSE; // Full
-                                            // request
-                                            // body
-                                            // decoded
-              break;
-            }
-            if (decode_left == 0)
-              break;
-          }
-        } else {
-          // Non-chunked body: consume up to want_body, capped by
-          // decode_left
-          if (c.want_body > c.body.size() && !c.in.empty() && decode_left > 0) {
-            size_t room = c.want_body - c.body.size();
-            size_t take = c.in.size();
-            if (take > room)
-              take = room;
-            if (take > decode_left)
-              take = decode_left;
+						if (st == ChunkedDecoder::NEED_MORE)
+							break;
+						if (st == ChunkedDecoder::ERROR) {
+							c.res.setStatusFromCode(400);
+							c.state = WRITING_RESPONSE;
+							break;
+						}
+						if (st == ChunkedDecoder::DONE) {
+							// Final size check after full decoding
+							if (c.body.size() >
+							    c.cfg.locations[0].max_size) {
+								// Body exceeds max_size: respond
+								// 413 and stop processing
+								c.res.setStatusFromCode(413);
+								c.state = WRITING_RESPONSE;
+								c.in.clear();
+								c.want_body = 0;
+								c.is_chunked = false;
+								c.close_after = true;
+							} else {
+								c.state =
+								    WRITING_RESPONSE; // Full
+										      // request
+										      // body
+										      // decoded
+							}
+							break;
+						}
+						if (decode_left == 0)
+							break;
+					}
+				} else {
+					// Non-chunked body: consume up to want_body, capped by
+					// decode_left
+					if (c.want_body > 0 && !c.in.empty() && decode_left > 0) {
+						size_t room = c.want_body - (handled - c.in.size());
+						size_t take = c.in.size();
+						if (take > room)
+							take = room;
+						if (take > decode_left)
+							take = decode_left;
 
-            c.body.append(c.in.data(), take);
-            c.in.erase(0, take);
-            decode_left -= take;
-          }
-          // If we now have the full body, we can move on to
-          // responding
-          if (c.body.size() == c.want_body)
-            c.state = WRITING_RESPONSE;
-        }
-      }
+						ssize_t written =
+						    write(c.temp_fd, c.in.data(), take);
+						if (written < 0) {
+							close(c.temp_fd);
+							c.temp_fd = -1;
+							c.res.setStatusFromCode(500);
+							c.state = WRITING_RESPONSE;
+							return;
+						}
 
-      // WRITING_RESPONSE
-      if (c.state == WRITING_RESPONSE) {
-        if (c.out.empty())
-          prepareResponse(fd, c);
-        c.res.printResponse(fd);
-      }
+						// size_t room = c.want_body - c.body.size();
+						// size_t take = c.in.size();
+						// if (take > room)
+						//   take = room;
+						// if (take > decode_left)
+						//   take = decode_left;
+
+						// c.body.append(c.in.data(), take);
+						c.in.erase(0, take);
+						decode_left -= take;
+					}
+					// If we now have the full body, we can move on to
+					// responding
+					if (c.body.size() >= c.want_body)
+						if (c.temp_fd != -1) {
+							close(c.temp_fd);
+							c.temp_fd = -1;
+						}
+					c.state = WRITING_RESPONSE;
+				}
+			}
+
+			// WRITING_RESPONSE
+			if (c.state == WRITING_RESPONSE) {
+				if (c.out.empty()) {
+					prepareResponse(fd, c);
+
+					if (c.state == WAITING_CGI)
+						break;
+
+					c.res.printResponse(fd);
+				}
+			}
 
       // Continue reading (if handled < MAX_HANDLE_BYTES) or exit the loop when
       // the budget is used up
@@ -328,88 +431,6 @@ void Server::handleReadable(int fd) {
   }
 }
 
-// Build and serialize a response once the request/body are ready
-void Server::prepareResponse(int fd, Connection &c) {
-  const HttpRequest &req = c.req;
-
-  c.res.setVersion(req.version);
-  bool head_only = (req.method == "HEAD");
-
-  if (is_cgi(req.target, cfg_[c.serverIdx])) {
-    if (cgiHandler_.runCgi(req, c.res, c, fd))
-      return;
-  }
-  const ServerConf &serverConf = cfg_[c.serverIdx];
-
-  Router router(serverConf);
-
-  IHandler *handler = router.route(c, req, c.res);
-
-  handler->handle(c, req, c.res);
-
-  delete handler;
-
-  // Detect large static file streaming case for GET
-  if (req.method == "GET") {
-    const std::string kStreamHeader = "X-Stream-File";
-
-    if (c.res.hasHeader(kStreamHeader)) {
-      std::string file_path = c.res.getHeader(kStreamHeader);
-
-      // Try to open the file now, in non-streaming, blocking mode.
-      // We will only read it in small chunks later form handleWritable.
-      int ffd = ::open(file_path.c_str(), O_RDONLY);
-      if (ffd >= 0) {
-        c.file_fd = ffd;
-        c.streaming_file = true;
-
-        // Initialize remaining bytes from Content-Length
-        std::string cl = c.res.getHeader("Content-Length");
-        off_t remaining = 0;
-        if (!cl.empty()) {
-          std::istringstream iss(cl);
-          iss >> remaining;
-        }
-        c.file_remaining = remaining;
-
-        // Remove the internal header so the client doesn't see it.
-        if (c.res.hasHeader(kStreamHeader))
-          c.res.eraseHeader(kStreamHeader);
-      } else {
-        // If open fails, fall back to a 404
-        c.res.setStatusFromCode(404);
-
-        // ensure no streaming
-        c.streaming_file = false;
-        c.file_fd = -1;
-        c.file_remaining = 0;
-      }
-    }
-  } else if (req.method == "POST") // TEMP, only echo response
-  {
-    c.res.setContentType("text/plain");
-    Logger::request("%s received POST request of size %zu", SERV_CLR,
-                    c.body.size());
-    std::map<std::string, std::string>::iterator it =
-        c.req.headers.find("x-filename");
-    if (it != c.req.headers.end()) {
-      c.res.setBody("OK");
-      c.res.setStatusFromCode(200);
-      placeFileInDir(it->second, c.body,
-                     cfg_[c.serverIdx].root + "ressources/uploads");
-    } else {
-      Logger::request("x-filename not present in the request headers, the file "
-                      "won't be uploaded");
-      c.res.setStatusFromCode(404);
-    }
-  } else
-    c.res.setStatusFromCode(501);
-
-  redirectError(c);
-  c.out = c.res.serialize(head_only);
-  enableWrite(fd);
-}
-
 void Server::handleWritable(int fd) {
   // Find the connection associated with the fd
   std::map<int, Connection>::iterator it = conns_.find(fd);
@@ -418,9 +439,10 @@ void Server::handleWritable(int fd) {
 
   Connection &c = it->second;
 
-  // Max number of bytes we will attempt to send in a single call.
-  // This prevents one big response from blocking other clients.
-  const size_t MAX_WRITE_BYTES = 16 * 1024;
+	c.last_active = now_ms();
+	// Max number of bytes we will attempt to send in a single call.
+	// This prevents one big response from blocking other clients.
+	const size_t MAX_WRITE_BYTES = 16 * 1024;
 
   if (!c.out.empty() && !c.responded) {
     size_t written = 0; // bytes sent in this iteration
@@ -461,76 +483,97 @@ void Server::handleWritable(int fd) {
       if (static_cast<off_t>(to_read) > c.file_remaining)
         to_read = static_cast<size_t>(c.file_remaining);
 
-      // Blocking read on regular file, but small (<= FILE_CHUNK) and not in a
-      // loop
-      ssize_t r = ::read(c.file_fd, buf, to_read);
-      if (r > 0) {
-        c.file_remaining -= static_cast<off_t>(r);
-        c.out.append(buf, static_cast<size_t>(r));
-        // Not marked as responded or close here
-        // just wait for epoll to call to send it.
-        return;
-      } else {
-        ::close(c.file_fd);
-        c.file_fd = -1;
-        c.streaming_file = false;
-        c.file_remaining = 0;
-      }
-    }
+			// Blocking read on regular file, but small (<= FILE_CHUNK) and not in a
+			// loop
+			ssize_t r = ::read(c.file_fd, buf, to_read);
+			if (r > 0) {
+				c.file_remaining -= static_cast<off_t>(r);
+				c.out.append(buf, static_cast<size_t>(r));
 
-    // No data left to send an no more file to stream
-    if (!c.responded)
-      c.responded = true;
-    Logger::connection("fd %d closed", fd);
+				if (c.file_remaining <= 0) {
+					::close(c.file_fd);
+					c.file_fd = -1;
+					c.streaming_file = false;
+				}
 
-    reactor_.del(fd);
-    ::close(fd);
-    conns_.erase(it);
-  }
+				// Not marked as responded or close here
+				// just wait for epoll to call to send it.
+				return;
+			} else {
+				::close(c.file_fd);
+				c.file_fd = -1;
+				c.streaming_file = false;
+				c.file_remaining = 0;
+			}
+		}
+
+		if (c.state == WAITING_CGI)
+			return;
+
+		// No data left to send an no more file to stream
+		if (!c.responded)
+			c.responded = true;
+		Logger::connection("fd %d closed - connection removed", fd);
+
+		cgiHandler_.detachConnection(&c);
+		reactor_.del(fd);
+		if (c.file_fd != -1) {
+			::close(c.file_fd);
+			c.file_fd = -1;
+		}
+		::close(fd);
+		conns_.erase(it);
+	}
 }
 
-bool Server::executeStdin() {
-  char buff[50];
+int Server::executeStdin() {
+	char buff[50];
 
-  ssize_t sr = read(0, buff, sizeof(buff) - 1);
-  if (sr <= 0)
-    return false;
-  buff[sr] = '\0';
-  while (sr > 0 && (buff[sr - 1] == '\n' || buff[sr - 1] == '\r'))
-    buff[--sr] = '\0';
-  if (sr == 0)
-    return false;
-  if (std::strcmp(buff, "clear") == 0) {
-    const char *clr = "\033[2J\033[H";
-    write(1, clr, std::strlen(clr));
-    return false;
-  } else if (std::strcmp(buff, "quit") == 0) {
-    return true;
-  } else if (std::strcmp(buff, "buff") == 0) {
-    std::cout.write(&inbuf_[0], 200);
-    std::cout << std::endl;
-  } else if (std::strcmp(buff, "list") == 0) {
-    unsigned long n = conns_.size();
-    Logger::timer("%u %sconnection%c", n, YELLOW, n > 1 ? 's' : ' ');
-    for (unsigned long i = 0; i < n; i++) {
-      std::ostringstream oss;
-      oss << PURPLE << " Conn[" << i << "]" << TS;
-      std::string label = oss.str();
-      conns_[i].printStatus(label);
-    }
-  } else if (std::strncmp(buff, "log", 3) == 0) {
-    if (buff[3]) {
-      std::string str = buff + 4;
-      std::vector<std::string> arr = split(str, ' ');
-      for (size_t j = 0; j < arr.size(); j++) {
-        std::string level = arr[j];
-        size_t x = 0;
-        while (level[x] >= '0' && level[x] <= '9' && x < level.size()) {
-          Logger::setChannel((LogChannel)(level[x] - '0'));
-          x++;
-        }
-        if (x)
-          continue;
+	ssize_t sr = read(0, buff, sizeof(buff) - 1);
+	if (sr <= 0)
+		return false;
+	buff[sr] = '\0';
+	while (sr > 0 && (buff[sr - 1] == '\n' || buff[sr - 1] == '\r'))
+		buff[--sr] = '\0';
+	if (sr == 0)
+		return false;
+	if (std::strcmp(buff, "clear") == 0) {
+		const char *clr = "\033[H\033[2J\033[3J";
+		write(1, clr, std::strlen(clr));
+		return false;
+	} else if (std::strcmp(buff, "quit") == 0 || std::strcmp(buff, "q") == 0) {
+		return (1);
+	} else if (std::strcmp(buff, "conf") == 0) {
+		conf_.debug_print();
+	} else if (std::strcmp(buff, "r") == 0 || std::strcmp(buff, "refresh") == 0) {
+		refresh();
+	} else if (std::strcmp(buff, "buff") == 0) {
+		std::cout.write(&inbuf_[0], 200);
+		std::cout << std::endl;
+	} else if (std::strcmp(buff, "list") == 0) {
+		unsigned long n = conns_.size();
+		Logger::timer("%u %sconnection%c", n, YELLOW, n > 1 ? 's' : ' ');
+		for (std::map<int, Connection>::iterator it = conns_.begin(); it != conns_.end();
+		     ++it) {
+			std::ostringstream oss;
+			oss << PURPLE << " Conn	" << TS;
+			std::string label = oss.str();
+			it->second.printStatus(label);
+		}
+	} else if (std::strncmp(buff, "log", 3) == 0) {
+		if (buff[3]) {
+			std::string str = buff + 4;
+			std::vector<std::string> arr;
+			split(str, ' ', arr);
+			for (size_t j = 0; j < arr.size(); j++) {
+				std::string level = arr[j];
+				size_t x = 0;
+				while (level[x] >= '0' && level[x] <= '9' && x < level.size()) {
+					Logger::setChannel((LogChannel)(level[x] - '0'));
+					x++;
+				}
+				if (x)
+					continue;
 
         std::string uLevel = toUpper(level);
         for (int i = 0; i < LOG_ALL + 1; i++) {
@@ -551,24 +594,41 @@ bool Server::executeStdin() {
   return false;
 }
 
-void Server::run() {
-  bool logged = false;
-  reactor_.add(STDIN_FILENO, EPOLLIN);
+void Server::refresh() {
+	if (!conf_.parse(conf_path_)) {
+		std::cerr << "Config error at line " << conf_.getErrorLine() << ": "
+			  << conf_.getErrorMessage() << std::endl;
+		return;
+	}
+	conf_.debug_print();
+	cleanup();
+	if (!start()) {
+		std::perror("webserv: start failed (is another instance running?");
+		return;
+	}
+	Logger::server("Server refreshed");
+}
 
-  while (true) {
-    epoll_event events[64];
-    int n = reactor_.wait(events, 64, 1);
+int Server::run() {
+	bool logged = false;
+	reactor_.add(STDIN_FILENO, EPOLLIN);
 
-    if (n > 0) {
-      for (int i = 0; i < n; ++i) {
-        int fd = events[i].data.fd;
-        if (fd == 0) {
-          if (executeStdin())
-            return;
-          logged = false;
-          continue;
-        }
-        uint32_t ev = events[i].events;
+	while (true) {
+		epoll_event events[64];
+		int n = reactor_.wait(events, 64, 1000);
+
+		if (n > 0) {
+			for (int i = 0; i < n; ++i) {
+				int fd = events[i].data.fd;
+				if (fd == 0) {
+					if (int run = executeStdin()) {
+						cleanup();
+						return (run);
+					}
+					logged = false;
+					continue;
+				}
+				uint32_t ev = events[i].events;
 
         if (std::find(listener_.begin(), listener_.end(), fd) !=
             listener_.end()) {
@@ -577,30 +637,42 @@ void Server::run() {
           continue;
         }
 
-        if (ev & (EPOLLHUP | EPOLLERR)) {
-          reactor_.del(fd);
-          ::close(fd);
-          conns_.erase(fd);
-          continue;
-        }
+				std::map<int, Connection>::iterator it = conns_.find(fd);
+				if (it != conns_.end()) {
+					if (ev & (EPOLLHUP | EPOLLERR)) {
+						cgiHandler_.detachConnection(&it->second);
+						reactor_.del(fd);
+						::close(fd);
+						conns_.erase(fd);
+						continue;
+					}
+					if (ev & EPOLLIN)
+						handleReadable(fd);
+					if (ev & EPOLLOUT)
+						handleWritable(fd);
+					continue;
+				}
 
-        if (ev & EPOLLIN)
-          handleReadable(fd);
-        if (ev & EPOLLOUT)
-          handleWritable(fd);
-      }
-      if (logged)
-        Logger::server("ready");
-      logged = false;
-    } else {
-      if (!logged) {
-        std::cout << std::endl;
-        Logger::server("waiting...");
-      }
-      logged = true;
-    }
+				if (cgiHandler_.hasFd(fd)) {
+					if (ev & (EPOLLIN | EPOLLHUP | EPOLLERR)) {
+						cgiHandler_.handleMessage(fd);
+					}
+					continue;
+				}
+			}
+			if (logged)
+				Logger::server("ready\n");
+			logged = false;
+		} else {
+			if (!logged) {
+				Logger::server("waiting...");
+			}
+			logged = true;
+		}
 
-    cgiHandler_.handleResponses();
+		checkTimeouts();
+		cgiHandler_.checkCgiTimeouts();
+		//  cgiHandler_.handleResponses();
 
     for (std::map<int, Connection>::iterator it = conns_.begin();
          it != conns_.end(); ++it) {

@@ -1,6 +1,7 @@
 function openFileDialog(callback) {
   const input = document.createElement("input");
   input.type = "file";
+  input.multiple = true;
   input.accept = "*/*";
 
   input.onchange = () => {
@@ -88,6 +89,7 @@ function addScrollerMenu(label, p, options, onClick) {
       }
     }, 100);
   });
+  return d;
 }
 
 function addInputField(label, p, clr, bgrClr) {

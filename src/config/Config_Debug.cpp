@@ -1,4 +1,9 @@
+#include "../utils/Colors.hpp"
+#include "../utils/Logger.hpp"
 #include "Config.hpp"
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
 void	Config::debug_print_location(const LocationConf &location)
 {
@@ -30,7 +35,14 @@ void	Config::debug_print_location(const LocationConf &location)
 			std::cout << "            " << it->first << " : " << it->second << std::endl;
 	}
 	if (location.has_max_size)
-		std::cout << "            Max Size override: " << location.max_size << std::endl;
+		std::cout << clr << "            Max Size override: " << GREY
+			  << bytesToStr(location.max_size) << std::endl;
+	if ((int)location.cgi_maxOutput != -1)
+		std::cout << clr << "            Cgi Max Output: " << GREY
+			  << bytesToStr(location.cgi_maxOutput) << std::endl;
+	if ((int)location.cgi_timeout_ms != -1)
+		std::cout << clr << "            Cgi Timeout: " << GREY
+			  << timeToStr(location.cgi_timeout_ms) << std::endl;
 }
 
 void	Config::debug_print_server(const ServerConf &server)
@@ -48,12 +60,14 @@ void	Config::debug_print_server(const ServerConf &server)
 	for (size_t i = 0; i < server.files.size(); ++i)
 		std::cout << " " << server.files[i];
 	std::cout << std::endl;
-	std::cout << "    Error pages:" << std::endl;
-	for (std::map<int, std::string>::const_iterator it = server.error_pages.begin(); it != server.error_pages.end(); ++it)
-		std::cout << "        " << it->first << " : " << "len of html: " << it->second.length() << std::endl;
-	std::cout<<std::endl;
-	std::cout << "    Max body size: " << server.max_size << std::endl;
-	std::cout << "    Locations:" <<std::endl;
+	std::cout << clr << "    Error pages:" << GREY << std::endl;
+	for (std::map<int, std::string>::const_iterator it = server.error_pages.begin();
+	     it != server.error_pages.end(); ++it)
+		std::cout << "        " << it->first << " " << it->second << std::endl;
+	std::cout << std::endl;
+	std::cout << clr << "    Max body size: " << GREY << bytesToStr(server.max_size)
+		  << std::endl;
+	std::cout << clr << "    Locations:" << GREY << std::endl;
 	for (size_t i = 0; i < server.locations.size(); ++i)
 		debug_print_location(server.locations[i]);
 }

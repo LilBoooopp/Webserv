@@ -4,21 +4,18 @@
 #include <map>
 #include <string>
 
-struct HttpRequest {
-	std::string method;
-	std::string target;
-	std::string version;
-	std::map<std::string, std::string> headers;
-};
+class HttpRequest {
+public:
+  std::map<std::string, std::string> headers;
+  std::string method;
+  std::string target;
+  std::string version;
 
-inline static void logRequest(const HttpRequest &req) {
-	if (!Logger::channels[LOG_REQUEST])
-		return;
-	const char *clr = rgba(122, 152, 126, 1);
-	Logger::request("%sMethod%s %s, %starget%s %s, %sversion%s %s", GREY, TS,
-			req.method.c_str(), GREY, TS, req.target.c_str(), GREY, TS,
-			req.version.c_str());
-	std::map<std::string, std::string>::const_iterator it;
-	for (it = req.headers.begin(); it != req.headers.end(); it++)
-		Logger::header("%s%-20s > %s", clr, it->first.c_str(), it->second.c_str());
-}
+  HttpRequest();
+  bool hasHeader(const std::string &key) const;
+  bool eraseHeader(const std::string &key);
+  std::string getHeader(const std::string &key) const;
+  void removeBoundary(std::string &body, const std::string &boundary);
+
+  void log() const;
+};

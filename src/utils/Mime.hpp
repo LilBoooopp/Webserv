@@ -1,5 +1,7 @@
 #pragma once
 #include <cctype>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
 struct MimePair {
@@ -7,7 +9,7 @@ struct MimePair {
 	const char *mime;
 };
 
-std::string mime_from_path(const std::string &p) {
+inline std::string mime_from_path(const std::string &p) {
 	static const MimePair table[] = {// --- Text ---
 					 {"txt", "text/plain"},
 					 {"html", "text/html"},

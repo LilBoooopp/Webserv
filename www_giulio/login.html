@@ -13,6 +13,7 @@
     <script src="/js/div.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/inputField.js"></script>
+    <script src="/js/audio.js"></script>
 
     <form id="createForm" autocomplete="on" onsubmit="handleAuth(event)">
       <input type="text" name="user" placeholder="nom utilisateur" style="position: absolute; top: 40%; left: 44%" />
@@ -26,6 +27,13 @@
         const c = [window.innerWidth / 2, window.innerHeight / 2];
         addDiv("Login", [c[0], c[1] - 150], 3);
         addHomeButton();
+        addDarkModeButton();
+        initBackground(true);
+
+        const loginBtn = document.querySelector('button[name="action"][value="login"]');
+        const registerBtn = document.querySelector('button[name="action"][value="register"]');
+        addInfo(loginBtn, "POST /cgi-bin/auth/sessionManagment/login.php HTTP/1.1\n - username: ...\n - password: ...");
+        addInfo(registerBtn, "POST /cgi-bin/auth/sessionManagment/register.php HTTP/1.1\n - username: ...\n - password: ...");
       }
       init();
     </script>

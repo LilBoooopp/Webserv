@@ -10,23 +10,6 @@ template <typename T> std::string to_string(const T &value) {
   return (ss.str());
 }
 
-inline static const LocationConf *findLocation(const ServerConf &conf,
-                                               const std::string &reqTarget) {
-  const LocationConf *best = NULL;
-  size_t bestLen = 0;
-  for (size_t i = 0; i < conf.locations.size(); ++i) {
-    const LocationConf &loc = conf.locations[i];
-    const std::string &lp = loc.path;
-    if (reqTarget.compare(0, lp.size(), lp) == 0) {
-      if (lp.size() > bestLen) {
-        best = &loc;
-        bestLen = lp.size();
-      }
-    }
-  }
-  return best;
-}
-
 static std::vector<std::string> split(const std::string &s, char sep) {
   std::vector<std::string> tokens;
   std::string token;

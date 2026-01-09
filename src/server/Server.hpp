@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../cgi/cgi.hpp"
+#include "../cgi/Cgi.hpp"
 #include "../config/Config.hpp"
 #include "../core/EpollReactor.hpp"
 #include "../http/Connection.hpp"
@@ -15,16 +15,15 @@
 #include <unistd.h>
 #include <vector>
 
-#define MAX_READ 1024 * 16
-#define MAX_WRITE 1024 * 16
-
+class CgiHandler;
 class Server {
 	EpollReactor reactor_;
 	std::vector<Listener> listener_;
 	std::map<int, Connection> conns_;
 	std::vector<char> inbuf_;
+	Config conf_;
 	std::vector<ServerConf> cfg_;
-	cgiHandler cgiHandler_;
+	CgiHandler cgiHandler_;
 
 	void acceptReady();
 	void handleReadable(int fd);
@@ -32,12 +31,14 @@ class Server {
 	void enableWrite(int fd);
 	void disableWrite(int fd);
 	void prepareResponse(int fd, Connection &c);
-	void redirectError(Connection &c);
+	void checkTimeouts();
 
     public:
-	Server() : inbuf_(8192) {}
-	bool start(std::vector<ServerConf> &config);
-	void setConf(std::vector<ServerConf> config);
-	void run();
-	bool executeStdin();
+		Server(Config conf) : inbuf_(8192), conf_(conf) {}
+		bool start();
+		int run();
+		int executeStdin();
+		void refresh();
+		void cleanup();
+		std::string conf_path_;
 };

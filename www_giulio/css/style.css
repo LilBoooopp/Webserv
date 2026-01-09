@@ -26,3 +26,73 @@ body {
   opacity: 0;
   transform: translateY(-10px) scale(0.95);
 }
+
+.button {
+  background-color: rgba(0, 0, 0, 0.506);
+  border-radius: 5px;
+  display: inline-block;
+  padding: 8px 12px;
+  position: absolute;
+  user-select: none;
+  cursor: pointer;
+  transition: scale 0.2s ease-out;
+
+  font-family: inherit;
+  transition: transform 0.2s cubic-bezier(0.4, 2, 0.6, 1), box-shadow 0.2s;
+}
+.button:hover {
+  transform: scale(1.05);
+  box-shadow: 2px 2px 0 0 #e2e2e2, 0 0 0 2px #dcdcdc;
+}
+
+.mineSweeperCell {
+  background-color: rgb(195, 195, 195);
+  box-shadow: inset 2px 2px 0 0 rgb(187, 187, 187), inset -2px -2px 0 0 rgb(192, 192, 192);
+  box-sizing: border-box;
+  user-select: none;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+}
+
+.mineSweeperCell.hidden {
+  background-color: rgb(195, 195, 195);
+  box-shadow: inset 5px 5px 0 0 rgb(242, 242, 242), inset -5px -5px 0 0 rgb(70, 70, 70);
+}
+
+.mineSweeperCell.flagged {
+  background: url("/ressources/img/mineSweeperIcons/flag.png") center/cover no-repeat;
+  background-color: rgb(195, 195, 195);
+}
+
+.mineSweeperCell.mine {
+  background: url("/ressources/img/mineSweeperIcons/mine.png") center/cover no-repeat;
+  background-color: rgb(195, 195, 195);
+}
+
+.audio-button {
+  user-select: none;
+  scale: 0.6;
+  transition: scale 0.2s ease-out;
+  cursor: pointer;
+}
+
+.audio-button:hover {
+  scale: 0.8;
+}
+
+.audio-button:active {
+  scale: 0.75;
+}
+
+@font-face {
+  font-family: "Segment7";
+  src: url("../ressources/fonts/Segment7.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+.seven-seg {
+  font-family: "Segment7", monospace;
+  font-size: 48px;
+  color: #e53935; /* red LED look */
+  letter-spacing: 2px; /* space between digits */
+}

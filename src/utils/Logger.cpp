@@ -1,29 +1,34 @@
-#include "Logger.hpp"
-#include "Chrono.hpp"
-#include "Colors.hpp"
+#include "Utils.hpp"
+#include <iomanip>
 #include <sstream>
 
 bool Logger::channels[loggerChannelsCount] = {
     true,  // LOG_NONE (0)
-    true,  // LOG_ERROR (1)
-    true,  // LOG_INFO (2)
-    true,  // LOG_SERVER (3)
-    false, // LOG_CONN (4)
+    true,  // LOG_INFO (1)
+    true,  // LOG_SERVER (2)
+    false, // LOG_CONN (3)
+    true,  // LOG_ROUTER (4)
     true,  // LOG_CGI (5)
     true,  // LOG_REQUEST (6)
     true,  // LOG_RESPONSE (7)
     false, // LOG_HEADER (8)
-    false  // LOG_BODY (9)
+    false, // LOG_BODY (9)
+    true,  // LOG_ERROR (10)
+    true   // LOG_WARN (1)
 };
 
 static void vlog(LogChannel want, const char *tag, const char *fmt, const char *clr, va_list ap) {
 	if (want >= LOG_NONE && want < LOG_ALL && !Logger::channels[want])
 		return;
+	if (want == LOG_WARN) {
+		std::fprintf(stderr, "%s!!!---------!!! %s !!!---------!!!%s", clr, tag, TS);
+		return;
+	}
 	if (tag) {
-		if (want == LOG_HEADER || want == LOG_CONNECTION)
-			std::fprintf(stderr, "%s%s%s", clr, tag, TS);
+		if (want == LOG_HEADER)
+			std::fprintf(stderr, "%s%-15s%-8s", clr, tag, TS);
 		else
-			std::fprintf(stderr, "%s%s%s %-6s %s", rgb(163, 163, 163),
+			std::fprintf(stderr, "%s%-15s%s %-8s%-8s", rgb(163, 163, 163),
 				     getTimestamp().c_str(), clr, tag, TS);
 	}
 
@@ -44,19 +49,21 @@ static void log_internal(LogChannel level, const char *tag, const char *color, c
 		va_end(ap);                                                                        \
 	}
 
-LOGGER_IMPL(error, "ERROR", LOG_ERROR, RED)
 LOGGER_IMPL(info, "INFO", LOG_INFO, BLUE)
 LOGGER_IMPL(server, "SERVER", LOG_SERVER, rgba(82, 96, 149, 1))
-LOGGER_IMPL(connection, "Connection ", LOG_CONNECTION, rgba(111, 82, 149, 1))
+LOGGER_IMPL(connection, "CONN", LOG_CONNECTION, rgba(111, 82, 149, 1))
 LOGGER_IMPL(cgi, "CGI", LOG_CGI, rgba(190, 145, 103, 1))
+LOGGER_IMPL(router, "ROUTER", LOG_ROUTER, rgba(109, 190, 103, 1))
 LOGGER_IMPL(request, "REQUEST", LOG_REQUEST, rgba(76, 156, 116, 1))
 LOGGER_IMPL(response, "RESPONSE", LOG_RESPONSE, rgba(166, 130, 193, 1))
 LOGGER_IMPL(header, "  ", LOG_HEADER, rgba(215, 209, 147, 1))
 LOGGER_IMPL(timer, "", LOG_ALL, TS)
 LOGGER_IMPL(simple, NULL, LOG_ALL, NULL)
+LOGGER_IMPL(error, "ERROR", LOG_ALL, RED)
+LOGGER_IMPL(warn, "WARN", LOG_ALL, RED)
 
 void Logger::printChannels() {
-	for (int i = 1; i < LOG_ALL; ++i) {
+	for (int i = 1; i <= LOG_BODY; ++i) {
 		const std::string &name = LoggerLevels[i];
 		int blockWidth = static_cast<int>(name.size()) + 3;
 
@@ -80,7 +87,7 @@ void Logger::printChannels() {
 	}
 	std::fprintf(stderr, "\n");
 
-	for (int i = 1; i < LOG_ALL; ++i) {
+	for (int i = 1; i <= LOG_BODY; ++i) {
 		const std::string &name = LoggerLevels[i];
 		std::fprintf(stderr, "%s[%s]%s ", channels[i] ? GREEN : RED, name.c_str(), TS);
 	}
@@ -93,4 +100,75 @@ std::string toUpper(const std::string &s) {
 		S[i] = std::toupper(static_cast<unsigned char>(s[i]));
 	}
 	return S;
+}
+
+std::string bytesToStr(size_t b, bool useColor) {
+	static const char *unitLabels[] = {"bytes", "kb", "mb", "gb", "tb", "pb"};
+	static const char *unitColors[] = {rgb(140, 170, 230), rgb(120, 200, 160),
+					   rgb(210, 190, 120), rgb(220, 160, 110),
+					   rgb(214, 126, 133), rgb(190, 120, 200)};
+
+	std::ostringstream os;
+	const char *reset = useColor ? TS : "";
+
+	if (b < 1000) {
+		const char *c = useColor ? unitColors[0] : "";
+		os << c << b << " " << unitLabels[0] << reset;
+		return os.str();
+	}
+
+	double value = static_cast<double>(b);
+	int unit = 0;
+	while (value >= 1000.0 && unit < 5) {
+		value /= 1000.0;
+		++unit;
+	}
+
+	const char *c = useColor ? unitColors[unit] : "";
+	os << c << std::fixed << std::setprecision(1) << value << " " << unitLabels[unit] << reset;
+	return os.str();
+}
+
+std::string timeToStr(size_t ms, bool useColor) {
+	std::ostringstream os;
+	const char *c = useColor ? TIMECLR : "";
+	const char *reset = useColor ? TS : "";
+
+	if (ms < 1000)
+		return (os << c << ms << " ms" << reset, os.str());
+
+	size_t seconds = ms / 1000;
+	size_t rem_ms = ms % 1000;
+
+	if (seconds < 60) {
+		os << c << seconds << "s";
+		if (rem_ms)
+			os << " " << rem_ms << "ms";
+		os << reset;
+		return os.str();
+	}
+
+	size_t minutes = seconds / 60;
+	size_t rem_s = seconds % 60;
+
+	if (minutes < 60) {
+		os << c << minutes << "m";
+		if (rem_s)
+			os << " " << rem_s << "s";
+		if (rem_ms)
+			os << " " << rem_ms << "ms";
+		os << reset;
+		return os.str();
+	}
+
+	size_t hours = minutes / 60;
+	minutes %= 60;
+
+	os << c << hours << "h";
+	if (minutes)
+		os << " " << minutes << "m";
+	if (rem_s)
+		os << " " << rem_s << "s";
+	os << reset;
+	return os.str();
 }

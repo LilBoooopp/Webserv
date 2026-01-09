@@ -24,6 +24,7 @@ class ContextMenu {
         { label: "Thickness", t: "slider", get: () => this.target.thick, set: (v) => (this.target.thick = v), min: 1, max: 40, step: 1 },
         { label: "Gravity X", t: "slider", get: () => this.target.gravity.x, set: (v) => (this.target.gravity.x = v), min: -100, max: 100, step: 1 },
         { label: "Gravity Y", t: "slider", get: () => this.target.gravity.y, set: (v) => (this.target.gravity.y = v), min: -100, max: 100, step: 1 },
+        { label: "Rigid", t: "switch", get: () => this.target.isRigid, set: (v) => (this.target.isRigid = v) },
       ],
       Duplicate: {
         label: "Duplicate",
@@ -102,8 +103,10 @@ class ContextMenu {
         {
           label: "Entity",
           section: [
-            { label: "Snake", t: "function", f: () => Snake.instantiate(new Vec2(mouse.pos.x, mouse.pos.y)) },
-            { label: "Spider", t: "function", f: () => Spider.instantiate(new Vec2(mouse.pos.x, mouse.pos.y)) },
+            { label: "Snake", t: "function", f: () => RopeEntity.instantiate(Snake, new Vec2(mouse.pos.x, mouse.pos.y)) },
+            { label: "LugWorm", t: "function", f: () => RopeEntity.instantiate(Lugworm, new Vec2(mouse.pos.x, mouse.pos.y)) },
+            { label: "Spider", t: "function", f: () => RopeEntity.instantiate(Spider, new Vec2(mouse.pos.x, mouse.pos.y)) },
+            { label: "RobotArm", t: "function", f: () => RopeEntity.instantiate(RobotArm, new Vec2(mouse.pos.x, mouse.pos.y)) },
           ],
         },
         { label: "Wind", t: "function", f: () => AirPusher.instantiate(new Vec2(mouse.pos.x, mouse.pos.y)) },
@@ -293,10 +296,10 @@ class ContextMenu {
         this.hovPath = section;
         this.hasHov = true;
       }
-      drawRect(pos[0], pos[1], this.w, spacing, this.color);
+      drawRect(pos[0], pos[1], this.w, spacing, this.hovPath === section ? "white" : this.color);
 
       var sectionValue = sections[section];
-      var clr = this.hovPath === section ? "white" : "rgba(130, 130, 130, 1)";
+      var clr = this.hovPath === section ? "black" : "white";
       drawText(ctx, [pos[0] + 5, pos[1] - 4], section, clr, null, 14, false);
       var hasSubMenu = Array.isArray(sectionValue);
       if (hasSubMenu) drawText(ctx, [pos[0] + this.w - 20, pos[1] - 4], "▶", clr, null, 8, false);
@@ -354,6 +357,20 @@ class CollisionGrid {
       var p = s.type === "CIRCLE" ? s.pos : new Vec2(s.pos.x + s.size.x / 2, s.pos.y + s.size.y / 2);
       this.addToMap(s, p);
     }
+    for (const e of entities) {
+      if (e.segments && Array.isArray(e.segments)) {
+        for (const seg of e.segments) this.addToMap(seg, new Vec2(seg.pos.x, seg.pos.y));
+      } else if (e.pos) {
+        this.addToMap(e, new Vec2(e.pos.x, e.pos.y));
+      }
+    }
+  }
+
+  show() {
+    this.shown = true;
+  }
+  hide() {
+    this.shown = false;
   }
 
   addToMap(obj, pos) {
@@ -447,8 +464,16 @@ function shakeAll(amount = 10) {
 }
 
 function clearAll() {
+  gravity = new Vec2(0, 100);
+  colGrid.init(window.innerWidth / 8);
+  colGrid.hide();
+  SelfCollisionsInterval = 1;
+  numOfConstraintsRuns = 50;
+  showAnchors = false;
+  showDots = false;
   ropes = [];
   shapes = [];
+  entities = [];
   airPushers = [];
   hovAirPusher = selAirPusher = hovDirPusher = selDirPusher = hovSegment = selSegment = hovShape = selShape = null;
 }

@@ -1,5 +1,6 @@
 function snakesInSpace(am = 10) {
   colGrid.init(100, false);
+  SelfCollisionsInterval = 1;
   clearAll();
   var center = new Vec2(window.innerWidth / 2, window.innerHeight / 2);
   gravity = new Vec2(0, 0);
@@ -15,8 +16,8 @@ function snakesInSpace(am = 10) {
 
 function upsideDownWorld(am = 100) {
   colGrid.init(20, false);
-  clearAll();
-  gravity = new Vec2(0, -100);
+  SelfCollisionsInterval = 0;
+  gravity = new Vec2(0, -32);
   for (let i = 0; i < am; i++) {
     var p = new Vec2((window.innerWidth / am) * i, window.innerHeight);
     var r = new Rope(p, p, "rgba(101, 235, 228, 1)", 2, 40, 10);
@@ -24,12 +25,11 @@ function upsideDownWorld(am = 100) {
     r.segments[r.segments.length - 1].setAnchor(null);
     ropes.push(r);
   }
-  Shape.removeAll();
-  setTimeout(() => {
-    var s = new Shape(new Vec2(0, window.innerHeight * 0.4), new Vec2(40, 40), "CIRCLE", getRandomColor(), 0, new Vec2(0, 100));
-    s.vel.x = 1000;
-    shapes.push(s);
-  }, 1000);
+  shakeAll(5);
+  var s = new Shape(new Vec2(0, window.innerHeight * 0.1), new Vec2(40, 40), "CIRCLE", getRandomColor(), 0, new Vec2(0, 100));
+  s.vel.x = 500;
+  s.gravity.y = 16;
+  shapes.push(s);
 }
 
 function weirdWorld(am = 400) {
@@ -141,6 +141,7 @@ function borderGrass() {
 function snakeBasketball() {
   colGrid.init(200, false);
   gravity = new Vec2(0, 100);
+  SelfCollisionsInterval = 1;
   var thick = 40;
   var limit = 200;
   var snake = Snake.instantiate(new Vec2(limit, window.innerHeight - limit), thick);

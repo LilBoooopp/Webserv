@@ -12,6 +12,7 @@ let ropeGroundFriction = 0.65;
 
 //	ELEMENTS
 let ropes = [];
+let entities = [];
 let shapes = [];
 let airPushers = [];
 
@@ -51,12 +52,13 @@ let fps = 0;
 let lastFpsTimer = performance.now();
 
 function render() {
-  ctx.fillStyle = "black";
+  ctx.fillStyle = "rgba(34, 34, 34, 1)";
   ctx.fillRect(0, 0, _canvas.width, _canvas.height);
   drawText(ctx, [window.innerWidth / 2, window.innerHeight * 0.4], "Ropes", "white", null, 50);
   for (const a of airPushers) a.render();
   for (const r of ropes) r.render();
   for (const s of shapes) s.render();
+  for (const e of entities) e.render();
 
   var seg = hovSegment ? hovSegment : selSegment;
   if (seg) {
@@ -112,6 +114,7 @@ function update() {
   if (ropeShaker && frame % 2 === 0) shakeAll(ropeShaker);
   for (const s of shapes) s.update();
   for (const r of ropes) r.update();
+  for (const e of entities) e.update();
   if (colGrid.active) colGrid.update();
   render();
   if (useMouse) updateSegSelection();
@@ -137,5 +140,6 @@ function loop() {
 function initRopeSimulation() {
   initCanvas();
   colGrid = new CollisionGrid();
+  upsideDownWorld();
   loop();
 }

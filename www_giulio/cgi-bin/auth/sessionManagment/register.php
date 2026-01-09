@@ -2,25 +2,30 @@
 require_once __DIR__ . "/../storage.php";
 
 header("Content-Type: application/json");
+header("Connection: close");
+
+$send_json = function (array $payload) {
+	$json = json_encode($payload);
+	header("Content-Length: " . strlen($json));
+	echo $json;
+	exit();
+};
 
 $user = $_SERVER["HTTP_USERNAME"] ?? null;
 if (!$user) {
-	echo json_encode(["success" => false, "error" => "USERNAME MISSING"]);
-	exit();
+	$send_json(["success" => false, "error" => "USERNAME MISSING"]);
 }
 
 $pass = $_SERVER["HTTP_PASSWORD"] ?? null;
 if (!$pass) {
-	echo json_encode(["success" => false, "error" => "PASSWORD MISSING"]);
-	exit();
+	$send_json(["success" => false, "error" => "PASSWORD MISSING"]);
 }
 
 $hash = password_hash($pass, PASSWORD_DEFAULT);
 $ctx = storage_open();
 
 if (storage_get_user($ctx, $user)) {
-	echo json_encode(["success" => false, "error" => "USERNAME TAKEN"]);
-	exit();
+	$send_json(["success" => false, "error" => "USERNAME TAKEN"]);
 }
 
 $ok = storage_insert_user($ctx, [
@@ -36,8 +41,7 @@ $ok = storage_insert_user($ctx, [
 ]);
 
 if (!$ok) {
-	echo json_encode(["success" => false, "error" => "ERROR"]);
-	exit();
+	$send_json(["success" => false, "error" => "ERROR"]);
 }
 
 session_start();
@@ -51,4 +55,6 @@ $_SESSION["tel"] = "";
 $_SESSION["email"] = "";
 $_SESSION["secret"] = "";
 
-echo json_encode(["success" => true, "user" => $user]);
+session_write_close();
+
+$send_json(["success" => true, "user" => $user]);

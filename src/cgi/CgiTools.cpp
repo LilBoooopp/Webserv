@@ -60,6 +60,9 @@ bool CgiData::tryInit(Connection &c, int fd) {
 			    requestUri.c_str());
 		return false;
 	}
+	const LocationConf *loc = Router::matchLocation(c.cfg, requestUri);
+	timeout_ms = loc->cgi_timeout_ms;
+	maxOutput = loc->cgi_maxOutput;
 	return true;
 }
 

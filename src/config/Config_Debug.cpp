@@ -1,6 +1,9 @@
 #include "../utils/Colors.hpp"
+#include "../utils/Logger.hpp"
 #include "Config.hpp"
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
 void Config::debug_print_location(const LocationConf &location, const char *clr) {
 	std::cout << "        " << TS << location.path << std::endl;
@@ -32,8 +35,14 @@ void Config::debug_print_location(const LocationConf &location, const char *clr)
 	if (location.has_php)
 		std::cout << clr << "             .php: " << GREY << location.php_path << std::endl;
 	if (location.has_max_size)
-		std::cout << clr << "            Max Size override: " << GREY << location.max_size
-			  << std::endl;
+		std::cout << clr << "            Max Size override: " << GREY
+			  << bytesToStr(location.max_size) << std::endl;
+	if ((int)location.cgi_maxOutput != -1)
+		std::cout << clr << "            Cgi Max Output: " << GREY
+			  << bytesToStr(location.cgi_maxOutput) << std::endl;
+	if ((int)location.cgi_timeout_ms != -1)
+		std::cout << clr << "            Cgi Timeout: " << GREY
+			  << timeToStr(location.cgi_timeout_ms) << std::endl;
 }
 
 void Config::debug_print_server(const ServerConf &server, const char *clr) {
@@ -55,7 +64,8 @@ void Config::debug_print_server(const ServerConf &server, const char *clr) {
 	     it != server.error_pages.end(); ++it)
 		std::cout << "        " << it->first << " " << it->second << std::endl;
 	std::cout << std::endl;
-	std::cout << clr << "    Max body size: " << GREY << server.max_size << std::endl;
+	std::cout << clr << "    Max body size: " << GREY << bytesToStr(server.max_size)
+		  << std::endl;
 	std::cout << clr << "    Locations:" << GREY << std::endl;
 	for (size_t i = 0; i < server.locations.size(); ++i)
 		debug_print_location(server.locations[i], clr);

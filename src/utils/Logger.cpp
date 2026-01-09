@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include <iomanip>
 #include <sstream>
 
 bool Logger::channels[loggerChannelsCount] = {
@@ -99,4 +100,75 @@ std::string toUpper(const std::string &s) {
 		S[i] = std::toupper(static_cast<unsigned char>(s[i]));
 	}
 	return S;
+}
+
+std::string bytesToStr(size_t b, bool useColor) {
+	static const char *unitLabels[] = {"bytes", "kb", "mb", "gb", "tb", "pb"};
+	static const char *unitColors[] = {rgb(140, 170, 230), rgb(120, 200, 160),
+					   rgb(210, 190, 120), rgb(220, 160, 110),
+					   rgb(214, 126, 133), rgb(190, 120, 200)};
+
+	std::ostringstream os;
+	const char *reset = useColor ? TS : "";
+
+	if (b < 1000) {
+		const char *c = useColor ? unitColors[0] : "";
+		os << c << b << " " << unitLabels[0] << reset;
+		return os.str();
+	}
+
+	double value = static_cast<double>(b);
+	int unit = 0;
+	while (value >= 1000.0 && unit < 5) {
+		value /= 1000.0;
+		++unit;
+	}
+
+	const char *c = useColor ? unitColors[unit] : "";
+	os << c << std::fixed << std::setprecision(1) << value << " " << unitLabels[unit] << reset;
+	return os.str();
+}
+
+std::string timeToStr(size_t ms, bool useColor) {
+	std::ostringstream os;
+	const char *c = useColor ? TIMECLR : "";
+	const char *reset = useColor ? TS : "";
+
+	if (ms < 1000)
+		return (os << c << ms << " ms" << reset, os.str());
+
+	size_t seconds = ms / 1000;
+	size_t rem_ms = ms % 1000;
+
+	if (seconds < 60) {
+		os << c << seconds << "s";
+		if (rem_ms)
+			os << " " << rem_ms << "ms";
+		os << reset;
+		return os.str();
+	}
+
+	size_t minutes = seconds / 60;
+	size_t rem_s = seconds % 60;
+
+	if (minutes < 60) {
+		os << c << minutes << "m";
+		if (rem_s)
+			os << " " << rem_s << "s";
+		if (rem_ms)
+			os << " " << rem_ms << "ms";
+		os << reset;
+		return os.str();
+	}
+
+	size_t hours = minutes / 60;
+	minutes %= 60;
+
+	os << c << hours << "h";
+	if (minutes)
+		os << " " << minutes << "m";
+	if (rem_s)
+		os << " " << rem_s << "s";
+	os << reset;
+	return os.str();
 }

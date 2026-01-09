@@ -227,7 +227,20 @@ void Server::handleReadable(int fd) {
             } else {
               c.is_chunked = has_te_chunked;
               c.want_body = has_cl ? content_length : 0;
-              c.body.clear();
+
+              if (c.want_body > 0 || c.is_chunked) {
+                std::stringstream ss;
+                ss << "/tmp/webserv_temp_" << fd << "_" << now_ms();
+                c.temp_filename = ss.str();
+
+                c.temp_fd = open(c.temp_filename.c_str(),
+                                 O_CREAT | O_WRONLY | O_TRUNC, 0644);
+                if (c.temp_fd < 0) {
+                  c.res.setStatusFromCode(500);
+                  c.state = WRITING_RESPONSE;
+                  return;
+                }
+              }
 
               // size limit for non-chunked CL bodies
               if (has_cl && c.want_body > c.cfg.locations[0].max_size) {
@@ -323,22 +336,42 @@ void Server::handleReadable(int fd) {
         } else {
           // Non-chunked body: consume up to want_body, capped by
           // decode_left
-          if (c.want_body > c.body.size() && !c.in.empty() && decode_left > 0) {
-            size_t room = c.want_body - c.body.size();
+          if (c.want_body > 0 && !c.in.empty() && decode_left > 0) {
+            size_t room = c.want_body - (handled - c.in.size());
             size_t take = c.in.size();
             if (take > room)
               take = room;
             if (take > decode_left)
               take = decode_left;
 
-            c.body.append(c.in.data(), take);
+            ssize_t written = write(c.temp_fd, c.in.data(), take);
+            if (written < 0) {
+              close(c.temp_fd);
+              c.temp_fd = -1;
+              c.res.setStatusFromCode(500);
+              c.state = WRITING_RESPONSE;
+              return;
+            }
+
+            // size_t room = c.want_body - c.body.size();
+            // size_t take = c.in.size();
+            // if (take > room)
+            //   take = room;
+            // if (take > decode_left)
+            //   take = decode_left;
+
+            // c.body.append(c.in.data(), take);
             c.in.erase(0, take);
             decode_left -= take;
           }
           // If we now have the full body, we can move on to
           // responding
-          if (c.body.size() == c.want_body)
-            c.state = WRITING_RESPONSE;
+          if (c.body.size() >= c.want_body)
+            if (c.temp_fd != -1) {
+              close(c.temp_fd);
+              c.temp_fd = -1;
+            }
+          c.state = WRITING_RESPONSE;
         }
       }
 

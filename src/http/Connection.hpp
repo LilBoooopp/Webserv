@@ -37,6 +37,9 @@ public:
   size_t want_body; // expected body length (from Content-Length)
   bool is_chunked;  // trye if TE: chunked
 
+  int temp_fd;
+  std::string temp_filename;
+
   size_t start;
   HttpRequest req;
 

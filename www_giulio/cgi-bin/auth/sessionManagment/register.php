@@ -4,6 +4,11 @@ require_once __DIR__ . "/../storage.php";
 header("Content-Type: application/json");
 header("Connection: close");
 
+$session_dir = realpath(__DIR__ . '/../../../../sessions');
+if ($session_dir) {
+	session_save_path($session_dir);
+}
+
 $send_json = function (array $payload) {
 	$json = json_encode($payload);
 	header("Content-Length: " . strlen($json));

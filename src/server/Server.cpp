@@ -39,8 +39,8 @@ void Server::cleanup() {
 }
 
 static int set_nonblock(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
+	int flags = fcntl(fd, F_GETFL, 0);
+	return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
 }
 
 /**
@@ -146,10 +146,9 @@ void Server::checkTimeouts() {
 void Server::handleReadable(int fd) {
 	Connection &c = conns_.at(fd);
 
-  const size_t MAX_HANDLE_BYTES =
-      16 * 1024; // max bytes to read from socket per iteration
-  const size_t MAX_DECODE_BYTES =
-      16 * 1024; // max bytes to consume from c.in for body parsin per iteration
+	const size_t MAX_HANDLE_BYTES = 16 * 1024; // max bytes to read from socket per iteration
+	const size_t MAX_DECODE_BYTES =
+	    16 * 1024; // max bytes to consume from c.in for body parsin per iteration
 
 	c.last_active = now_ms();
 
@@ -160,44 +159,45 @@ void Server::handleReadable(int fd) {
 			handled += static_cast<size_t>(r);
 			c.in.append(&inbuf_[0], static_cast<size_t>(r));
 
-      // Header cap defense
-      // if (c.state == READING_HEADERS && c.in.size() > MAX_HANDLE_BYTES)
-      //{
-      //	HttpResponse	res(431);
-      //	c.res.setContentType("text/plain");
-      //	c.res.setBody("header too large");
-      //	c.out = c.res.serialize(false);
-      //	c.state = WRITING_c.resPONSE;
-      //	enableWrite(fd);
-      //	c.in.clear();
-      //	break;
-      //}
+			// Header cap defense
+			// if (c.state == READING_HEADERS && c.in.size() > MAX_HANDLE_BYTES)
+			//{
+			//	HttpResponse	res(431);
+			//	c.res.setContentType("text/plain");
+			//	c.res.setBody("header too large");
+			//	c.out = c.res.serialize(false);
+			//	c.state = WRITING_c.resPONSE;
+			//	enableWrite(fd);
+			//	c.in.clear();
+			//	break;
+			//}
 
-      // READING_HEADERS
-      if (c.state == READING_HEADERS) {
-        size_t eoh = c.in.find("\r\n\r\n");
-        if (eoh != std::string::npos) {
-          c.headers_done = true;
+			// READING_HEADERS
+			if (c.state == READING_HEADERS) {
+				size_t eoh = c.in.find("\r\n\r\n");
+				if (eoh != std::string::npos) {
+					c.headers_done = true;
 
-          size_t endpos = 0;
+					size_t endpos = 0;
 
-          if (!HttpParser::parse(c, endpos)) {
-            if (c.req.version != "HTTP/1.1" && c.req.version != "HTTP/1.0" &&
-                c.req.method != "" && c.req.target != "") {
-              c.res.setStatusFromCode(505);
-            } else {
-              c.res.setStatusFromCode(400);
-              c.res.setVersion(c.req.version);
-            }
-            c.state = WRITING_RESPONSE;
-            c.in.clear();
-          } else {
-            bool bad = false;
+					if (!HttpParser::parse(c, endpos)) {
+						if (c.req.version != "HTTP/1.1" &&
+						    c.req.version != "HTTP/1.0" &&
+						    c.req.method != "" && c.req.target != "") {
+							c.res.setStatusFromCode(505);
+						} else {
+							c.res.setStatusFromCode(400);
+							c.res.setVersion(c.req.version);
+						}
+						c.state = WRITING_RESPONSE;
+						c.in.clear();
+					} else {
+						bool bad = false;
 
-            // TE/CL detection
-            bool has_te_chunked = false;
-            bool has_cl = false;
-            size_t content_length = 0;
+						// TE/CL detection
+						bool has_te_chunked = false;
+						bool has_cl = false;
+						size_t content_length = 0;
 
 						// Check for Content-Length header
 						std::string str = c.req.getHeader("content-length");
@@ -237,9 +237,9 @@ void Server::handleReadable(int fd) {
 							}
 						}
 
-            // Having both CL and TE:chunked is invalid
-            if (has_cl && has_te_chunked)
-              bad = true;
+						// Having both CL and TE:chunked is invalid
+						if (has_cl && has_te_chunked)
+							bad = true;
 
 						if (bad) {
 							// Malformed or conflicint headers
@@ -291,47 +291,55 @@ void Server::handleReadable(int fd) {
 								// is leftover
 								c.in.erase(0, endpos);
 
-                // Pre-consume body bytes for
-                // Content-Length requests
-                if (!c.is_chunked && c.want_body > 0 && !c.in.empty()) {
-                  size_t take =
-                      (c.in.size() > c.want_body) ? c.want_body : c.in.size();
-                  c.body.append(c.in.data(), take);
-                  c.in.erase(0, take);
-                }
+								// Pre-consume body bytes for
+								// Content-Length requests
+								if (!c.is_chunked &&
+								    c.want_body > 0 &&
+								    !c.in.empty()) {
+									size_t take =
+									    (c.in.size() >
+									     c.want_body)
+										? c.want_body
+										: c.in.size();
+									c.body.append(c.in.data(),
+										      take);
+									c.in.erase(0, take);
+								}
 
-                if (c.is_chunked) {
-                  // Initialize chunk decoder
-                  c.decoder.reset();
-                  c.state = READING_BODY;
-                } else if (c.want_body == c.body.size()) // No Body
-                                                         // or
-                                                         // already
-                                                         // have
-                                                         // entire
-                                                         // body
-                  c.state = WRITING_RESPONSE;
-                else // still need more body bytes
-                  c.state = READING_BODY;
-              }
-            }
-          }
-        }
-      }
+								if (c.is_chunked) {
+									// Initialize chunk decoder
+									c.decoder.reset();
+									c.state = READING_BODY;
+								} else if (c.want_body ==
+									   c.body.size()) // No Body
+											  // or
+											  // already
+											  // have
+											  // entire
+											  // body
+									c.state = WRITING_RESPONSE;
+								else // still need more body bytes
+									c.state = READING_BODY;
+							}
+						}
+					}
+				}
+			}
 
-      // READING_BODY
-      if (c.state == READING_BODY) {
-        size_t decode_left = MAX_DECODE_BYTES;
+			// READING_BODY
+			if (c.state == READING_BODY) {
+				size_t decode_left = MAX_DECODE_BYTES;
 
-        if (c.is_chunked) {
-          // Chunked transfer decoding loop
-          while (decode_left > 0 && !c.in.empty()) {
-            size_t before = c.in.size();
-            ChunkedDecoder::Status st = c.decoder.feed(c.in, c.body);
-            size_t consumed = before - c.in.size();
-            if (consumed > decode_left)
-              consumed = decode_left;
-            decode_left -= consumed;
+				if (c.is_chunked) {
+					// Chunked transfer decoding loop
+					while (decode_left > 0 && !c.in.empty()) {
+						size_t before = c.in.size();
+						ChunkedDecoder::Status st =
+						    c.decoder.feed(c.in, c.body);
+						size_t consumed = before - c.in.size();
+						if (consumed > decode_left)
+							consumed = decode_left;
+						decode_left -= consumed;
 
 						if (st == ChunkedDecoder::NEED_MORE)
 							break;
@@ -419,69 +427,67 @@ void Server::handleReadable(int fd) {
 				}
 			}
 
-      // Continue reading (if handled < MAX_HANDLE_BYTES) or exit the loop when
-      // the budget is used up
-      continue;
-    }
-    if (r == 0) {
-      c.peer_closed = true;
-      break;
-    }
-    break;
-  }
+			// Continue reading (if handled < MAX_HANDLE_BYTES) or exit the loop when
+			// the budget is used up
+			continue;
+		}
+		if (r == 0) {
+			c.peer_closed = true;
+			break;
+		}
+		break;
+	}
 }
 
 void Server::handleWritable(int fd) {
-  // Find the connection associated with the fd
-  std::map<int, Connection>::iterator it = conns_.find(fd);
-  if (it == conns_.end())
-    return;
+	// Find the connection associated with the fd
+	std::map<int, Connection>::iterator it = conns_.find(fd);
+	if (it == conns_.end())
+		return;
 
-  Connection &c = it->second;
+	Connection &c = it->second;
 
 	c.last_active = now_ms();
 	// Max number of bytes we will attempt to send in a single call.
 	// This prevents one big response from blocking other clients.
 	const size_t MAX_WRITE_BYTES = 16 * 1024;
 
-  if (!c.out.empty() && !c.responded) {
-    size_t written = 0; // bytes sent in this iteration
-    ssize_t offset = 0; // bytes consumed from front of c.out
+	if (!c.out.empty() && !c.responded) {
+		size_t written = 0; // bytes sent in this iteration
+		ssize_t offset = 0; // bytes consumed from front of c.out
 
-    // Socket write loop
-    while (written < MAX_WRITE_BYTES &&
-           offset < static_cast<ssize_t>(c.out.size())) {
-      // Try to send as much as possible from c.out, starting at 'offset'.
-      ssize_t w =
-          ::send(fd, c.out.data() + offset,
-                 c.out.size() - static_cast<size_t>(offset), MSG_NOSIGNAL);
-      if (w > 0) {
-        offset += w;
-        written += static_cast<size_t>(w);
-      } else {
-        // w < 0 -> error
-        // stop writing until epoll activates again
-        break;
-      }
-    }
+		// Socket write loop
+		while (written < MAX_WRITE_BYTES && offset < static_cast<ssize_t>(c.out.size())) {
+			// Try to send as much as possible from c.out, starting at 'offset'.
+			ssize_t w =
+			    ::send(fd, c.out.data() + offset,
+				   c.out.size() - static_cast<size_t>(offset), MSG_NOSIGNAL);
+			if (w > 0) {
+				offset += w;
+				written += static_cast<size_t>(w);
+			} else {
+				// w < 0 -> error
+				// stop writing until epoll activates again
+				break;
+			}
+		}
 
-    // Drop the bytes we successfully sent from the front of c.out.
-    if (offset > 0)
-      c.out.erase(0, static_cast<size_t>(offset));
-  }
+		// Drop the bytes we successfully sent from the front of c.out.
+		if (offset > 0)
+			c.out.erase(0, static_cast<size_t>(offset));
+	}
 
-  // If c.out is empty, decide to stream more file or finish
-  if (c.out.empty()) {
-    // If we still have a static file to stream, and we're not done
-    if (c.streaming_file && c.file_fd >= 0 && c.file_remaining > 0 &&
-        !c.responded) {
-      // Read next chunk from the file into c.out
-      const size_t FILE_CHUNK = 16 * 1024;
+	// If c.out is empty, decide to stream more file or finish
+	if (c.out.empty()) {
+		// If we still have a static file to stream, and we're not done
+		if (c.streaming_file && c.file_fd >= 0 && c.file_remaining > 0 && !c.responded) {
+			// Read next chunk from the file into c.out
+			const size_t FILE_CHUNK = 16 * 1024;
 
-      char buf[FILE_CHUNK];
-      size_t to_read = FILE_CHUNK;
-      if (static_cast<off_t>(to_read) > c.file_remaining)
-        to_read = static_cast<size_t>(c.file_remaining);
+			char buf[FILE_CHUNK];
+			size_t to_read = FILE_CHUNK;
+			if (static_cast<off_t>(to_read) > c.file_remaining)
+				to_read = static_cast<size_t>(c.file_remaining);
 
 			// Blocking read on regular file, but small (<= FILE_CHUNK) and not in a
 			// loop
@@ -563,8 +569,7 @@ int Server::executeStdin() {
 	} else if (std::strncmp(buff, "log", 3) == 0) {
 		if (buff[3]) {
 			std::string str = buff + 4;
-			std::vector<std::string> arr;
-			split(str, ' ', arr);
+			std::vector<std::string> arr = split(str, ' ');
 			for (size_t j = 0; j < arr.size(); j++) {
 				std::string level = arr[j];
 				size_t x = 0;
@@ -575,23 +580,25 @@ int Server::executeStdin() {
 				if (x)
 					continue;
 
-        std::string uLevel = toUpper(level);
-        for (int i = 0; i < LOG_ALL + 1; i++) {
-          if (!std::strncmp(level.c_str(), LoggerLevels[i].c_str(), 3)) {
-            Logger::setChannel(LOG_NONE);
-            Logger::setChannel((LogChannel)i);
-            break;
-          }
-          if (!std::strncmp(uLevel.c_str(), LoggerLevels[i].c_str(), 3)) {
-            Logger::setChannel((LogChannel)i);
-            break;
-          }
-        }
-      }
-    }
-    Logger::printChannels();
-  }
-  return false;
+				std::string uLevel = toUpper(level);
+				for (int i = 0; i < LOG_ALL + 1; i++) {
+					if (!std::strncmp(level.c_str(), LoggerLevels[i].c_str(),
+							  3)) {
+						Logger::setChannel(LOG_NONE);
+						Logger::setChannel((LogChannel)i);
+						break;
+					}
+					if (!std::strncmp(uLevel.c_str(), LoggerLevels[i].c_str(),
+							  3)) {
+						Logger::setChannel((LogChannel)i);
+						break;
+					}
+				}
+			}
+		}
+		Logger::printChannels();
+	}
+	return false;
 }
 
 void Server::refresh() {
@@ -630,12 +637,12 @@ int Server::run() {
 				}
 				uint32_t ev = events[i].events;
 
-        if (std::find(listener_.begin(), listener_.end(), fd) !=
-            listener_.end()) {
-          if (ev & EPOLLIN)
-            acceptReady();
-          continue;
-        }
+				if (std::find(listener_.begin(), listener_.end(), fd) !=
+				    listener_.end()) {
+					if (ev & EPOLLIN)
+						acceptReady();
+					continue;
+				}
 
 				std::map<int, Connection>::iterator it = conns_.find(fd);
 				if (it != conns_.end()) {
@@ -674,10 +681,10 @@ int Server::run() {
 		cgiHandler_.checkCgiTimeouts();
 		//  cgiHandler_.handleResponses();
 
-    for (std::map<int, Connection>::iterator it = conns_.begin();
-         it != conns_.end(); ++it) {
-      if (it->second.state == WRITING_RESPONSE && !it->second.out.empty())
-        enableWrite(it->first);
-    }
-  }
+		for (std::map<int, Connection>::iterator it = conns_.begin(); it != conns_.end();
+		     ++it) {
+			if (it->second.state == WRITING_RESPONSE && !it->second.out.empty())
+				enableWrite(it->first);
+		}
+	}
 }

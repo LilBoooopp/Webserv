@@ -1,5 +1,4 @@
 #include "config/Config.hpp"
-#include "http/HttpParser.hpp"
 #include "server/Server.hpp"
 #include "utils/Path.hpp"
 #include <arpa/inet.h>
@@ -38,7 +37,6 @@ int main(int argc, char **argv) {
     return (1);
 
   Config config;
-  Server s;
 
   if (getExtension(confPath, '.') != "conf") {
     std::cout << "Invalid configuration file:  " << confPath
@@ -54,9 +52,8 @@ int main(int argc, char **argv) {
     }
     config.debug_print();
 
-    std::vector<ServerConf> servers = config.getServers();
-
-    if (!s.start(servers)) {
+    Server s(config);
+    if (!s.start()) {
       std::perror("webserv: start failed (is another instance running?");
       return (1);
     }

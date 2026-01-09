@@ -250,7 +250,24 @@ void Server::handleReadable(int fd) {
 						} else {
 							c.is_chunked = has_te_chunked;
 							c.want_body = has_cl ? content_length : 0;
-							c.body.clear();
+
+							if (c.want_body > 0 || c.is_chunked) {
+								std::stringstream ss;
+								ss << "/tmp/webserv_temp_" << fd
+								   << "_" << now_ms();
+								c.temp_filename = ss.str();
+
+								c.temp_fd = open(
+								    c.temp_filename.c_str(),
+								    O_CREAT | O_WRONLY | O_TRUNC,
+								    0644);
+								if (c.temp_fd < 0) {
+									c.res.setStatusFromCode(
+									    500);
+									c.state = WRITING_RESPONSE;
+									return;
+								}
+							}
 
 							// size limit for non-chunked CL bodies
 							size_t maxSize =
@@ -342,6 +359,7 @@ void Server::handleReadable(int fd) {
 							consumed = decode_left;
 						decode_left -= consumed;
 
+<<<<<<< HEAD
 						if (st == ChunkedDecoder::NEED_MORE)
 							break;
 						if (st == ChunkedDecoder::ERROR) {
@@ -395,6 +413,81 @@ void Server::handleReadable(int fd) {
 						c.state = WRITING_RESPONSE;
 				}
 			}
+=======
+						if (st == ChunkedDecoder::NEED_MORE)
+							break;
+						if (st == ChunkedDecoder::ERROR) {
+							c.res.setStatusFromCode(400);
+							c.state = WRITING_RESPONSE;
+							break;
+						}
+						if (st == ChunkedDecoder::DONE) {
+							// Final size check after full decoding
+							if (c.body.size() >
+							    c.cfg.locations[0].max_size) {
+								// Body exceeds max_size: respond
+								// 413 and stop processing
+								c.res.setStatusFromCode(413);
+								c.state = WRITING_RESPONSE;
+								c.in.clear();
+								c.want_body = 0;
+								c.is_chunked = false;
+								c.close_after = true;
+							} else {
+								c.state =
+								    WRITING_RESPONSE; // Full
+										      // request
+										      // body
+										      // decoded
+							}
+							break;
+						}
+						if (decode_left == 0)
+							break;
+					}
+				} else {
+					// Non-chunked body: consume up to want_body, capped by
+					// decode_left
+					if (c.want_body > 0 && !c.in.empty() && decode_left > 0) {
+						size_t room = c.want_body - (handled - c.in.size());
+						size_t take = c.in.size();
+						if (take > room)
+							take = room;
+						if (take > decode_left)
+							take = decode_left;
+
+						ssize_t written =
+						    write(c.temp_fd, c.in.data(), take);
+						if (written < 0) {
+							close(c.temp_fd);
+							c.temp_fd = -1;
+							c.res.setStatusFromCode(500);
+							c.state = WRITING_RESPONSE;
+							return;
+						}
+
+						// size_t room = c.want_body - c.body.size();
+						// size_t take = c.in.size();
+						// if (take > room)
+						//   take = room;
+						// if (take > decode_left)
+						//   take = decode_left;
+
+						// c.body.append(c.in.data(), take);
+						c.in.erase(0, take);
+						decode_left -= take;
+					}
+					// If we now have the full body, we can move on to
+					// responding
+					if (c.body.size() >= c.want_body)
+						if (c.temp_fd != -1) {
+							close(c.temp_fd);
+							c.temp_fd = -1;
+						}
+					c.state = WRITING_RESPONSE;
+				}
+			}
+>>>>>>> b6bfaefce352432571e940d9f162d60db15fc07b
 
 			// WRITING_RESPONSE
 			if (c.state == WRITING_RESPONSE) {
@@ -470,6 +563,7 @@ void Server::handleWritable(int fd) {
 			if (static_cast<off_t>(to_read) > c.file_remaining)
 				to_read = static_cast<size_t>(c.file_remaining);
 
+<<<<<<< HEAD
 			// Blocking read on regular file, but small (<= FILE_CHUNK) and not in a
 			// loop
 			ssize_t r = ::read(c.file_fd, buf, to_read);
@@ -486,6 +580,31 @@ void Server::handleWritable(int fd) {
 				c.file_remaining = 0;
 			}
 		}
+=======
+			// Blocking read on regular file, but small (<= FILE_CHUNK) and not in a
+			// loop
+			ssize_t r = ::read(c.file_fd, buf, to_read);
+			if (r > 0) {
+				c.file_remaining -= static_cast<off_t>(r);
+				c.out.append(buf, static_cast<size_t>(r));
+
+				if (c.file_remaining <= 0) {
+					::close(c.file_fd);
+					c.file_fd = -1;
+					c.streaming_file = false;
+				}
+
+				// Not marked as responded or close here
+				// just wait for epoll to call to send it.
+				return;
+			} else {
+				::close(c.file_fd);
+				c.file_fd = -1;
+				c.streaming_file = false;
+				c.file_remaining = 0;
+			}
+		}
+>>>>>>> b6bfaefce352432571e940d9f162d60db15fc07b
 
 		if (c.state == WAITING_CGI)
 			return;
@@ -495,11 +614,23 @@ void Server::handleWritable(int fd) {
 			c.responded = true;
 		Logger::connection("fd %d closed - connection removed", fd);
 
+<<<<<<< HEAD
 		cgiHandler_.detachConnection(&c);
 		reactor_.del(fd);
 		::close(fd);
 		conns_.erase(it);
 	}
+=======
+		cgiHandler_.detachConnection(&c);
+		reactor_.del(fd);
+		if (c.file_fd != -1) {
+			::close(c.file_fd);
+			c.file_fd = -1;
+		}
+		::close(fd);
+		conns_.erase(it);
+	}
+>>>>>>> b6bfaefce352432571e940d9f162d60db15fc07b
 }
 
 int Server::executeStdin() {

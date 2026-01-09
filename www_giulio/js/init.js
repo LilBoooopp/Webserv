@@ -30,7 +30,7 @@ function init() {
 
   const cgPaths = ["printArg.py", "infinite.py", "hugeResponse.py"];
   for (let i = 0; i < cgPaths.length; i++) {
-    cgiButton(cgPaths[i], "cgi/test/" + cgPaths[i], [cgiX, c[1] + 25 + rowSpacing * i], "Cool", announceResponse);
+    cgiButton(cgPaths[i], "cgi-bin/test/" + cgPaths[i], [cgiX, c[1] + 25 + rowSpacing * i], "Cool", announceResponse);
   }
   addInfiniteRequestButton([cgiX, c[1] + 25 + rowSpacing * cgPaths.length]);
   var y = -1;

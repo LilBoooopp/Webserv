@@ -12,7 +12,10 @@ if not arg:
 
 print("Content-Type: text/html")
 print()
-for n in range(1024 * 1024):
-    print(" ")
 
-print("huge response sent")
+for y in range(100000):
+    for x in range(100000):
+        print(".", end="")
+    print("")
+
+print("\nhuge response sent")

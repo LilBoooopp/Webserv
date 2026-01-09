@@ -114,8 +114,9 @@ static bool execute(CgiData &data, const ServerConf &cfg, const std::string &req
 	data.pid = pid;
 	data.bytesRead = 0;
 	data.start = now_ms();
-	Logger::cgi("%s execution started, timeout %lu, max_body %lu", data.file.c_str(), data.timeout_ms,
-		    data.maxOutput);
+	Logger::cgi("%s%s%s execution started, timeout %lums, max_body %s", VALUECLR,
+		    data.file.c_str(), GREY, data.timeout_ms,
+		    bytesToStr(data.maxOutput, true).c_str());
 	return true;
 }
 
@@ -155,9 +156,8 @@ bool CgiHandler::runCgi(Connection &c, int fd) {
 			c.res.setContentType("text/plain");
 			asyncPids_.push_back(data.pid);
 		} else {
-			if (reactor_) {
+			if (reactor_)
 				reactor_->add(data.readFd, EPOLLIN);
-			}
 			cgiResponses_[data.readFd] = data; // Map insertion: fd -> CgiData
 		}
 	} else {

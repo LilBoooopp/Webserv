@@ -49,7 +49,7 @@ function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = nul
 }
 
 function announceResponse(response, _text) {
-  announce("Status " + response.status + " " + _text);
+  announce("Status " + response.status + " response: " + _text);
 }
 
 function cgiButton(
@@ -70,10 +70,17 @@ function cgiButton(
         const body = await res.text();
         const ct = res.headers.get("Content-Type") || "";
         const responseText = body.trim();
+        if (!res.ok) {
+          const isHtmlPage = ct.toLowerCase().includes("text/html") || responseText.startsWith("<");
+          const msg = isHtmlPage ? `Error ${res.status} ${res.statusText || ""}`.trim() : responseText || `Error ${res.status} ${res.statusText || ""}`.trim();
+          announce(msg);
+          return;
+        }
         if (onEnd) {
-          onEnd(responseText, res);
+          // Pass (response, text) to match announceResponse signature
+          onEnd(res, responseText);
         } else {
-          announce(responseText || `Error ${res.status}`);
+          announce(responseText || `OK`);
         }
       })
       .catch((e) => {

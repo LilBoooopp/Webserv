@@ -29,7 +29,7 @@ function toggleMenu(p, active = true) {
   if (selFiles.length) {
     var options = ["View", "Data", "Duplicate", "Delete"];
     var functions = [inspectFiles, toggleInfoMenu, duplicate, deleteFiles];
-    var infos = [`GET /ressources/uploads/${selFiles[0].path} HTTP/1.1`, "ToggleInfoMenu", `POST /cgi-bin/upload.py HTTP/1.1`, `DELETE ${selFiles[0].path} HTTP/1.1`];
+    var infos = [`GET /uploads/${selFiles[0].path} HTTP/1.1`, "ToggleInfoMenu", `POST /cgi-bin/upload.py HTTP/1.1`, `DELETE ${selFiles[0].path} HTTP/1.1`];
     if (selFiles[0].isDir) {
       for (let x = 0; x < 3; x++) {
         options.pop();
@@ -80,7 +80,7 @@ window.addEventListener("mousedown", (e) => {
     playClick();
     if (selFiles.includes(hovFile) && !keys["shift"]) {
       if (hovFile.extension === "folder" || hovFile.isDir) window.location.href = "/cgi-bin/gdrive.php?dir=" + encodeURIComponent(hovFile.relativePath);
-      else window.location.href = "/ressources/uploads/" + hovFile.relativePath;
+      else window.location.href = "/uploads/" + hovFile.relativePath;
       return;
     }
     if (!keys["shift"] && !keys["meta"]) clearSelFiles();
@@ -277,7 +277,7 @@ function inspectFiles() {
     if (f.extension === "folder" || f.isDir) {
       window.location.href = "/cgi-bin/gdrive.php?dir=" + encodeURIComponent(f.relativePath);
     } else {
-      window.location.href = "/ressources/uploads/" + f.relativePath;
+      window.location.href = "/uploads/" + f.relativePath;
     }
   }
 }

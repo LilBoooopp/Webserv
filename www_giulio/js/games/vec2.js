@@ -117,3 +117,10 @@ function rotate_v2(pos, center, angle) {
   const newY = x * sin + y * cos;
   return new Vec2(newX + center.x, newY + center.y);
 }
+
+function clampAngle(dir, minA, maxA) {
+  let a = Math.atan2(dir.y, dir.x);
+  if (a < minA) a = minA;
+  if (a > maxA) a = maxA;
+  return new Vec2(Math.cos(a), Math.sin(a));
+}

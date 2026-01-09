@@ -37,6 +37,7 @@ $minesweeperMaxLevel = $_SESSION["minesweeperMaxLevel"] ?? 1;
     <script src="/js/games/canvas.js"></script>
     <script src="/js/games/input.js"></script>
     <script src="/js/games/rope/rope.js"></script>
+	<script src="/js/games/rope/ropeEntity.js"></script>
     <script src="/js/games/rope/main.js"></script>
     <script src="/js/games/rope/shapes.js"></script>
     <script src="/js/games/rope/utils.js"></script>

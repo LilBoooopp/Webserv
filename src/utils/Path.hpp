@@ -10,33 +10,31 @@ template <typename T> std::string to_string(const T &value) {
   return (ss.str());
 }
 
-inline static const LocationConf *findLocation(const ServerConf &conf,
-                                               const std::string &reqTarget) {
-  const LocationConf *best = NULL;
-  size_t bestLen = 0;
-  for (size_t i = 0; i < conf.locations.size(); ++i) {
-    const LocationConf &loc = conf.locations[i];
-    const std::string &lp = loc.path;
-    if (reqTarget.compare(0, lp.size(), lp) == 0) {
-      if (lp.size() > bestLen) {
-        best = &loc;
-        bestLen = lp.size();
-      }
-    }
+static std::vector<std::string> split(const std::string &s, char sep) {
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream tokenStream(s);
+  while (std::getline(tokenStream, token, sep)) {
+    tokens.push_back(token);
   }
-  return best;
+  return (tokens);
 }
 
-inline static void split(const std::string &s, char sep,
-                         std::vector<std::string> &out) {
-  out.clear();
-  size_t i = 0;
-  while (i <= s.size()) {
-    size_t j = s.find(sep, i);
-    if (j == std::string::npos)
-      j = s.size();
-    out.push_back(s.substr(i, j - i)); // <-- FIX ICI
-    i = j + 1;
+static std::string sanitize_path(const std::string &path) {
+  std::vector<std::string> parts = split(path, '/');
+  std::vector<std::string> stack;
+
+  for (size_t i = 0; i < parts.size(); ++i) {
+    if (parts[i] == ".." && !stack.empty()) {
+      stack.pop_back();
+    } else if (parts[i] != "." && parts[i] != ".." && !parts[i].empty()) {
+      stack.push_back(parts[i]);
+    }
+  }
+
+  std::string result = "";
+  for (size_t i = 0; i < stack.size(); ++i) {
+    result += "/" + stack[i];
   }
 
   return (result.empty() ? "/" : result);

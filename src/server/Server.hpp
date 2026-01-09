@@ -21,6 +21,7 @@ class Server {
   std::vector<Listener> listener_;
   std::map<int, Connection> conns_;
   std::vector<char> inbuf_;
+  Config conf_;
   std::vector<ServerConf> cfg_;
   CgiHandler cgiHandler_;
 
@@ -34,8 +35,8 @@ class Server {
   void checkTimeouts();
 
 public:
-  Server() : inbuf_(8192) {}
-  bool start(std::vector<ServerConf> &config);
+  Server(Config conf) : inbuf_(8192), conf_(conf) {}
+  bool start();
   int run();
   int executeStdin();
   void cleanup();

@@ -270,31 +270,16 @@ void Server::handleReadable(int fd) {
 							}
 
 							// size limit for non-chunked CL bodies
-							size_t maxSize =
-							    c.cfg.locations[0].max_size;
-							const LocationConf *loc =
-							    Router::matchLocation(c.cfg,
-										  c.req.target);
-							if (loc)
-								maxSize = loc->max_size;
-							if (has_cl && c.want_body > maxSize) {
-								// Content-Length exceeds
-								// max_size: respond 413 and
-								// stop processing
-								Logger::response(
-								    "Request's body size "
-								    "(%s) exceeded location max "
-								    "(%s), returning 413",
-								    bytesToStr(c.want_body, true)
-									.c_str(),
-								    bytesToStr(maxSize, true)
-									.c_str());
+							if (has_cl &&
+							    c.want_body >
+								c.cfg.locations[0].max_size) {
+								// Content-Length exceeds max_size:
+								// respond 413 and stop processing
 								c.res.setStatusFromCode(413);
 								c.res.setVersion(c.req.version);
 								c.state = WRITING_RESPONSE;
-								// Drop the parsed headers
-								// and any pending
-								// input/body to avoid
+								// Drop the parsed headers and any
+								// pending input/body to avoid
 								// reprocessing
 								c.in.clear();
 								c.body.clear();
@@ -302,13 +287,12 @@ void Server::handleReadable(int fd) {
 								c.is_chunked = false;
 								c.close_after = true;
 							} else {
-								// Remove head so that only
-								// the body is leftover
+								// Remove head so that only the body
+								// is leftover
 								c.in.erase(0, endpos);
 
-								// Pre-consume body bytes
-								// for Content-Length
-								// requests
+								// Pre-consume body bytes for
+								// Content-Length requests
 								if (!c.is_chunked &&
 								    c.want_body > 0 &&
 								    !c.in.empty()) {
@@ -323,8 +307,7 @@ void Server::handleReadable(int fd) {
 								}
 
 								if (c.is_chunked) {
-									// Initialize chunk
-									// decoder
+									// Initialize chunk decoder
 									c.decoder.reset();
 									c.state = READING_BODY;
 								} else if (c.want_body ==
@@ -335,8 +318,7 @@ void Server::handleReadable(int fd) {
 											  // entire
 											  // body
 									c.state = WRITING_RESPONSE;
-								else // still need more body
-								     // bytes
+								else // still need more body bytes
 									c.state = READING_BODY;
 							}
 						}
@@ -359,61 +341,6 @@ void Server::handleReadable(int fd) {
 							consumed = decode_left;
 						decode_left -= consumed;
 
-<<<<<<< HEAD
-						if (st == ChunkedDecoder::NEED_MORE)
-							break;
-						if (st == ChunkedDecoder::ERROR) {
-							c.res.setStatusFromCode(400);
-							c.state = WRITING_RESPONSE;
-							break;
-						}
-						if (st == ChunkedDecoder::DONE) {
-							// Final size check after full decoding
-							if (c.body.size() >
-							    c.cfg.locations[0].max_size) {
-								// Body exceeds max_size: respond
-								// 413 and stop processing
-								c.res.setStatusFromCode(413);
-								c.state = WRITING_RESPONSE;
-								c.in.clear();
-								c.want_body = 0;
-								c.is_chunked = false;
-								c.close_after = true;
-							} else {
-								c.state =
-								    WRITING_RESPONSE; // Full
-										      // request
-										      // body
-										      // decoded
-							}
-							break;
-						}
-						if (decode_left == 0)
-							break;
-					}
-				} else {
-					// Non-chunked body: consume up to want_body, capped by
-					// decode_left
-					if (c.want_body > c.body.size() && !c.in.empty() &&
-					    decode_left > 0) {
-						size_t room = c.want_body - c.body.size();
-						size_t take = c.in.size();
-						if (take > room)
-							take = room;
-						if (take > decode_left)
-							take = decode_left;
-
-						c.body.append(c.in.data(), take);
-						c.in.erase(0, take);
-						decode_left -= take;
-					}
-					// If we now have the full body, we can move on to
-					// responding
-					if (c.body.size() == c.want_body)
-						c.state = WRITING_RESPONSE;
-				}
-			}
-=======
 						if (st == ChunkedDecoder::NEED_MORE)
 							break;
 						if (st == ChunkedDecoder::ERROR) {
@@ -487,7 +414,6 @@ void Server::handleReadable(int fd) {
 					c.state = WRITING_RESPONSE;
 				}
 			}
->>>>>>> b6bfaefce352432571e940d9f162d60db15fc07b
 
 			// WRITING_RESPONSE
 			if (c.state == WRITING_RESPONSE) {
@@ -563,24 +489,6 @@ void Server::handleWritable(int fd) {
 			if (static_cast<off_t>(to_read) > c.file_remaining)
 				to_read = static_cast<size_t>(c.file_remaining);
 
-<<<<<<< HEAD
-			// Blocking read on regular file, but small (<= FILE_CHUNK) and not in a
-			// loop
-			ssize_t r = ::read(c.file_fd, buf, to_read);
-			if (r > 0) {
-				c.file_remaining -= static_cast<off_t>(r);
-				c.out.append(buf, static_cast<size_t>(r));
-				// Not marked as responded or close here
-				// just wait for epoll to call to send it.
-				return;
-			} else {
-				::close(c.file_fd);
-				c.file_fd = -1;
-				c.streaming_file = false;
-				c.file_remaining = 0;
-			}
-		}
-=======
 			// Blocking read on regular file, but small (<= FILE_CHUNK) and not in a
 			// loop
 			ssize_t r = ::read(c.file_fd, buf, to_read);
@@ -604,7 +512,6 @@ void Server::handleWritable(int fd) {
 				c.file_remaining = 0;
 			}
 		}
->>>>>>> b6bfaefce352432571e940d9f162d60db15fc07b
 
 		if (c.state == WAITING_CGI)
 			return;
@@ -614,13 +521,6 @@ void Server::handleWritable(int fd) {
 			c.responded = true;
 		Logger::connection("fd %d closed - connection removed", fd);
 
-<<<<<<< HEAD
-		cgiHandler_.detachConnection(&c);
-		reactor_.del(fd);
-		::close(fd);
-		conns_.erase(it);
-	}
-=======
 		cgiHandler_.detachConnection(&c);
 		reactor_.del(fd);
 		if (c.file_fd != -1) {
@@ -630,7 +530,6 @@ void Server::handleWritable(int fd) {
 		::close(fd);
 		conns_.erase(it);
 	}
->>>>>>> b6bfaefce352432571e940d9f162d60db15fc07b
 }
 
 int Server::executeStdin() {

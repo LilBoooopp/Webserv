@@ -20,8 +20,8 @@ Listener::Listener() : fd_(-1) {
 }
 
 Listener::~Listener() {
-	if (fd_ >= 0)
-		::close(fd_);
+  if (fd_ >= 0)
+    ::close(fd_);
 }
 
 Listener::Listener(const Listener &other) {

@@ -424,6 +424,13 @@ void Server::handleWritable(int fd) {
       if (r > 0) {
         c.file_remaining -= static_cast<off_t>(r);
         c.out.append(buf, static_cast<size_t>(r));
+
+        if (c.file_remaining <= 0) {
+          ::close(c.file_fd);
+          c.file_fd = -1;
+          c.streaming_file = false;
+        }
+
         // Not marked as responded or close here
         // just wait for epoll to call to send it.
         return;
@@ -445,6 +452,10 @@ void Server::handleWritable(int fd) {
 
     cgiHandler_.detachConnection(&c);
     reactor_.del(fd);
+    if (c.file_fd != -1) {
+      ::close(c.file_fd);
+      c.file_fd = -1;
+    }
     ::close(fd);
     conns_.erase(it);
   }

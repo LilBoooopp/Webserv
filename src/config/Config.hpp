@@ -14,12 +14,15 @@
 // };
 
 #ifndef CONFIG_HPP
-#define CONFIG_HPP
-#include <aio.h>
-#include <arpa/inet.h>
-#include <map>
-#include <string>
-#include <vector>
+# define CONFIG_HPP
+# include <iostream>
+# include <string>
+# include <vector>
+# include <fstream>
+# include <sstream>
+# include <map>
+# include <arpa/inet.h>
+# include <aio.h>
 
 struct HostPort {
   std::string host_str;

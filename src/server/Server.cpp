@@ -562,7 +562,7 @@ int Server::run() {
         }
 
         if (cgiHandler_.hasFd(fd)) {
-          if (ev & EPOLLIN) {
+          if (ev & (EPOLLIN | EPOLLHUP | EPOLLERR)) {
             cgiHandler_.handleMessage(fd);
           }
           continue;

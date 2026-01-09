@@ -111,7 +111,7 @@ void Server::checkTimeouts() {
 
 		if ((current_time - c.last_active) > c.cfg.timeout_ms) {
 			int fd = it->first;
-			Logger::response("FD %d timed out (idle for %lu ms)", fd,
+			Logger::connection("FD %d timed out (idle for %lu ms)", fd,
 					 (current_time - c.last_active));
 
 			bool is_mid_request = (c.state == READING_BODY) ||
@@ -251,6 +251,13 @@ void Server::handleReadable(int fd) {
 							c.is_chunked = has_te_chunked;
 							c.want_body = has_cl ? content_length : 0;
 
+							// Match location once for max_size checks
+							c.loc = Router::matchLocation(c.cfg,
+										      c.req.target);
+							size_t maxSize =
+							    c.loc ? c.loc->max_size
+								  : c.cfg.locations[0].max_size;
+
 							if (c.want_body > 0 || c.is_chunked) {
 								std::stringstream ss;
 								ss << "/tmp/webserv_temp_" << fd
@@ -270,16 +277,23 @@ void Server::handleReadable(int fd) {
 							}
 
 							// size limit for non-chunked CL bodies
-							if (has_cl &&
-							    c.want_body >
-								c.cfg.locations[0].max_size) {
+							if (has_cl && c.want_body > maxSize) {
 								// Content-Length exceeds max_size:
 								// respond 413 and stop processing
+								Logger::request(
+								    "%sbody size %s%s%s exceeds "
+								    "max %s%s%s - responding 413",
+								    GREY, RED,
+								    bytesToStr(c.want_body).c_str(),
+								    GREY, YELLOW,
+								    bytesToStr(maxSize).c_str(),
+								    GREY);
 								c.res.setStatusFromCode(413);
 								c.res.setVersion(c.req.version);
 								c.state = WRITING_RESPONSE;
-								// Drop the parsed headers and any
-								// pending input/body to avoid
+								// Drop the parsed headers
+								// and any pending
+								// input/body to avoid
 								// reprocessing
 								c.in.clear();
 								c.body.clear();
@@ -350,10 +364,22 @@ void Server::handleReadable(int fd) {
 						}
 						if (st == ChunkedDecoder::DONE) {
 							// Final size check after full decoding
-							if (c.body.size() >
-							    c.cfg.locations[0].max_size) {
+							size_t maxSize =
+							    c.loc ? c.loc->max_size
+								  : c.cfg.locations[0].max_size;
+							if (c.body.size() > maxSize) {
 								// Body exceeds max_size: respond
 								// 413 and stop processing
+								Logger::request(
+								    "%schunked body size %s%s%s "
+								    "exceeds max %s%s%s - "
+								    "responding 413",
+								    GREY, RED,
+								    bytesToStr(c.body.size())
+									.c_str(),
+								    GREY, YELLOW,
+								    bytesToStr(maxSize).c_str(),
+								    GREY);
 								c.res.setStatusFromCode(413);
 								c.state = WRITING_RESPONSE;
 								c.in.clear();

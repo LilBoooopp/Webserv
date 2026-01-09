@@ -133,8 +133,8 @@ function postBytes(size) {
     .then((r) => r.text().then((t) => ({ r, t })))
     .then(({ r, t }) => {
       const responseText = t.trim();
-      if (!responseText.empty()) announce(`Server received package in ${Number((performance.now() - start) / 1000).toFixed(3)}s, response: ${responseText}, ${r.status} ${r.statusText}`);
-      else announce(`Server received package in ${Number((performance.now() - start) / 1000).toFixed(3)}s, ${r.status} ${r.statusText}`);
+      if (!responseText.length) announce(`Server received package in ${Number((performance.now() - start) / 1000).toFixed(3)}s, response: ${responseText}, ${r.status} ${r.statusText}`);
+      else announce(`Server received package in ${Number((performance.now() - start) / 1000).toFixed(3)}s => ${r.status} ${r.statusText}`);
     })
     .catch((e) => {
       console.warn("Upload error:", e);

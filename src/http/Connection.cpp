@@ -1,4 +1,5 @@
 #include "Connection.hpp"
+#include <unistd.h>
 
 Connection::Connection(const ServerConf &cfg)
     : headers_done(false), responded(false), peer_closed(false),
@@ -47,4 +48,47 @@ void Connection::printStatus(const std::string &label) {
                  label.c_str(), (unsigned long)in.size(),
                  (unsigned long)out.size(), formatTime(last_active).c_str(),
                  ConnStateStr[(int)state].c_str(), (int)state);
+}
+
+void Connection::resetForNextRequest() {
+  // Clear request/response for next request on persistent connection
+  in.clear();
+  body.clear();
+  out.clear();
+  req = HttpRequest();
+  res = HttpResponse(200);
+  decoder = ChunkedDecoder();
+
+  // Reset request state flags
+  headers_done = false;
+  responded = false;
+  close_after = false;
+  state = READING_HEADERS;
+  want_body = 0;
+  is_chunked = false;
+
+  // Clear temp file if any
+  if (temp_fd != -1) {
+    ::close(temp_fd);
+    temp_fd = -1;
+  }
+  if (!temp_filename.empty()) {
+    ::unlink(temp_filename.c_str());
+    temp_filename.clear();
+  }
+
+  // Clear file streaming state
+  if (file_fd != -1) {
+    ::close(file_fd);
+    file_fd = -1;
+  }
+  file_remaining = 0;
+  streaming_file = false;
+  loc = NULL;
+
+  // Reset activity timer
+  last_active = now_ms();
+
+  // Session/auth state is PRESERVED across requests on same connection
+  // id, user, password, isAuthentified remain unchanged
 }

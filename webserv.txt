@@ -1,0 +1,142 @@
+Webserv
+This is when you finally understand why URLs start with HTTP
+
+Summary:
+This project is about writing your own HTTP server.
+You will be able to test it with an actual browser.
+HTTP is one of the most widely used protocols on the internet.
+Understanding its intricacies will be useful, even if you won’t be working on a website.
+Version: 23.1
+
+==================================================
+Contents
+I   Introduction
+II  General rules
+III AI Instructions
+IV  Mandatory part
+IV.1 Requirements
+IV.2 For MacOS only
+IV.3 Configuration file
+V   Bonus part
+VI  Submission and peer-evaluation
+==================================================
+
+Chapter I – Introduction
+
+The Hypertext Transfer Protocol (HTTP) is an application protocol for distributed,
+collaborative, hypermedia information systems.
+
+HTTP is the foundation of data communication for the World Wide Web, where hypertext
+documents include hyperlinks to other resources that the user can easily access.
+
+HTTP was developed to support hypertext functionality and the growth of the World Wide Web.
+
+The primary function of a web server is to store, process, and deliver web pages to clients.
+Client-server communication occurs through HTTP.
+
+Pages delivered are most frequently HTML documents, which may include images,
+style sheets, and scripts.
+
+Although its primary function is to serve content, HTTP also enables clients to send data,
+such as submitting forms and uploading files.
+
+==================================================
+Chapter II – General rules
+
+- Your program must not crash under any circumstances.
+- You must submit a Makefile that compiles your source files.
+- Required Makefile rules: NAME, all, clean, fclean, re.
+- Compile with: -Wall -Wextra -Werror
+- Code must comply with C++98.
+- Prefer C++ standard libraries over C libraries.
+- External libraries and Boost are forbidden.
+
+==================================================
+Chapter III – AI Instructions
+
+Context:
+AI can assist with many tasks, but results must be critically assessed.
+
+Main message:
+- Use AI to reduce repetitive tasks.
+- Develop strong prompting skills.
+- Understand AI risks, biases, and ethics.
+- Work with peers.
+- Only use AI-generated content you fully understand.
+
+Learner rules:
+- Understand AI tools before using them.
+- Reflect before prompting.
+- Systematically review AI outputs.
+- Always seek peer review.
+
+==================================================
+Chapter IV – Mandatory part
+
+Program name: webserv
+Description: An HTTP server written in C++98
+
+Execution:
+./webserv [configuration file]
+
+You must implement the server using non-blocking I/O and a single poll() or equivalent
+(select, epoll, kqueue).
+
+Allowed system calls include:
+execve, fork, socket, bind, listen, accept, send, recv, poll, select, epoll, read, write, etc.
+
+==================================================
+IV.1 Requirements
+
+- Use a configuration file.
+- Server must be non-blocking at all times.
+- Only one poll() (or equivalent) for all I/O.
+- Never read/write without poll readiness.
+- Accurate HTTP status codes required.
+- Must support GET, POST, DELETE.
+- Must serve static websites.
+- Must support file uploads.
+- Default error pages required.
+- Compatible with standard browsers.
+- fork allowed only for CGI.
+
+==================================================
+IV.2 For MacOS only
+
+- fcntl() is allowed to achieve non-blocking behavior.
+- Allowed flags: F_SETFL, O_NONBLOCK, FD_CLOEXEC.
+
+==================================================
+IV.3 Configuration file
+
+You should be able to:
+- Define multiple ports.
+- Set default error pages.
+- Set maximum request body size.
+- Configure routes:
+  * Allowed HTTP methods
+  * Redirections
+  * Root directories
+  * Directory listing
+  * Default index files
+  * File upload locations
+- Configure CGI execution by file extension.
+
+==================================================
+Chapter V – Bonus part
+
+Optional features:
+- Cookies and session management.
+- Multiple CGI types.
+
+Bonus is evaluated only if the mandatory part is perfect.
+
+==================================================
+Chapter VI – Submission and peer-evaluation
+
+- Submit your project via Git repository.
+- Only repository content is evaluated.
+- You may be asked to make small live modifications.
+- This verifies real understanding of the project.
+
+End of document.

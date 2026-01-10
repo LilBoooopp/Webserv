@@ -139,6 +139,36 @@ void Server::checkTimeouts() {
 }
 
 /**
+ * @brief Determines if a connection should be kept alive for HTTP/1.1 Keep-Alive
+ *
+ * @param c The connection to check
+ * @return true if connection should be kept alive, false if it should be closed
+ */
+bool Server::shouldKeepConnectionAlive(Connection &c) {
+	// Check if client requested Connection: keep-alive
+	std::string connection_header = c.req.getHeader("Connection");
+	if (connection_header != "keep-alive" && connection_header != "Keep-Alive") {
+		return false;
+	}
+
+	// Check if server config allows keep-alive (default to true for HTTP/1.1)
+	// For now, always allow keep-alive unless explicitly disabled
+	// TODO: Add config option to disable keep-alive per server/location
+
+	// Check if connection is in a state that allows reuse
+	if (c.close_after || c.state == CLOSING) {
+		return false;
+	}
+
+	// Check if response indicates connection should close
+	if (c.res.getHeader("Connection") == "close") {
+		return false;
+	}
+
+	return true;
+}
+
+/**
  * @brief Reads the bytes sent by the client as a whole or chunked if necessary
  *
  * @param fd of the socket associated with the current client being handled
@@ -542,11 +572,21 @@ void Server::handleWritable(int fd) {
 		if (c.state == WAITING_CGI)
 			return;
 
-		// No data left to send an no more file to stream
+		// No data left to send and no more file to stream
 		if (!c.responded)
 			c.responded = true;
-		Logger::connection("fd %d closed - connection removed", fd);
 
+		// Check if we should keep connection alive for HTTP/1.1 Keep-Alive
+		if (shouldKeepConnectionAlive(c)) {
+			Logger::connection("fd %d keeping connection alive", fd);
+			c.resetForNextRequest();
+			// Switch back to reading mode for next request
+			disableWrite(fd);
+			return;
+		}
+
+		// Connection should be closed
+		Logger::connection("fd %d closed - connection removed", fd);
 		cgiHandler_.detachConnection(&c);
 		reactor_.del(fd);
 		if (c.file_fd != -1) {

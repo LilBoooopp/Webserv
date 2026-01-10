@@ -7,6 +7,7 @@
 #include <ctime>
 #include <string>
 #include <sys/types.h>
+#include <unistd.h>
 
 enum ConnState {
   READING_HEADERS,
@@ -57,4 +58,5 @@ public:
   Connection(const ServerConf &cfg);
   Connection &operator=(const Connection &other);
   void printStatus(const std::string &label);
+  void resetForNextRequest();
 };

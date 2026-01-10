@@ -179,6 +179,15 @@ void Server::prepareResponse(int fd, Connection &c) {
     handleDelete(c);
   else if (c.req.method != "HEAD")
     c.res.setStatusFromCode(405);
+
+  // Set Connection header based on client request
+  std::string connection_header = c.req.getHeader("connection");
+  if (connection_header == "keep-alive" || connection_header == "Keep-Alive") {
+    c.res.setHeader("Connection", "keep-alive");
+  } else {
+    c.res.setHeader("Connection", "close");
+  }
+
   Router::finalizeResponse(c);
   enableWrite(fd);
 }

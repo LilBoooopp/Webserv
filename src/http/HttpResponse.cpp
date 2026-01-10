@@ -31,7 +31,6 @@ HttpResponse::HttpResponse(int statusCode, const std::string &version)
     : version_(version), statusCode_(statusCode),
       reasonPhrase_(reasonForStatus(statusCode)), body_("") {
   headers_["Content-Type"] = "text/plain";
-  headers_["Connection"] = "close";
 }
 
 void HttpResponse::setVersion(const std::string &version) {

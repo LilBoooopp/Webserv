@@ -32,6 +32,7 @@ class Server {
 	void disableWrite(int fd);
 	void prepareResponse(int fd, Connection &c);
 	void checkTimeouts();
+	bool shouldKeepConnectionAlive(Connection &c);
 
     public:
 		Server(Config conf) : inbuf_(8192), conf_(conf) {}

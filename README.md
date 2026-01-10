@@ -78,10 +78,7 @@ Based on the official project specifications (webserv.txt), the following items 
 - ✅ **Multiple CGI Types**: Support for additional scripting languages beyond PHP and Python
 
 ### Known Implementation Gaps (Not in Official Spec)
-- **Keep-Alive**: HTTP/1.1 persistent connections not implemented (connections close after response)
 - **CGI Streaming**: CGI output fully buffered before sending (not streamed)
-- **Access Logging**: Only debug logging available; no combined/JSON format logging
-- **Hot-Reload**: Configuration changes require server restart
 - **SSL/TLS**: No HTTPS support
 - **Content Encoding**: No gzip/deflate compression
 
@@ -133,17 +130,6 @@ server {
 ---
 
 ## Testing
-
-### Test Suite
-```bash
-./scripts/tests.sh              # Run all tests with server management
-WS_PORT=9000 ./scripts/tests.sh # Custom port
-```
-
-**Environment Variables**:
-- `WS_BIN`: Path to webserv binary (default: `./webserv`)
-- `WS_ADDR`: Server address (default: `127.0.0.1`)
-- `WS_PORT`: Server port (default: `8080`)
 
 ### Manual Testing
 ```bash
@@ -251,22 +237,19 @@ CGI scripts execute in child processes; output is collected asynchronously via e
 ## Future Improvements
 
 1. **HTTP/2 Support**: Multiplexed streams and server push
-2. **Keep-Alive**: Proper HTTP/1.1 persistent connections
-3. **SSL/TLS**: HTTPS support via OpenSSL
+2. **SSL/TLS**: HTTPS support via OpenSSL
 4. **WebSocket**: Upgrade mechanism for real-time bidirectional communication
 5. **Load Balancing**: Upstream and health check support
 6. **Caching**: Response and asset caching strategies
 7. **Rate Limiting**: Per-IP and per-path request throttling
 8. **Authentication**: Built-in HTTP Basic/Digest auth
 9. **Access Logging**: Combined/JSON format logging to files
-10. **Hot-Reload**: Configuration reloading without restart
 
 ---
 
 ## License
 
-Educational project - MIT compatible
-
+???
 ---
 
 ## References

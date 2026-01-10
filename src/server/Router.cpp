@@ -70,9 +70,9 @@ bool Router::route(Connection &c) {
 		c.loc = matched_loc;
 		const LocationConf &loc = *matched_loc;
 		Logger::router(
-		    "%smatched request's target to location \'%s%s%s\' in %s%s%s, max body size %s",
+		    "%smatched request's target to location \'%s%s%s\' in %s%s%s, max body size = %s",
 		    GREY, YELLOW, loc.path.c_str(), GREY, TS, c.cfg.names[0].c_str(), GREY,
-		    bytesToStr(loc.max_size).c_str());
+		    bytesToStr(loc.max_size, true).c_str());
 
 		if (!checkAllowedMethod(c, loc)) {
 			Logger::router("unvalid method for \'%s\' location", loc.path.c_str());

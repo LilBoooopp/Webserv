@@ -18,6 +18,7 @@ function addInfo(div, info) {
   var infoBox = addDiv(info, [10, window.innerHeight - 20 * (newLineLen + 1)], 1, "white", null, false);
   infoBox.style.opacity = ".4";
   infoBox.style.display = "none";
+  infoBox.tag = "info";
   div.addEventListener("mouseenter", () => {
     infoBox.style.display = "block";
   });
@@ -25,10 +26,11 @@ function addInfo(div, info) {
     infoBox.style.display = "none";
   });
 }
-function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = null, info = null) {
+function addButton(label, pos = [0, 0], onEnd = null, color = null, bgrClr = null, info = null, tag = null) {
   let div = document.createElement("div");
   div.className = "button";
   div.textContent = label;
+  if (tag) div.tag = tag;
   if (color) div.style.color = color;
   else div.style.color = "rgba(233, 233, 233, 1)";
   if (bgrClr) div.style.backgroundColor = bgrClr;
@@ -144,7 +146,7 @@ function postBytes(size) {
 
 function addHomeButton() {
   const c = [window.innerWidth / 2, window.innerHeight / 2];
-  addButton("HOME", [c[0], window.innerHeight - 40], () => (window.location.href = "/"), null, null, "GET / HTTP/1.1");
+  return addButton("HOME", [c[0], window.innerHeight - 40], () => (window.location.href = "/"), null, null, "GET / HTTP/1.1");
 }
 
 function addToggleButton(label, p, active, onClick) {
@@ -207,7 +209,7 @@ function addInfiniteRequestButton(p) {
         announce("error in No Timeout CGI call");
       });
   }
-  addButton("No Timeout CGI", [p[0], p[1]], f, null, null, "POST /cgi-bin/test/infinite.py HTTP/1.1\nX-Async: 1");
+  return addButton("No Timeout CGI", [p[0], p[1]], f, null, null, "POST /cgi-bin/test/infinite.py HTTP/1.1\nX-Async: 1");
 }
 
 function addToggleButton(label, p, startActive, onSwitch, info = null) {

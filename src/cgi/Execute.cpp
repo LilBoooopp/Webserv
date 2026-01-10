@@ -114,8 +114,8 @@ static bool execute(CgiData &data, const ServerConf &cfg, const std::string &req
 	data.pid = pid;
 	data.bytesRead = 0;
 	data.start = now_ms();
-	Logger::cgi("%s%s%s execution started, timeout %lums, max_body %s", VALUECLR,
-		    data.file.c_str(), GREY, data.timeout_ms,
+	Logger::cgi("%s%s%s execution started, timeout %s%s, max_body %s", VALUECLR,
+		    data.file.c_str(), GREY, timeToStr(data.timeout_ms, true).c_str(), GREY,
 		    bytesToStr(data.maxOutput, true).c_str());
 	return true;
 }

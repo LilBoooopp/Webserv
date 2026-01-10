@@ -1,7 +1,8 @@
-function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true) {
+function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true, tag = null) {
   let div = document.createElement("div");
   div.textContent = text;
 
+  if (tag) div.tag = tag;
   div.style.position = "absolute";
 
   div.style.left = (pos[0] / window.innerWidth) * 100 + "%";
@@ -10,11 +11,11 @@ function addDiv(text, pos, size, clr = null, bgrClr = null, centered = true) {
 
   if (centered) {
     div.style.transform = "translate(-50%, -50%) scale(" + size + ")";
+    div.style.transformOrigin = "center center";
   } else {
     div.style.transform = "scale(" + size + ")";
+    div.style.transformOrigin = "top left";
   }
-
-  div.style.transformOrigin = "center center";
 
   div.style.userSelect = "none";
   if (clr) div.style.color = clr;
@@ -55,7 +56,7 @@ function initLabelDiv(x, y, text = "", bgrColor = null, color = "white", parent 
   return div;
 }
 
-function writeBox(w, h, x, y, bgrClr) {
+function writeBox(w, h, x, y, bgrClr, borderColor = null, borderSize = 0) {
   const div = document.createElement("div");
   div.style.width = w + "px";
   div.style.height = h + "px";
@@ -63,6 +64,11 @@ function writeBox(w, h, x, y, bgrClr) {
   div.style.left = x + "px";
   div.style.position = "absolute";
   div.style.backgroundColor = bgrClr;
+  if (borderColor) {
+    div.style.borderWidth = borderSize + "px";
+    div.style.borderStyle = "solid";
+    div.style.borderColor = borderColor;
+  }
   document.body.appendChild(div);
   return div;
 }
@@ -99,14 +105,16 @@ function announce(msg, dur = 2000, bgr = null) {
   return box;
 }
 
-function addTitle(posOffset = [0, -150]) {
+function addTitle(posOffset = [0, -150], tag = null) {
   const title = addDiv(window.PAGE_NAME.toUpperCase(), [window.innerWidth / 2 + posOffset[0], window.innerHeight / 2 + posOffset[1]], 3);
+  if (tag) title.tag = tag;
   title.style.textDecoration = "underline";
   title.style.textDecorationColor = title.style.color;
   title.style.textDecorationThickness = "1px";
   if (window.CURRENT_USER !== undefined) {
     const u1_title = addDiv("User: ", [50, 50], 1, "grey");
     const u_title = addDiv(window.CURRENT_USER, [100, 50], 1);
+    if (tag) u1_title.tag = u_title.tag = tag;
   }
   return title;
 }
@@ -178,4 +186,24 @@ function initBackground(flag = window.DARKMODE === undefined || window.DARKMODE)
       }
     }
   });
+}
+
+function showTag(tag) {
+  const all = document.querySelectorAll("*");
+  for (const el of all) {
+    if (el === document || el === document.body || el === document.documentElement) continue;
+    if (["info", "audioPlayer"].includes(el.tag)) continue;
+    const isTag = el.tag !== undefined && el.tag.toLowerCase() === tag;
+    el.style.display = isTag ? "block" : "none";
+  }
+}
+
+function hideTag(tag) {
+  const all = document.querySelectorAll("*");
+  for (const el of all) {
+    if (el === document || el === document.body || el === document.documentElement) continue;
+    if (["info", "audioPlayer"].includes(el.tag)) continue;
+    const isTag = el.tag !== undefined && el.tag.toLowerCase() === tag;
+    el.style.display = isTag ? "none" : "";
+  }
 }

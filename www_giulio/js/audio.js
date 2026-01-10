@@ -37,6 +37,7 @@ function initAudioPlayer(p = [100, 50]) {
     button.addEventListener("mouseenter", () => (button.style.scale = ".5"));
     button.addEventListener("mouseleave", () => (button.style.scale = ".3"));
     button.style.display = "none";
+    button.tag = "audioPlayer";
     return button;
   }
 
@@ -104,47 +105,17 @@ function initAudioPlayer(p = [100, 50]) {
   const playButton = initImage(30, 30, p[0] - 12, p[1], "../ressources/img/audioIcons/play.png");
   playButton.classList.add("audio-button");
   playButton.addEventListener("mousedown", () => toggleAudio());
+  playButton.tag = "audioPlayer";
 
   const backButton = initImage(30, 30, p[0] - 40, p[1], "../ressources/img/audioIcons/efback.png");
   backButton.classList.add("audio-button");
   backButton.addEventListener("mousedown", () => switchTrack(-1));
+  backButton.tag = "audioPlayer";
 
   const nextButton = initImage(30, 30, p[0] + 15, p[1], "../ressources/img/audioIcons/effronte.png");
   nextButton.classList.add("audio-button");
   nextButton.addEventListener("mousedown", () => switchTrack(1));
-
-  // const timeBox = writeBox(80, 10, p[0] - 38, p[1] + 35, "black");
-  // const curBox = writeBox(0, 10, p[0] - 38, p[1] + 35, "white");
-  // function updateCurBox() {
-  // 	const au = mus.au;
-  // 	const dur = mus.dur;
-  // 	var paused = false;
-  // 	if (au.currentTime >= mus.dur) {
-  // 		au.currentTime = 0;
-  // 		paused = true;
-  // 	}
-  // 	if (!au.paused && dur) {
-  // 		const ratio = au.currentTime / dur;
-  // 		curBox.style.width = ratio * timeBox.offsetWidth + "px";
-  // 	}
-  // 	if (paused) {
-  // 		au.pause();
-  // 		playButton.src = "../ressources/img/audioIcons/play.png";
-  // 	}
-  // }
-  // timeBox.addEventListener("mousedown", (e) => {
-  // 	if (!mus) return;
-  // 	const au = mus.au;
-  // 	const dur = mus.dur;
-  // 	if (au.paused || !dur) return;
-  // 	const rect = timeBox.getBoundingClientRect();
-  // 	const ratio = (e.clientX - rect.left) / rect.width;
-  // 	const clamped = Math.max(0, Math.min(1, ratio));
-  // 	au.currentTime = dur * clamped;
-  // });
-  // setInterval(() => {
-  // 	if (mus) updateCurBox();
-  // }, 10);
+  nextButton.tag = "audioPlayer";
 
   function moveHandle(e) {
     const rect = AudioLevelBackground.getBoundingClientRect();
@@ -157,7 +128,9 @@ function initAudioPlayer(p = [100, 50]) {
   }
   var volumeSliderY = p[1] + 40;
   var AudioLevelBackground = writeBox(80, 5, p[0] - 38, volumeSliderY, "black");
+  AudioLevelBackground.tag = "audioPlayer";
   var fillbackground = writeBox(75, 5, p[0] - 38, volumeSliderY, "white");
+  fillbackground.tag = "audioPlayer";
   fillbackground.style.pointerEvents = "none";
   AudioLevelBackground.style.borderRadius = "10%";
   AudioLevelBackground.addEventListener("mousedown", (e) => {
@@ -165,6 +138,7 @@ function initAudioPlayer(p = [100, 50]) {
     handle.isSel = true;
   });
   var handle = writeBox(10, 10, p[0] - 38 + 70, volumeSliderY - 2.5, "grey");
+  handle.tag = "audioPlayer";
   handle.addEventListener("mousedown", () => (handle.isSel = true));
   handle.style.borderRadius = "50%";
   handle.addEventListener("mouseenter", () => (handle.style.scale = "1.2"));
@@ -177,10 +151,10 @@ function initAudioPlayer(p = [100, 50]) {
   });
 
   var labP = [p[0] - 38, volumeSliderY + 10];
-  const label = addDiv(trackNames[0], labP, null, null, null, false);
+  const label = addDiv(trackNames[0], labP, null, null, null, false, "audioPlayer");
   label.style.transform = "scale(0.8)";
   label.style.transformOrigin = "0 0";
-  const artistLabel = addDiv(artits[0], [labP[0], labP[1] + 20], null, null, null, false);
+  const artistLabel = addDiv(artits[0], [labP[0], labP[1] + 20], null, null, null, false, "audioPlayer");
   artistLabel.style.transform = "scale(0.6)";
   artistLabel.style.transformOrigin = "0 0";
   var delBtn = addDeleteButton([labP[0] + 50, labP[1] + 25]);
@@ -235,9 +209,7 @@ function initAudioPlayer(p = [100, 50]) {
 
   const button = addButton("Upload", [p[0], volumeSliderY + 65], () => openFileDialog(uploadFile), null, "rgba(255, 255, 255, 0.24)", "POST /uploads/audio HTTP/1.1");
   button.style.backgroundColor = "rgba(255, 255, 255, 0.01)";
-  //   button.style.scale = 0.8;
-  //   button.addEventListener("mouseenter", () => (button.style.scale = 1));
-  //   button.addEventListener("mouseleave", () => (button.style.scale = 0.8));
+  button.tag = "audioPlayer";
 }
 function playSound(src, volume = 1) {
   var au = new Audio(src);

@@ -149,27 +149,6 @@ function addHomeButton() {
   return addButton("HOME", [c[0], window.innerHeight - 40], () => (window.location.href = "/"), null, null, "GET / HTTP/1.1");
 }
 
-function addToggleButton(label, p, active, onClick) {
-  p[0] += 50;
-  const clrs = ["rgba(255, 0, 0, .4)", "rgba(0, 255, 4, 0.4)"];
-  const div = addButton(
-    "",
-    p,
-    () => {
-      div.active = !div.active;
-      div.style.backgroundColor = clrs[div.active === true ? 1 : 0];
-      onClick(div.active);
-    },
-    null,
-    clrs[active === true ? 1 : 0]
-  );
-  div.active = active;
-  let labelDiv = addDiv(label, [p[0] - 70, p[1]], 1, "grey");
-  document.body.appendChild(labelDiv);
-  document.body.appendChild(div);
-  return div;
-}
-
 function addDeleteAccountButton(p) {
   function f() {
     fetch("/cgi-bin/auth/sessionManagment/delete.php", {
@@ -212,11 +191,13 @@ function addInfiniteRequestButton(p) {
   return addButton("No Timeout CGI", [p[0], p[1]], f, null, null, "POST /cgi-bin/test/infinite.py HTTP/1.1\nX-Async: 1");
 }
 
-function addToggleButton(label, p, startActive, onSwitch, info = null) {
-  var lab = addDiv(label, [p[0] - label.length * 8, p[1]], 0.5);
+function addToggleButton(label, p, startActive, onSwitch, info = null, tag = "home") {
+  var lab = (addDiv(label, [p[0] - label.length * 8, p[1]], 0.5).tag = tag);
   var fill = writeBox(20, 8, p[0] - 5, p[1] - 4, "rgba(0, 0, 0, 0.25)");
+  fill.tag = tag;
   fill.style.borderRadius = "10%";
   var handle = writeBox(10, 10, p[0] + (startActive ? 5 : 0), p[1] - 5, "white");
+  handle.tag = tag;
   handle.lastToggle = 0;
   handle.style.borderRadius = "50%";
   handle.style.transition = "transform 0.2s ease-out";
@@ -238,6 +219,7 @@ function addToggleButton(label, p, startActive, onSwitch, info = null) {
     info
   );
   btn.style.width = "10px";
+  btn.tag = tag;
 }
 
 function addDarkModeButton(offset = [0, 0]) {

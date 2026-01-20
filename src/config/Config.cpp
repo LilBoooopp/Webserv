@@ -110,13 +110,12 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			setError(line, "Invalid max size syntax, expected 'client_max_body_size SIZE ;'");
 			return ;
 		}
-		int val	= std::atoi(tokens[1].c_str());
-		if (val < 0 || !is_num(tokens[1]))
+		if (!is_valid_num(tokens[1]))
 		{
 			setError(line, "Invalid body size value, expected positive number");
 			return ;
 		}
-		server.max_size = val;
+		server.max_size = get_size(tokens[1]);
 	}
 	else if (key == "timeout")
 	{
@@ -269,13 +268,12 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 			setError(line, "Invalid cgi max size syntax, expected 'cgi_max_output SIZE ;'");
 			return ;
 		}
-		int val	= std::atoi(tokens[1].c_str());
-		if (val < 0 || !is_num(tokens[1]))
+		if (!is_valid_num(tokens[1]))
 		{
 			setError(line, "Invalid body size value, expected positive number");
 			return ;
 		}
-		location.cgi_maxOutput = val;
+		location.cgi_maxOutput = get_size(tokens[1]);
 	}
 	else if (key == "client_max_body_size")
 	{
@@ -284,14 +282,13 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 			setError(line, "Invalid max size syntax, expected 'client_max_body_size SIZE ;'");
 			return ;
 		}
-		int val	= std::atoi(tokens[1].c_str());
-		if (val < 0 || !is_num(tokens[1]))
+		if (!is_valid_num(tokens[1]))
 		{
 			setError(line, "Invalid body size value, expected positive number");
-			return ;
+			return ;	
 		}
 		location.has_max_size = true;
-		location.max_size = val;
+		location.max_size = get_size(tokens[1]);
 	}
 	else
 		setError(line, "Unknown directive");

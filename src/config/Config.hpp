@@ -134,6 +134,8 @@ class Config {
 	std::string separate(std::string &line);
 	std::vector<std::string> tokenize(std::string &line);
 	std::vector<std::string> read_lines(const std::string &filename);
+	size_t	get_size(const std::string &token);
+	bool	is_valid_num(const std::string &num);
 
 	// Config_Error
 	bool _isError;

@@ -30,6 +30,11 @@ void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, 
 	}
 	else if (key == "error_page")
 	{
+		if (global.root.empty())
+		{
+			setError(line, "Root required for global error default to be set");
+			return ;
+		}
 		if (tokens.size() != 4)
 		{
 			setError(line, "Invalid error syntax, expected 'error_page CODE PATH ;'");
@@ -167,7 +172,14 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 		}
 		std::string root;
 		if (server.root.empty())
+		{
+			if (_globalconf.root.empty())
+			{
+				setError(line, "No root found");
+				return ;
+			}
 			root = _globalconf.root;
+		}
 		else
 			root = server.root;
 		std::ifstream file((root + tokens[2]).c_str());
@@ -483,6 +495,8 @@ bool Config::parse(const std::string &filename)
 		setError(i + 1, "Unclosed '{'");
 		return false;
 	}
+	if (_isError)
+		return (false);
 	apply_defaults();
 	return (valid_config());
 }

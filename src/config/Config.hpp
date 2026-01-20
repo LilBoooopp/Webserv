@@ -92,16 +92,26 @@ struct ServerConf {
 	std::map<int, std::string> error_pages;		// Error pages, with defaults set  'error code' : 'HTML'
 
 	size_t	max_size;							// Default max body size'
+	bool	has_max_size;
 	size_t	timeout_ms;							// Default timeout
+	bool	has_timeout;
 
 	std::vector<LocationConf> locations;
 
-	ServerConf() : max_size(1024 * 1024), timeout_ms(5000) {}
+	ServerConf() : has_max_size(false), has_timeout(false) {}
 };
 
 struct GlobalConf
 {
+	std::map<int, std::string> error_pages;		// Error pages, with defaults set  'error code' : 'HTML'
 
+	size_t	max_size;							// Default max body size'
+	size_t	timeout_ms;							// Default timeout
+
+	std::string	root;							// Default root for server
+	std::vector<std::string>	files;			// Default index files
+
+	GlobalConf() : max_size(1024 * 1024), timeout_ms(5000) {}
 };
 
 class Config {
@@ -118,6 +128,7 @@ class Config {
 
     private:
 	std::vector<ServerConf> _servers;
+	GlobalConf	_globalconf;
 
 	// Config
 	void	parse_global(std::vector<std::string> &tokens, GlobalConf &global, size_t line);

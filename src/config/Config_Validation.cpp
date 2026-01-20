@@ -61,14 +61,26 @@ void Config::apply_defaults() {
 
 	for (size_t i = 0; i < _servers.size(); ++i) {
 		if (_servers[i].files.empty())
-			_servers[i].files.push_back("index.html");
-
+		{
+			if (_globalconf.files.empty())
+				_servers[i].files.push_back("index.html");
+			else
+				_servers[i].files = _globalconf.files;
+		}
+		if (!_servers[i].has_max_size)
+			_servers[i].max_size = _globalconf.max_size;
+		if (!_servers[i].has_timeout)
+			_servers[i].timeout_ms = _globalconf.timeout_ms;
 		for (size_t k = 0; k < 7; ++k) {
 			if (_servers[i].error_pages.find(codes[k]) == _servers[i].error_pages.end())
-				_servers[i].error_pages[codes[k]] =
-				    build_default_error_page(codes[k]);
+			{
+				if (_globalconf.error_pages.find(codes[k]) != _globalconf.error_pages.end())
+					_servers[i].error_pages[codes[k]] = _globalconf.error_pages[codes[k]];
+				else
+					_servers[i].error_pages[codes[k]] =
+						build_default_error_page(codes[k]);
+			}
 		}
-
 		if (_servers[i].locations.size() == 0) {
 			LocationConf location = LocationConf();
 			location.path = "/";
@@ -95,7 +107,12 @@ bool Config::valid_config() {
 		if (_servers[i].hosts.empty())
 			setError(0, "Missing host in server");
 		if (_servers[i].root.empty())
-			setError(0, "Missing root in server");
+		{
+			if (_globalconf.root.empty())
+				setError(0, "Missing root in server");
+			else
+				_servers[i].root = _globalconf.root;
+		}
 		if (_isError)
 			return (false);
 	}

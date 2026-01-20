@@ -6,9 +6,83 @@ Config::~Config() {}
 
 void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, size_t line)
 {
-	(void)	tokens;
-	(void)	global;
-	(void)	line;
+	std::string	&key = tokens[0];
+
+	if (tokens.size() < 3 || tokens[tokens.size() - 1] != ";")
+	{
+		setError(line, "Invalid syntax, expected at least 'DIRECTIVE ARG ;'");
+		return ;
+	}
+	else if (key == "root")
+	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid root syntax, expected 'root PATH ;'");
+			return ;
+		}
+		global.root = tokens[1];
+	}
+		else if (key == "index")
+	{
+		global.files.clear();
+		for (size_t i = 1; (i + 1) < tokens.size(); ++i)
+			global.files.push_back(tokens[i]);
+	}
+	else if (key == "error_page")
+	{
+		if (tokens.size() != 4)
+		{
+			setError(line, "Invalid error syntax, expected 'error_page CODE PATH ;'");
+			return ;
+		}
+		if (!is_num(tokens[1]) || std::atoi(tokens[1].c_str()) < 400 || std::atoi(tokens[1].c_str()) > 599)
+		{
+			setError(line, "Invalid error code");
+			return ;
+		}
+		std::ifstream file((global.root + tokens[2]).c_str());
+		std::string str;
+		if (!file.is_open())
+		{
+			setError(line, "Could not open error file");
+			return ;
+		}
+		std::ostringstream ss;
+		ss << file.rdbuf();
+		str = ss.str();
+		global.error_pages[std::atoi(tokens[1].c_str())] = str;
+	}
+	else if (key == "client_max_body_size")
+	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid max size syntax, expected 'client_max_body_size SIZE ;'");
+			return ;
+		}
+		if (!is_valid_num(tokens[1]))
+		{
+			setError(line, "Invalid body size value, expected positive number");
+			return ;
+		}
+		global.max_size = get_size(tokens[1]);
+	}
+	else if (key == "timeout")
+	{
+		if (tokens.size() != 3)
+		{
+			setError(line, "Invalid timeout syntax, expected 'timeout MS ;'");
+			return ;
+		}
+		int time = std::atoi(tokens[1].c_str());
+		if (time <= 0 || !is_num(tokens[1]))
+		{
+			setError(line, "Invalid timeout value, expected positive number");
+			return ;
+		}
+		global.timeout_ms = time;
+	}
+	else
+		setError(line, "Unknown directive");
 }
 
 void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line)
@@ -116,6 +190,7 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			return ;
 		}
 		server.max_size = get_size(tokens[1]);
+		server.has_max_size = true;
 	}
 	else if (key == "timeout")
 	{
@@ -131,6 +206,7 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			return ;
 		}
 		server.timeout_ms = time;
+		server.has_timeout = true;
 	}
 	else
 		setError(line, "Unknown directive");
@@ -298,7 +374,6 @@ bool Config::parse(const std::string &filename)
 {
 	ServerConf	server;
 	LocationConf	location;
-	GlobalConf	global;
 	bool	creating_server = false;
 	bool	creating_location = false;
 	_servers.clear();
@@ -396,7 +471,7 @@ bool Config::parse(const std::string &filename)
 		else if (ctx == LOCATION)
 			parse_location(tokens, location, i + 1);
 		else
-			parse_global(tokens, global, i + 1);
+			parse_global(tokens, _globalconf, i + 1);
     }
 	if (ctx != GLOBAL)
 	{

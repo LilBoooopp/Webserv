@@ -32,64 +32,76 @@ struct HostPort {
 };
 
 struct LocationConf {
-	std::string path;
-	std::vector<std::string> methods;
-	std::map<std::string, std::string> cgi;
+	std::string	path;							// Path e.g. 'cgi/'
+	std::vector<std::string> methods;			// Methods allowed in this location
 
-	bool redirect_enabled;
-	int redirect_status;
-	std::string redirect_target;
+	bool	redirect_enabled;					// If true, the location will only redirect
+	int	redirect_status;						// The http code return
+	std::string	redirect_target;				// The url that will be given for redirection
 
-	bool has_root;
-	std::string root;
+	bool	has_root;							// If false, server root will be used
+	std::string	root;							// Specific root used for this location
 
-	bool has_index;
-	std::vector<std::string> index_files;
+	bool	has_index;							// if false inherited from server files
+	std::vector<std::string>	index_files;	// Index files for location
 
-	bool autoindex_set;
-	bool autoindex;
+	bool	autoindex_set;						// If true generate directory listing
+	bool	autoindex;							// If path is directory and no index file exists an HTML directory listing should be generated
 
-	bool upload_enabled;
-	std::string upload_location;
+	bool	upload_enabled;						// Upload is forbidden 
+	std::string	upload_location;				// If true post can upload to location
 
-	bool has_py;
-	std::string py_path;
+	// should be removed
+	// bool has_py;
+	// std::string py_path;
 
-	bool has_php;
-	std::string php_path;
+	// bool has_php;
+	// std::string php_path;
 
-	size_t cgi_timeout_ms;
-	size_t cgi_maxOutput;
+	std::map<std::string, std::string> cgi;		// map of '.py' : 'location'  etc...
+	
+	size_t	cgi_timeout_ms;						// max timeout, if not set inherits from server
+	size_t	cgi_maxOutput;						// max output if not set inherits from location
 
-	bool has_max_size;
-	size_t max_size;
+	bool	has_max_size;						
+	size_t	max_size;							// max location output, if not set inherits from server
+
+	bool	internal;
 
 	LocationConf()
 	    : redirect_enabled(false), redirect_status(0), has_root(false), has_index(false),
-	      autoindex_set(false), autoindex(false), upload_enabled(false), has_py(false),
-	      has_php(false), cgi_timeout_ms(10000), cgi_maxOutput(1024 * 1024),
-	      has_max_size(false), max_size(1024 * 1024) {}
+	      autoindex_set(false), autoindex(false), upload_enabled(false), 
+		  //has_py(false), has_php(false), 
+		  cgi_timeout_ms(10000), cgi_maxOutput(1024 * 1024),
+	      has_max_size(false), max_size(1024 * 1024), internal(false) {}
 };
 
 struct ServerConf {
 	std::vector<HostPort> hosts;
-	std::vector<std::string> names;
-	bool has_py;
-	std::string py_path;
-	bool has_php;
-	std::string php_path;
+	std::vector<std::string>	names;			// For virtual hosts to match server name
+	
+	// Not sure that this should be here...
+	// bool has_py;
+	// std::string py_path;
+	// bool has_php;
+	// std::string php_path;
 
-	std::string root;
-	std::vector<std::string> files;
+	std::string	root;							// Default root for server
+	std::vector<std::string>	files;			// Default index files
 
-	std::map<int, std::string> error_pages;
+	std::map<int, std::string> error_pages;		// Error pages, with defaults set  'error code' : 'HTML'
 
-	size_t max_size;
-	size_t timeout_ms;
+	size_t	max_size;							// Default max body size'
+	size_t	timeout_ms;							// Default timeout
 
 	std::vector<LocationConf> locations;
 
 	ServerConf() : max_size(1024 * 1024), timeout_ms(5000) {}
+};
+
+struct GlobalConf
+{
+
 };
 
 class Config {
@@ -108,8 +120,9 @@ class Config {
 	std::vector<ServerConf> _servers;
 
 	// Config
-	void parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line);
-	void parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line);
+	void	parse_global(std::vector<std::string> &tokens, GlobalConf &global, size_t line);
+	void 	parse_server(std::vector<std::string> &tokens, ServerConf &server, size_t line);
+	void 	parse_location(std::vector<std::string> &tokens, LocationConf &location, size_t line);
 
 	// Config_Debug
 	void debug_print_server(const ServerConf &server, const char *clr);

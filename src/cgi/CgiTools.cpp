@@ -1,24 +1,54 @@
 #include "Cgi.hpp"
 #include <cstring>
 
+
 std::string getInterpreter(const std::string &path, const ServerConf &conf) {
-	size_t qpos = path.find('?');
-	size_t searchEnd = (qpos == std::string::npos) ? path.size() : qpos;
-	size_t dotPos = path.rfind('.', searchEnd);
-	if (dotPos == std::string::npos)
-		return "";
-	std::string ext = path.substr(dotPos + 1, searchEnd - dotPos - 1);
-	if (ext != "py" && ext != "php")
-		return "";
-	const LocationConf *loc = Router::matchLocation(conf, path);
-	if (!loc)
-		return "";
-	if (ext == "py" && loc->has_py)
-		return loc->py_path;
-	if (ext == "php" && loc->has_php)
-		return loc->php_path;
-	return "";
+    size_t qpos = path.find('?');
+    size_t searchEnd = (qpos == std::string::npos) ? path.size() : qpos;
+    std::string cleanPath = path.substr(0, searchEnd);
+    size_t dotPos = cleanPath.rfind('.');
+
+    if (dotPos == std::string::npos)
+        return "";
+    std::string ext = cleanPath.substr(dotPos); // ".py" or ".php"
+    if (ext != ".py" && ext != ".php")
+        return "";
+
+    const LocationConf *loc = Router::matchLocation(conf, cleanPath);
+    if (!loc)
+        return "";
+
+    std::map<std::string, std::string>::const_iterator it = loc->cgi.find(ext);
+    if (it != loc->cgi.end())
+        return it->second;
+
+    return "";
 }
+
+// std::string getInterpreter(const std::string &path, const ServerConf &conf) {
+// 	size_t qpos = path.find('?');
+// 	size_t searchEnd = (qpos == std::string::npos) ? path.size() : qpos;
+// 	size_t dotPos = path.rfind('.', searchEnd);
+// 	if (dotPos == std::string::npos)
+// 		return "";
+// 	std::string ext = path.substr(dotPos + 1, searchEnd - dotPos - 1);
+// 	if (ext != "py" && ext != "php")
+// 		return "";
+// 	const LocationConf *loc = Router::matchLocation(conf, path);
+// 	if (!loc)
+// 		return "";
+// 	std::map<std::string, std::string>::const_iterator it = loc->cgi.find(ext);
+// 	if (it != loc->cgi.end())
+// 		return it->second;
+//     std::map<std::string, std::string>::const_iterator it = loc->cgi.find(ext);
+//     if (it != loc->cgi.end())
+//         return it->second;
+// 	// if (ext == "py" && loc->has_py)
+// 	// 	return loc->py_path;
+// 	// if (ext == "php" && loc->has_php)
+// 	// 	return loc->php_path;
+// 	return "";
+// }
 
 static std::string extractArguments(std::string &pathToCgi) {
 	std::string queryString = "";

@@ -165,7 +165,12 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			setError(line, "Invalid error code");
 			return ;
 		}
-		std::ifstream file((server.root + tokens[2]).c_str());
+		std::string root;
+		if (server.root.empty())
+			root = _globalconf.root;
+		else
+			root = server.root;
+		std::ifstream file((root + tokens[2]).c_str());
 		std::string str;
 		if (!file.is_open())
 		{

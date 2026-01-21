@@ -3,80 +3,90 @@
 #include <sstream>
 #include <cstdlib>
 
+bool	Config::parse_ull(const std::string& s, unsigned long long& res)
+{
+	errno = 0;
+	char* end = 0;
+	res = std::strtoull(s.c_str(), &end, 10);
+	if (errno == ERANGE || end == s.c_str() || *end != '\0')
+		return false;
+	return true;
+}
+
+bool Config::parse_port(const std::string& s, uint16_t& res)
+{
+    unsigned long long val;
+    if (!parse_ull(s, val))
+		return false;
+    if (val < 1 || val > 65535)
+		return false;
+    res = (uint16_t)val;
+    return true;
+}
+
 bool	Config::is_valid_num(const std::string &num)
 {
 	int	end = num.size();
 	int	i = 0;
-	int	dec_count = 0;
 
 	if (num.empty())
 		return (false);
 	while (i < end - 1)
 	{
-		if (num[i] == '.' && dec_count == 0)
-			dec_count += 1;
-		else if (!isdigit(num[i]))
+		if (!isdigit((unsigned char) num[i]))
 			return (false);
 		i++;
 	}
-	if (dec_count == 1)
-	{
-		int pos = num.find('.');
-		if (!isdigit(num[pos + 1]) || isdigit(num[i]))
-			return (false);
-	}
-	if (isdigit(num[i]))
+	if (isdigit((unsigned char) num[i]))
 		return(true);
-	char final_char = std::tolower(num[i]);
+	if (end == 1)
+		return (false);
+	char final_char = std::tolower((unsigned char) num[i]);
 	if (final_char != 'k' && final_char != 'm' && final_char != 'g' && final_char != 't')
 		return(false);
-	if (dec_count == 0)
-		return (true);
-	if (final_char == 'k')
-	{
-		if (num.size() - num.find('.') - 2 > 3)
-			return (false);
-	}
-	if (final_char == 'm')
-	{
-		if (num.size() - num.find('.') - 2 > 6)
-			return (false);
-	}
-	if (final_char == 'g')
-	{
-		if (num.size() - num.find('.') - 2 > 9)
-			return (false);
-	}
-	if (final_char == 't')
-	{
-		if (num.size() - num.find('.') - 2 > 12)
-			return (false);
-	}
+
 	return (true);
 }
 
-size_t  Config::get_size(const std::string &token)
+static size_t size_max_value() { return (size_t)~(size_t)0; }
+
+size_t Config::get_size(const std::string &token)
 {
-	int end = token.size();
-	if (isdigit(token[end - 1]))
-		return std::atoi(token.c_str());
+    if (token.empty())
+        return 0;
 
-	char suf = std::tolower(token[end - 1]);
-	std::string s_num = token.substr(0, token.size() - 1);
-	std::stringstream ss(s_num);
-	double	num;
-	ss >> num;
+    unsigned long long mult = 1;
+    std::string numpart = token;
 
-	if (suf == 'k')
-		return (num * 1000);
-	if (suf == 'm')
-		return (num * 1000000);
-	if (suf == 'g')
-		return (num * 1000000000);
-	if (suf == 't')
-		return (num * 1000000000000);
-	return (0);
+    unsigned char last_uc = (unsigned char)token[token.size() - 1];
+    if (std::isalpha(last_uc))
+    {
+        char suf = (char)std::tolower(last_uc);
+        if (suf == 'k') mult = 1000ULL;
+        else if (suf == 'm') mult = 1000000ULL;
+        else if (suf == 'g') mult = 1000000000ULL;
+        else if (suf == 't') mult = 1000000000000ULL;
+        else return 0;
+
+        numpart = token.substr(0, token.size() - 1);
+        if (numpart.empty())
+            return 0;
+    }
+
+    errno = 0;
+    char *endptr = 0;
+    unsigned long long v = std::strtoull(numpart.c_str(), &endptr, 10);
+
+    if (errno == ERANGE || endptr == numpart.c_str() || *endptr != '\0')
+        return 0;
+
+    unsigned long long szmax = (unsigned long long)size_max_value();
+    if (v > szmax / mult)
+        return 0;
+
+    return (size_t)(v * mult);
 }
+
 
 std::vector<std::string> Config::read_lines(const std::string &filename) {
   std::vector<std::string> out;
@@ -106,11 +116,11 @@ std::string Config::trim(std::string &line) {
     return "";
 
   size_t start = 0;
-  while (start < line.size() && std::isspace(line[start]))
+  while (start < line.size() && std::isspace((unsigned char)line[start]))
     start++;
 
   size_t end = line.size();
-  while (end > start && std::isspace(line[end - 1]))
+  while (end > start && std::isspace((unsigned char)line[end - 1]))
     end--;
 
   return line.substr(start, end - start);

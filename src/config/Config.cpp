@@ -4,6 +4,8 @@
 Config::Config() : _isError(false), _ErrorMsg(""), _ErrorLine(0) {}
 Config::~Config() {}
 
+static unsigned long long size_max_ull() { return (unsigned long long)(~(size_t)0); }
+
 void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, size_t line)
 {
 	std::string	&key = tokens[0];
@@ -40,11 +42,6 @@ void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, 
 			setError(line, "Invalid error syntax, expected 'error_page CODE PATH ;'");
 			return ;
 		}
-		if (!is_num(tokens[1]) || std::atoi(tokens[1].c_str()) < 400 || std::atoi(tokens[1].c_str()) > 599)
-		{
-			setError(line, "Invalid error code");
-			return ;
-		}
 		std::ifstream file((global.root + tokens[2]).c_str());
 		std::string str;
 		if (!file.is_open())
@@ -55,7 +52,13 @@ void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, 
 		std::ostringstream ss;
 		ss << file.rdbuf();
 		str = ss.str();
-		global.error_pages[std::atoi(tokens[1].c_str())] = str;
+		unsigned long long code;
+		if (!parse_ull(tokens[1], code) || code < 400 || code > 599)
+		{
+			setError(line, "Invalid error code");
+			return;
+		}
+		global.error_pages[(int)code] = str;
 	}
 	else if (key == "client_max_body_size")
 	{
@@ -70,6 +73,11 @@ void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, 
 			return ;
 		}
 		global.max_size = get_size(tokens[1]);
+		if (global.max_size == 0)
+		{
+			setError(line, "Invalid/overflow value");
+			return ;
+		}
 	}
 	else if (key == "timeout")
 	{
@@ -78,13 +86,13 @@ void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, 
 			setError(line, "Invalid timeout syntax, expected 'timeout MS ;'");
 			return ;
 		}
-		int time = std::atoi(tokens[1].c_str());
-		if (time <= 0 || !is_num(tokens[1]))
+		unsigned long long t;
+		if (!parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
 		{
-			setError(line, "Invalid timeout value, expected positive number");
-			return ;
+			setError(line, "Invalid/overflow timeout value");
+			return;
 		}
-		global.timeout_ms = time;
+		global.timeout_ms = (size_t)t;
 	}
 	else
 		setError(line, "Unknown directive");
@@ -111,27 +119,33 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 		size_t	pos = host_port.find(':');
 		if (pos == std::string::npos)
 		{
+			uint16_t p;
+			if (!parse_port(host_port, p))
+			{
+				setError(line, "Invalid port");
+				return;
+			}
 			res.host_str = "0.0.0.0";
-			if (!is_num(host_port) )
-				setError(line, "Invalid port");
-			res.port_int = ::atoi(host_port.c_str());
-			if (res.port_int < 1 || res.port_int > 65535)
-				setError(line, "Invalid port");
-			else
-				res.port = htons(res.port_int);
+			res.host = INADDR_ANY;
+			res.port_int = (int)p;
+			res.port = htons(p);
 		}
 		else
 		{
 			res.host_str = host_port.substr(0, pos);
 			if (!IP_to_long(res.host_str.c_str(), res.host))
+			{
 				setError(line, "Invalid IP");
-			if (!is_num(host_port.substr(pos + 1)))
+				return;
+			}
+			uint16_t p;
+			if (!parse_port(host_port.substr(pos + 1), p))
+			{
 				setError(line, "Invalid port");
-			res.port_int = std::atoi(host_port.substr(pos + 1).c_str());
-			if (res.port_int < 1 || res.port_int > 65535)
-				setError(line, "Invalid port");
-			else
-				res.port = htons(res.port_int);
+				return;
+			}
+			res.port_int = (int)p;
+			res.port = htons(p);
 		}
 		if (_isError)
 			return ;
@@ -165,11 +179,6 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			setError(line, "Invalid error syntax, expected 'error_page CODE PATH ;'");
 			return ;
 		}
-		if (!is_num(tokens[1]) || std::atoi(tokens[1].c_str()) < 400 || std::atoi(tokens[1].c_str()) > 599)
-		{
-			setError(line, "Invalid error code");
-			return ;
-		}
 		std::string root;
 		if (server.root.empty())
 		{
@@ -192,7 +201,13 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 		std::ostringstream ss;
 		ss << file.rdbuf();
 		str = ss.str();
-		server.error_pages[std::atoi(tokens[1].c_str())] = str;
+		unsigned long long code;
+		if (!parse_ull(tokens[1], code) || code < 400 || code > 599)
+		{
+			setError(line, "Invalid error code");
+			return;
+		}
+		server.error_pages[(int)code] = str;
 	}
 	else if (key == "client_max_body_size")
 	{
@@ -207,6 +222,11 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			return ;
 		}
 		server.max_size = get_size(tokens[1]);
+		if (server.max_size == 0)
+		{
+			setError(line, "Invalid/overflow value");
+			return ;
+		}
 		server.has_max_size = true;
 	}
 	else if (key == "timeout")
@@ -216,13 +236,13 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			setError(line, "Invalid timeout syntax, expected 'timeout MS ;'");
 			return ;
 		}
-		int time = std::atoi(tokens[1].c_str());
-		if (time <= 0 || !is_num(tokens[1]))
+		unsigned long long t;
+		if (!parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
 		{
-			setError(line, "Invalid timeout value, expected positive number");
-			return ;
+			setError(line, "Invalid/overflow timeout value");
+			return;
 		}
-		server.timeout_ms = time;
+		server.timeout_ms = (size_t)t;
 		server.has_timeout = true;
 	}
 	else
@@ -260,14 +280,15 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 			setError(line, "Invalid redirection syntax, expected 'return CODE URL ;'");
 			return ;
 		}
-		location.redirect_enabled = true;
-		location.redirect_status = std::atoi(tokens[1].c_str());
-		location.redirect_target = tokens[2];
-		if (location.redirect_status < 300 || location.redirect_status > 308 || !is_num(tokens[1]))
+		unsigned long long code;
+		if (!parse_ull(tokens[1], code) || code < 300 || code > 308)
 		{
 			setError(line, "Redirect code should be between 300-308");
-			return ;
+			return;
 		}
+		location.redirect_enabled = true;
+		location.redirect_status = (int)code;
+		location.redirect_target = tokens[2];
 	}
 	else if (key == "root")
 	{
@@ -346,13 +367,14 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 			setError(line, "Invalid cgi_timeout syntax, expected 'cgi_timeout MS ;'");
 			return ;
 		}
-		int time = std::atoi(tokens[1].c_str());
-		if (time <= 0 || !is_num(tokens[1]))
+		unsigned long long t;
+		if (!parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
 		{
-			setError(line, "Invalid cgi_timeout value, expected positive number");
-			return ;
+			setError(line, "Invalid/overflow timeout value");
+			return;
 		}
-		location.cgi_timeout_ms = time;
+		location.cgi_timeout_ms = (size_t)t;
+		location.has_timeout = true;
 	}
 	else if (key == "cgi_max_output")
 	{
@@ -367,6 +389,12 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 			return ;
 		}
 		location.cgi_maxOutput = get_size(tokens[1]);
+		if (location.cgi_maxOutput == 0)
+		{
+			setError(line, "Invalid/overflow value");
+			return ;
+		}
+		location.has_maxOutput = true;
 	}
 	else if (key == "client_max_body_size")
 	{
@@ -382,6 +410,11 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 		}
 		location.has_max_size = true;
 		location.max_size = get_size(tokens[1]);
+		if (location.max_size == 0)
+		{
+			setError(line, "Invalid/overflow value");
+			return ;
+		}
 	}
 	else
 		setError(line, "Unknown directive");

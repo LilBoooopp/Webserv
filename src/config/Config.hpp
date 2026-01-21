@@ -61,7 +61,9 @@ struct LocationConf {
 	std::map<std::string, std::string> cgi;		// map of '.py' : 'location'  etc...
 	
 	size_t	cgi_timeout_ms;						// max timeout, if not set inherits from server
+	bool	has_timeout;
 	size_t	cgi_maxOutput;						// max output if not set inherits from location
+	bool	has_maxOutput;
 
 	bool	has_max_size;						
 	size_t	max_size;							// max location output, if not set inherits from server
@@ -72,8 +74,8 @@ struct LocationConf {
 	    : redirect_enabled(false), redirect_status(0), has_root(false), has_index(false),
 	      autoindex_set(false), autoindex(false), upload_enabled(false), 
 		  //has_py(false), has_php(false), 
-		  cgi_timeout_ms(10000), cgi_maxOutput(1024 * 1024),
-	      has_max_size(false), max_size(1024 * 1024), internal(false) {}
+		  cgi_timeout_ms (1000), has_timeout(false), cgi_maxOutput (1024*1024), has_maxOutput(false),
+	      has_max_size(false), max_size(1024*1024), internal(false) {}
 };
 
 struct ServerConf {
@@ -147,6 +149,8 @@ class Config {
 	std::vector<std::string> read_lines(const std::string &filename);
 	size_t	get_size(const std::string &token);
 	bool	is_valid_num(const std::string &num);
+	bool	parse_ull(const std::string& s, unsigned long long& res);
+	bool 	parse_port(const std::string& s, uint16_t& res);
 
 	// Config_Error
 	bool _isError;

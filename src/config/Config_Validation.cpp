@@ -16,7 +16,7 @@ bool Config::is_num(std::string str) {
 	if (str.empty())
 		return false;
 	for (size_t i = 0; i < str.size(); ++i) {
-		if (!isdigit(str[i]))
+		if (!isdigit((unsigned char)str[i]))
 			return (false);
 	}
 	return (true);
@@ -60,6 +60,17 @@ void Config::apply_defaults() {
 	int codes[] = {400, 403, 404, 405, 413, 501, 505};
 
 	for (size_t i = 0; i < _servers.size(); ++i) {
+		if (_servers[i].hosts.empty())
+			setError(0, "Missing host in server");
+		if (_servers[i].root.empty())
+		{
+			if (_globalconf.root.empty())
+				setError(0, "Missing root in server");
+			else
+				_servers[i].root = _globalconf.root;
+		}
+		if (_isError)
+			return ;
 		if (_servers[i].files.empty())
 		{
 			if (_globalconf.files.empty())
@@ -93,9 +104,12 @@ void Config::apply_defaults() {
 				_servers[i].locations[j].index_files = _servers[i].files;
 			if (!_servers[i].locations[j].has_max_size)
 				_servers[i].locations[j].max_size = _servers[i].max_size;
-			if (_servers[i].locations[j].cgi_maxOutput == 0)
+			if (!_servers[i].locations[j].has_maxOutput)
 				_servers[i].locations[j].cgi_maxOutput =
 				    _servers[i].locations[j].max_size;
+			if (!_servers[i].locations[j].has_timeout)
+				_servers[i].locations[j].cgi_timeout_ms =
+				    _servers[i].timeout_ms;
 			if (_servers[i].locations[j].methods.empty())
 				_servers[i].locations[j].methods.push_back("GET");
 		}
@@ -103,18 +117,7 @@ void Config::apply_defaults() {
 }
 
 bool Config::valid_config() {
-	for (size_t i = 0; i < _servers.size(); ++i) {
-		if (_servers[i].hosts.empty())
-			setError(0, "Missing host in server");
-		if (_servers[i].root.empty())
-		{
-			if (_globalconf.root.empty())
-				setError(0, "Missing root in server");
-			else
-				_servers[i].root = _globalconf.root;
-		}
-		if (_isError)
-			return (false);
-	}
+	if (_isError)
+		return (false);
 	return (true);
 }

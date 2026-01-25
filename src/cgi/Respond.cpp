@@ -12,7 +12,20 @@ static void trim_spaces(std::string &s) {
 	s.assign(s, start, end - start);
 }
 
-static bool parseCgiOutput(const std::string &raw, HttpResponse &res) {
+static bool parseCgiOutput(int fd, HttpResponse &res) {
+	if (lseek(fd, 0, SEEK_SET) == (off_t)-1)
+        return false;
+
+    std::string raw;
+    char buf[4096];
+    ssize_t n;
+
+    while ((n = read(fd, buf, sizeof(buf))) > 0) {
+        raw.append(buf, n);
+    }
+    if (n < 0) {
+        return false;
+	}
 	std::string::size_type pos = raw.find("\r\n\r\n");
 	std::string::size_type sep_len = 4;
 	if (pos == std::string::npos) {
@@ -21,7 +34,6 @@ static bool parseCgiOutput(const std::string &raw, HttpResponse &res) {
 	}
 	if (pos == std::string::npos)
 		return false;
-
 	std::string headerBlock(raw, 0, pos);
 	std::string body(raw, pos + sep_len);
 
@@ -89,6 +101,84 @@ static bool parseCgiOutput(const std::string &raw, HttpResponse &res) {
 	res.setBody(body);
 	return true;
 }
+
+// static bool parseCgiOutput(const std::string &raw, HttpResponse &res) {
+// 	std::string::size_type pos = raw.find("\r\n\r\n");
+// 	std::string::size_type sep_len = 4;
+// 	if (pos == std::string::npos) {
+// 		pos = raw.find("\n\n");
+// 		sep_len = 2;
+// 	}
+// 	if (pos == std::string::npos)
+// 		return false;
+
+// 	std::string headerBlock(raw, 0, pos);
+// 	std::string body(raw, pos + sep_len);
+
+// 	std::string::size_type start = 0;
+// 	bool hasStatus = false;
+// 	bool hasContentType = false;
+
+// 	while (start < headerBlock.size()) {
+// 		std::string::size_type end = headerBlock.find('\n', start);
+// 		if (end == std::string::npos)
+// 			end = headerBlock.size();
+// 		std::string line(headerBlock, start, end - start);
+// 		if (!line.empty() && line[line.size() - 1] == '\r')
+// 			line.erase(line.size() - 1);
+
+// 		if (line.empty())
+// 			break;
+
+// 		std::string::size_type colon = line.find(':');
+// 		if (colon != std::string::npos) {
+// 			std::string name(line, 0, colon);
+// 			std::string value(line, colon + 1);
+// 			trim_spaces(name);
+// 			trim_spaces(value);
+
+// 			for (std::size_t i = 0; i < name.size(); ++i)
+// 				name[i] = static_cast<char>(
+// 				    std::tolower(static_cast<unsigned char>(name[i])));
+
+// 			if (name == "status") {
+// 				int code = 0;
+// 				std::string reason;
+// 				std::string::size_type sp = value.find(' ');
+// 				if (sp == std::string::npos) {
+// 					code = std::atoi(value.c_str());
+// 					reason = "";
+// 				} else {
+// 					code = std::atoi(value.substr(0, sp).c_str());
+// 					reason = value.substr(sp + 1);
+// 				}
+// 				if (code <= 0)
+// 					code = 200;
+// 				if (reason.empty())
+// 					reason = "OK";
+// 				res.setStatus(code, reason);
+// 				hasStatus = true;
+// 			} else if (name == "content-type") {
+// 				res.setContentType(value);
+// 				hasContentType = true;
+// 			} else {
+// 				res.setHeader(name, value);
+// 			}
+// 		}
+
+// 		if (end == headerBlock.size())
+// 			break;
+// 		start = end + 1;
+// 	}
+
+// 	if (!hasStatus)
+// 		res.setStatus(200, "OK");
+// 	if (!hasContentType)
+// 		res.setContentType("text/html");
+
+// 	res.setBody(body);
+// 	return true;
+// }
 
 // bool CgiHandler::handleResponses() {
 //
@@ -188,16 +278,41 @@ void CgiHandler::handleMessage(int fd) {
 	char buf[4096];
 	bool finished = false;
 	std::string err;
+	ssize_t n = 0;
 
-	ssize_t n = read(fd, buf, sizeof(buf));
+	if (data.tmp_fd < 0)
+	{
+		err = "Error opening tmp file";
+		Logger::cgi("%sstopping %s%s%s execution after %s%lu bytes%s (max %lu bytes)",
+				GREY, YELLOW, data.file.c_str(), GREY, RED,
+				(unsigned long)data.bytesRead, GREY,
+				(unsigned long)data.maxOutput);
+		kill(data.pid, SIGKILL);
+		finished = true;
+	}
+	else
+		n = read(fd, buf, sizeof(buf));
 
 	if (n > 0) {
 		Logger::cgi("%s%d bytes%s read from %s%s%s's output [fd %d]", VALUECLR, n, GREY,
 			    URLCLR, data.file.c_str(), GREY, data.readFd);
-		data.out.append(buf, n);
+		//data.out.append(buf, n);
+		ssize_t written = write(data.tmp_fd, buf, n);
 		data.bytesRead += n;
 
-		if (data.bytesRead > data.maxOutput) {
+		if (written < 0)
+		{
+			close(data.tmp_fd);
+			data.tmp_fd = -1;
+			err = "Error writing to tmp file";
+			Logger::cgi("%sstopping %s%s%s execution after %s%lu bytes%s (max %lu bytes)",
+					GREY, YELLOW, data.file.c_str(), GREY, RED,
+					(unsigned long)data.bytesRead, GREY,
+					(unsigned long)data.maxOutput);
+			kill(data.pid, SIGKILL);
+			finished = true;
+		}
+		else if (data.bytesRead > data.maxOutput) {
 			err = "CGI output exceeded server limit";
 			Logger::cgi("%sstopping %s%s%s execution after %s%lu bytes%s (max %lu bytes)",
 				    GREY, YELLOW, data.file.c_str(), GREY, RED,
@@ -231,7 +346,7 @@ void CgiHandler::handleMessage(int fd) {
 					err = "CGI produced no output";
 					Logger::error("CGI %s produced no output (0 bytes read)",
 						      data.file.c_str());
-				} else if (!parseCgiOutput(data.out, res)) {
+				} else if (!parseCgiOutput(data.tmp_fd, res)) {
 					err = "Invalid CGI response";
 					Logger::error(
 					    "CGI %s output parsing failed. First 200 chars: %.*s",
@@ -239,6 +354,8 @@ void CgiHandler::handleMessage(int fd) {
 					    (int)(data.out.size() < 200 ? data.out.size() : 200),
 					    data.out.c_str());
 				}
+				close(data.tmp_fd);
+				data.tmp_fd = -1;
 			}
 
 			if (!err.empty()) {

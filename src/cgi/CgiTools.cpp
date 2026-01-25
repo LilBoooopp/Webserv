@@ -1,6 +1,15 @@
 #include "Cgi.hpp"
 #include <cstring>
 
+CgiData::CgiData() : pid(-1), readFd(-1), bytesRead(0), maxOutput(-1), timeout_ms(-1), conn(NULL) 
+{
+	std::stringstream ss;
+	ss << "/tmp/webserv_temp_" << fd << "_" << now_ms();
+	tmp_filename = ss.str();
+
+	tmp_fd = open(tmp_filename.c_str(),
+						O_CREAT | O_WRONLY | O_APPEND, 0644);
+}
 
 std::string getInterpreter(const std::string &path, const ServerConf &conf) {
     size_t qpos = path.find('?');

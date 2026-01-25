@@ -12,10 +12,10 @@ static void trim_spaces(std::string &s) {
 	s.assign(s, start, end - start);
 }
 
-static bool parseCgiOutput(int fd, HttpResponse &res) {
-	if (lseek(fd, 0, SEEK_SET) == (off_t)-1)
-        return false;
-
+static bool parseCgiOutput(const std::string filename, HttpResponse &res) {
+	int	fd = open(filename.c_str(), O_RDONLY);
+	if (fd < 0)
+		return (false);
     std::string raw;
     char buf[4096];
     ssize_t n;
@@ -342,11 +342,13 @@ void CgiHandler::handleMessage(int fd) {
 			res.setStatusFromCode(200);
 
 			if (err.empty()) {
-				if (data.out.empty()) {
+				close(data.tmp_fd);
+				data.tmp_fd = -1;
+				if (data.bytesRead == 0) {
 					err = "CGI produced no output";
 					Logger::error("CGI %s produced no output (0 bytes read)",
 						      data.file.c_str());
-				} else if (!parseCgiOutput(data.tmp_fd, res)) {
+				} else if (!parseCgiOutput(data.tmp_filename, res)) {
 					err = "Invalid CGI response";
 					Logger::error(
 					    "CGI %s output parsing failed. First 200 chars: %.*s",
@@ -354,8 +356,6 @@ void CgiHandler::handleMessage(int fd) {
 					    (int)(data.out.size() < 200 ? data.out.size() : 200),
 					    data.out.c_str());
 				}
-				close(data.tmp_fd);
-				data.tmp_fd = -1;
 			}
 
 			if (!err.empty()) {

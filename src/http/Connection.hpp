@@ -38,6 +38,10 @@ public:
   size_t want_body; // expected body length (from Content-Length)
   bool is_chunked;  // trye if TE: chunked
 
+  // CGI streaming state
+  off_t file_skip;
+  std::string cgi_out_path;
+
   int temp_fd;
   std::string temp_filename;
 

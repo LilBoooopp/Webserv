@@ -1,11 +1,10 @@
 #pragma once
 
+#include "../http/Connection.hpp"
 #include "../cgi/Cgi.hpp"
 #include "../config/Config.hpp"
 #include "../core/EpollReactor.hpp"
-#include "../http/Connection.hpp"
 #include "Listener.hpp"
-
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -15,7 +14,7 @@
 #include <unistd.h>
 #include <vector>
 
-class CgiHandler;
+
 class Server {
 	EpollReactor reactor_;
 	std::vector<Listener> listener_;

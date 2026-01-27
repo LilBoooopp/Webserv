@@ -77,6 +77,10 @@ void Connection::resetForNextRequest() {
     temp_filename.clear();
   }
 
+  // Clear cgi streaming fields
+  file_skip = 0;
+  cgi_out_path.clear();
+
   // Clear file streaming state
   if (file_fd != -1) {
     ::close(file_fd);

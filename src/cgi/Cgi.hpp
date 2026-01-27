@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <vector>
 
-struct CgiData;
 
 class CgiHandler {
     private:

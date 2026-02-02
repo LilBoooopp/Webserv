@@ -18,7 +18,7 @@ CONFIG_FILE = "default.conf"
 # Paths must match your webserv config!
 PATH_ROOT = "/"
 PATH_NOT_FOUND = "/wubba_lubba_dub_dub"
-PATH_UPLOAD = "/uploads"  # Must accept POST and DELETE
+PATH_UPLOAD = "/uploads/postBytes/"  # Must accept POST and DELETE
 PATH_CGI = "/cgi-bin/test.php" # Optional: set to None to skip CGI tests
 
 # Timeouts

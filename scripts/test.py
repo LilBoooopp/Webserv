@@ -9,14 +9,14 @@ import os
 from contextlib import closing
 
 HOST = "127.0.0.1"
-PORT = 8080
+PORT = 8000
 
 # Adjust this if your webserv needs a config file:
 # e.g. ["./webserv", "config/webserv.conf"]
-WEBSERV_CMD = ["../webserv", "default.conf"]
+WEBSERV_CMD = ["./webserv", "default.conf"]
 
 # How long to wait for the server to start responding
-SERVER_START_TIMEOUT = 5.0
+SERVER_START_TIMEOUT = 10.0
 # Socket timeout for each test connection
 SOCKET_TIMEOUT = 2.0
 # Max bytes to read from response (to avoid dumping huge bodies)
@@ -181,7 +181,7 @@ def run_stress_suite():
 
     # 20 concurrent small uploads
     small_body = os.urandom(1024)
-    small_upload = build_upload_request("/upload", small_body)
+    small_upload = build_upload_request("/upload/", small_body)
     results.append(run_concurrent("Small uploads x20", small_upload, 20, expect_status_prefix="HTTP/1.1 "))
 
     # 10 concurrent 64KB uploads

@@ -5,14 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="/css/style.css" />
   </head>
+
   <body>
     <body style="margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh">
-      <div style="color: black">Unauthorized</div>
+      <div style="color: rgb(128, 7, 139)">Not Found</div>
     </body>
+
     <script src="/js/buttons.js"></script>
     <script src="/js/div.js"></script>
+
     <script>
-      addDiv("401", [window.innerWidth / 2, window.innerHeight / 2 - 150], 5);
+      const c = [window.innerWidth / 2, window.innerHeight / 2];
+      addDiv("404_override", [c[0], c[1] - 150], 5);
       addHomeButton();
     </script>
   </body>

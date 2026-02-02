@@ -48,6 +48,22 @@ bool	Config::is_valid_num(const std::string &num)
 	return (true);
 }
 
+bool	Config::is_valid_time(const std::string &num)
+{
+	int	end = num.size();
+	int	i = 0;
+
+	if (num.empty())
+		return (false);
+	while (i < end)
+	{
+		if (!isdigit((unsigned char) num[i]))
+			return (false);
+		i++;
+	}
+	return (true);
+}
+
 static size_t size_max_value() { return (size_t)~(size_t)0; }
 
 size_t Config::get_size(const std::string &token)

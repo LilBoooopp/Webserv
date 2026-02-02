@@ -149,6 +149,7 @@ class Config {
 	std::vector<std::string> read_lines(const std::string &filename);
 	size_t	get_size(const std::string &token);
 	bool	is_valid_num(const std::string &num);
+	bool	is_valid_time(const std::string &num);
 	bool	parse_ull(const std::string& s, unsigned long long& res);
 	bool 	parse_port(const std::string& s, uint16_t& res);
 

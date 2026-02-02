@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 			  << config.getErrorMessage() << std::endl;
 		return (1);
 	}
-	//config.debug_print();
+	// config.debug_print();
 	Server s(config);
 	if (!s.start()) {
 		std::perror("webserv: start failed (is another instance running?");

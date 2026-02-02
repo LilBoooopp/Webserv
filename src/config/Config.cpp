@@ -87,7 +87,7 @@ void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, 
 			return ;
 		}
 		unsigned long long t;
-		if (!parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
+		if (!is_valid_time(tokens[1]) || !parse_ull(tokens[1], t) || t <= 0 || t > size_max_ull())
 		{
 			setError(line, "Invalid/overflow timeout value");
 			return;
@@ -237,7 +237,7 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			return ;
 		}
 		unsigned long long t;
-		if (!parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
+		if (!is_valid_time(tokens[1]) || !parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
 		{
 			setError(line, "Invalid/overflow timeout value");
 			return;
@@ -368,7 +368,7 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 			return ;
 		}
 		unsigned long long t;
-		if (!parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
+		if (!is_valid_time(tokens[1]) || !parse_ull(tokens[1], t) || t == 0 || t > size_max_ull())
 		{
 			setError(line, "Invalid/overflow timeout value");
 			return;

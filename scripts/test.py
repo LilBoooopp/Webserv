@@ -312,6 +312,6 @@ if __name__ == "__main__":
     run_basic_tests()
     run_upload_tests()
     run_advanced_tests()
-    run_stress_test(100)
+    run_stress_test(1000)
     
     print(f"\n{Colors.BOLD}Test Suite Completed.{Colors.ENDC}")

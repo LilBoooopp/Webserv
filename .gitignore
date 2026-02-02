@@ -4,5 +4,5 @@ Objects
 .DS_Store
 src/.DS_Store
 .vscode/settings.json
-www_giulio/ressources/uploads/postBytes/
+www_giulio/ressources/uploads/postBytes/*
 .github

@@ -4,6 +4,10 @@ const char *HttpResponse::reasonForStatus(int code) {
   switch (code) {
   case 200:
     return ("OK");
+  case 201:
+    return ("Created");
+  case 204:
+    return ("No Content");
   case 400:
     return ("Bad Request");
   case 401:
@@ -149,7 +153,7 @@ void HttpResponse::printResponse(int fd) {
     oss << "'";
     label = oss.str();
   }
-  Logger::response("at fd %d: %s%s%s %s", fd, getStatus() == 200 ? GREEN : RED,
+  Logger::response("at fd %d: %s%s%s %s", fd, getStatus() < 400 ? GREEN : RED,
                    getHead().c_str(), TS, label.c_str());
   for (std::map<std::string, std::string>::const_iterator it =
            this->headers_.begin();

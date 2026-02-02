@@ -126,6 +126,7 @@ static void handlePost(Connection &c) {
     std::remove(c.temp_filename.c_str());
     c.temp_filename.clear();
   }
+  c.res.setStatusFromCode(201);
 }
 
 static void handleDelete(Connection &c) {
@@ -144,9 +145,11 @@ static void handleDelete(Connection &c) {
     c.res.setStatusFromCode(404);
   else if (remove(target_file.c_str()) != 0)
     c.res.setStatusFromCode(500);
-  else
+  else {
     Logger::response("file at path \'%s%s%s\' deleted.", URLCLR,
                      target_file.c_str(), TS);
+    c.res.setStatusFromCode(204);
+  }
 }
 
 // Build and serialize a response once the request/body are ready

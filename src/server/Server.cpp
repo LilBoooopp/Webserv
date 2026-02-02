@@ -289,6 +289,8 @@ void Server::handleReadable(int fd) {
                 c.temp_fd = open(c.temp_filename.c_str(),
                                  O_CREAT | O_WRONLY | O_TRUNC, 0644);
                 if (c.temp_fd < 0) {
+                  Logger::error("temp_fd return: %d, name: %s", c.temp_fd,
+                                c.temp_filename.c_str());
                   c.res.setStatusFromCode(500);
                   c.state = WRITING_RESPONSE;
                   return;
@@ -326,7 +328,16 @@ void Server::handleReadable(int fd) {
                 if (!c.is_chunked && c.want_body > 0 && !c.in.empty()) {
                   size_t take =
                       (c.in.size() > c.want_body) ? c.want_body : c.in.size();
-                  c.body.append(c.in.data(), take);
+
+                  if (c.temp_fd != -1) {
+                    ssize_t written = write(c.temp_fd, c.in.data(), take);
+                    if (written < 0) {
+                      // ERROR 500
+                    }
+                    c.body_bytes_read += static_cast<size_t>(written);
+                  } else {
+                    c.body.append(c.in.data(), take);
+                  }
                   c.in.erase(0, take);
                 }
 
@@ -334,14 +345,14 @@ void Server::handleReadable(int fd) {
                   // Initialize chunk decoder
                   c.decoder.reset();
                   c.state = READING_BODY;
-                } else if (c.want_body == c.body.size()) // No Body
-                                                         // or
-                                                         // already
-                                                         // have
-                                                         // entire
-                                                         // body
+                } else if (c.temp_fd != -1 &&
+                           c.body_bytes_read >= c.want_body) {
+                  close(c.temp_fd);
+                  c.temp_fd = -1;
                   c.state = WRITING_RESPONSE;
-                else // still need more body bytes
+                } else if (c.temp_fd == -1 && c.body.size() >= c.want_body) {
+                  c.state = WRITING_RESPONSE;
+                } else // still need more body bytes
                   c.state = READING_BODY;
               }
             }
@@ -404,41 +415,45 @@ void Server::handleReadable(int fd) {
           // Non-chunked body: consume up to want_body, capped by
           // decode_left
           if (c.want_body > 0 && !c.in.empty() && decode_left > 0) {
-            size_t room = c.want_body - (handled - c.in.size());
+            size_t bytes_needed = c.want_body - c.body_bytes_read;
             size_t take = c.in.size();
-            if (take > room)
-              take = room;
+            if (take > bytes_needed)
+              take = bytes_needed;
             if (take > decode_left)
               take = decode_left;
 
-            ssize_t written = write(c.temp_fd, c.in.data(), take);
-            if (written < 0) {
-              close(c.temp_fd);
-              c.temp_fd = -1;
-              c.res.setStatusFromCode(500);
-              c.state = WRITING_RESPONSE;
-              return;
+            if (c.temp_fd != -1) {
+              ssize_t written = write(c.temp_fd, c.in.data(), take);
+              if (written < 0) {
+                close(c.temp_fd);
+                c.temp_fd = -1;
+                c.res.setStatusFromCode(500);
+                c.state = WRITING_RESPONSE;
+                return;
+              }
+              c.body_bytes_read += static_cast<size_t>(written);
+            } else {
+              c.body.append(c.in.data(), take);
             }
-
-            // size_t room = c.want_body - c.body.size();
-            // size_t take = c.in.size();
-            // if (take > room)
-            //   take = room;
-            // if (take > decode_left)
-            //   take = decode_left;
-
-            // c.body.append(c.in.data(), take);
             c.in.erase(0, take);
             decode_left -= take;
           }
-          // If we now have the full body, we can move on to
-          // responding
-          if (c.body.size() >= c.want_body)
+
+          bool is_full = false;
+          if (c.temp_fd != -1) {
+            if (c.body_bytes_read >= c.want_body)
+              is_full = true;
+            else if (c.body.size() >= c.want_body)
+              is_full = true;
+          }
+
+          if (is_full) {
             if (c.temp_fd != -1) {
               close(c.temp_fd);
               c.temp_fd = -1;
             }
-          c.state = WRITING_RESPONSE;
+            c.state = WRITING_RESPONSE;
+          }
         }
       }
 
@@ -515,28 +530,24 @@ void Server::handleWritable(int fd) {
 
       char buf[FILE_CHUNK];
       // If streaming CGI output
-      if (c.file_skip > 0)
-      {
-          size_t discard;
-          if ((off_t)FILE_CHUNK > c.file_skip)
-            discard = (size_t) c.file_skip;
-          else
-            discard = FILE_CHUNK;
-          ssize_t skip = read(c.file_fd, buf, discard);
-          if (skip > 0)
-          {
-            c.file_skip -= skip;
-            return ;
-          }
-          else
-          {
-            ::close(c.file_fd);
-            c.file_fd = -1;
-            c.streaming_file = false;
-            c.file_remaining = 0;
-            c.file_skip = 0;
-            return ;
-          }
+      if (c.file_skip > 0) {
+        size_t discard;
+        if ((off_t)FILE_CHUNK > c.file_skip)
+          discard = (size_t)c.file_skip;
+        else
+          discard = FILE_CHUNK;
+        ssize_t skip = read(c.file_fd, buf, discard);
+        if (skip > 0) {
+          c.file_skip -= skip;
+          return;
+        } else {
+          ::close(c.file_fd);
+          c.file_fd = -1;
+          c.streaming_file = false;
+          c.file_remaining = 0;
+          c.file_skip = 0;
+          return;
+        }
       }
       size_t to_read = FILE_CHUNK;
       if (static_cast<off_t>(to_read) > c.file_remaining)
@@ -550,8 +561,7 @@ void Server::handleWritable(int fd) {
         c.out.append(buf, static_cast<size_t>(r));
 
         if (c.file_remaining <= 0) {
-          if (!c.cgi_out_path.empty())
-          {
+          if (!c.cgi_out_path.empty()) {
             unlink(c.cgi_out_path.c_str());
             c.cgi_out_path.clear();
           }
@@ -581,8 +591,7 @@ void Server::handleWritable(int fd) {
     // Check if we should keep connection alive for HTTP/1.1 Keep-Alive
     if (shouldKeepConnectionAlive(c)) {
       Logger::connection("fd %d keeping connection alive", fd);
-      if (!c.cgi_out_path.empty())
-      {
+      if (!c.cgi_out_path.empty()) {
         unlink(c.cgi_out_path.c_str());
         c.cgi_out_path.clear();
       }
@@ -594,8 +603,7 @@ void Server::handleWritable(int fd) {
 
     // Connection should be closed
     Logger::connection("fd %d closed - connection removed", fd);
-    if (!c.cgi_out_path.empty())
-    {
+    if (!c.cgi_out_path.empty()) {
       unlink(c.cgi_out_path.c_str());
       c.cgi_out_path.clear();
     }

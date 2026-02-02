@@ -4,6 +4,7 @@
 #include "ChunkedDecoder.hpp"
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
+#include <cstddef>
 #include <ctime>
 #include <string>
 #include <sys/types.h>
@@ -23,7 +24,8 @@ class Connection {
 public:
   std::string in;   // head + maybe more
   std::string body; // request body as we accumulate it
-  std::string out;  // response bytes to send
+  size_t body_bytes_read;
+  std::string out; // response bytes to send
   std::string
       id; // session id stored in browser after /login, used to id requests
   std::string user;

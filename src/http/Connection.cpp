@@ -2,10 +2,10 @@
 #include <unistd.h>
 
 Connection::Connection(const ServerConf &cfg)
-    : headers_done(false), responded(false), peer_closed(false),
-      close_after(false), state(READING_HEADERS), want_body(0),
-      is_chunked(false), temp_fd(-1), res(200), file_fd(-1), file_remaining(0),
-      streaming_file(false), cfg(cfg), loc(NULL) {
+    : body_bytes_read(0), headers_done(false), responded(false),
+      peer_closed(false), close_after(false), state(READING_HEADERS),
+      want_body(0), is_chunked(false), temp_fd(-1), res(200), file_fd(-1),
+      file_remaining(0), streaming_file(false), cfg(cfg), loc(NULL) {
   last_active = std::time(NULL);
 }
 
@@ -14,6 +14,7 @@ Connection &Connection::operator=(const Connection &other) {
     // Copy all members except cfg (const reference)
     in = other.in;
     body = other.body;
+    body_bytes_read = other.body_bytes_read;
     out = other.out;
     id = other.id;
     user = other.user;
@@ -54,6 +55,7 @@ void Connection::resetForNextRequest() {
   // Clear request/response for next request on persistent connection
   in.clear();
   body.clear();
+  body_bytes_read = 0;
   out.clear();
   req = HttpRequest();
   res = HttpResponse(200);

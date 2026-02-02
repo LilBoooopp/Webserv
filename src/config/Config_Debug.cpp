@@ -63,8 +63,13 @@ void Config::debug_print_server(const ServerConf &server, const char *clr) {
 	std::cout << std::endl;
 	std::cout << clr << "    Error pages:" << GREY << std::endl;
 	for (std::map<int, std::string>::const_iterator it = server.error_pages.begin();
-	     it != server.error_pages.end(); ++it)
-		std::cout << "        " << it->first << " " << it->second << std::endl;
+	     it != server.error_pages.end(); ++it) {
+		std::string errPage = it->second;
+		if (errPage.compare(0, 11, "<!DOCTYPE>")) {
+			errPage = errPage.substr(0, 16) + "...";
+		}
+		std::cout << "        " << it->first << " => " << errPage << std::endl;
+	}
 	std::cout << std::endl;
 	std::cout << clr << "    Max body size: " << GREY << bytesToStr(server.max_size)
 		  << std::endl;

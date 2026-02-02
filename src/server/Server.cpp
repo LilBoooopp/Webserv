@@ -289,6 +289,8 @@ void Server::handleReadable(int fd) {
                 c.temp_fd = open(c.temp_filename.c_str(),
                                  O_CREAT | O_WRONLY | O_TRUNC, 0644);
                 if (c.temp_fd < 0) {
+                  Logger::error("temp_fd return: %d, name: %s", c.temp_fd,
+                                c.temp_filename.c_str());
                   c.res.setStatusFromCode(500);
                   c.state = WRITING_RESPONSE;
                   return;
@@ -419,15 +421,6 @@ void Server::handleReadable(int fd) {
               c.state = WRITING_RESPONSE;
               return;
             }
-
-            // size_t room = c.want_body - c.body.size();
-            // size_t take = c.in.size();
-            // if (take > room)
-            //   take = room;
-            // if (take > decode_left)
-            //   take = decode_left;
-
-            // c.body.append(c.in.data(), take);
             c.in.erase(0, take);
             decode_left -= take;
           }
@@ -515,28 +508,24 @@ void Server::handleWritable(int fd) {
 
       char buf[FILE_CHUNK];
       // If streaming CGI output
-      if (c.file_skip > 0)
-      {
-          size_t discard;
-          if ((off_t)FILE_CHUNK > c.file_skip)
-            discard = (size_t) c.file_skip;
-          else
-            discard = FILE_CHUNK;
-          ssize_t skip = read(c.file_fd, buf, discard);
-          if (skip > 0)
-          {
-            c.file_skip -= skip;
-            return ;
-          }
-          else
-          {
-            ::close(c.file_fd);
-            c.file_fd = -1;
-            c.streaming_file = false;
-            c.file_remaining = 0;
-            c.file_skip = 0;
-            return ;
-          }
+      if (c.file_skip > 0) {
+        size_t discard;
+        if ((off_t)FILE_CHUNK > c.file_skip)
+          discard = (size_t)c.file_skip;
+        else
+          discard = FILE_CHUNK;
+        ssize_t skip = read(c.file_fd, buf, discard);
+        if (skip > 0) {
+          c.file_skip -= skip;
+          return;
+        } else {
+          ::close(c.file_fd);
+          c.file_fd = -1;
+          c.streaming_file = false;
+          c.file_remaining = 0;
+          c.file_skip = 0;
+          return;
+        }
       }
       size_t to_read = FILE_CHUNK;
       if (static_cast<off_t>(to_read) > c.file_remaining)
@@ -550,8 +539,7 @@ void Server::handleWritable(int fd) {
         c.out.append(buf, static_cast<size_t>(r));
 
         if (c.file_remaining <= 0) {
-          if (!c.cgi_out_path.empty())
-          {
+          if (!c.cgi_out_path.empty()) {
             unlink(c.cgi_out_path.c_str());
             c.cgi_out_path.clear();
           }
@@ -581,8 +569,7 @@ void Server::handleWritable(int fd) {
     // Check if we should keep connection alive for HTTP/1.1 Keep-Alive
     if (shouldKeepConnectionAlive(c)) {
       Logger::connection("fd %d keeping connection alive", fd);
-      if (!c.cgi_out_path.empty())
-      {
+      if (!c.cgi_out_path.empty()) {
         unlink(c.cgi_out_path.c_str());
         c.cgi_out_path.clear();
       }
@@ -594,8 +581,7 @@ void Server::handleWritable(int fd) {
 
     // Connection should be closed
     Logger::connection("fd %d closed - connection removed", fd);
-    if (!c.cgi_out_path.empty())
-    {
+    if (!c.cgi_out_path.empty()) {
       unlink(c.cgi_out_path.c_str());
       c.cgi_out_path.clear();
     }

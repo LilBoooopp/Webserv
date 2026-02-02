@@ -328,7 +328,16 @@ void Server::handleReadable(int fd) {
                 if (!c.is_chunked && c.want_body > 0 && !c.in.empty()) {
                   size_t take =
                       (c.in.size() > c.want_body) ? c.want_body : c.in.size();
-                  c.body.append(c.in.data(), take);
+
+                  if (c.temp_fd != -1) {
+                    ssize_t written = write(c.temp_fd, c.in.data(), take);
+                    if (written < 0) {
+                      // ERROR 500
+                    }
+                    c.body_bytes_read += static_cast<size_t>(written);
+                  } else {
+                    c.body.append(c.in.data(), take);
+                  }
                   c.in.erase(0, take);
                 }
 
@@ -336,14 +345,14 @@ void Server::handleReadable(int fd) {
                   // Initialize chunk decoder
                   c.decoder.reset();
                   c.state = READING_BODY;
-                } else if (c.want_body == c.body.size()) // No Body
-                                                         // or
-                                                         // already
-                                                         // have
-                                                         // entire
-                                                         // body
+                } else if (c.temp_fd != -1 &&
+                           c.body_bytes_read >= c.want_body) {
+                  close(c.temp_fd);
+                  c.temp_fd = -1;
                   c.state = WRITING_RESPONSE;
-                else // still need more body bytes
+                } else if (c.temp_fd == -1 && c.body.size() >= c.want_body) {
+                  c.state = WRITING_RESPONSE;
+                } else // still need more body bytes
                   c.state = READING_BODY;
               }
             }
@@ -406,32 +415,45 @@ void Server::handleReadable(int fd) {
           // Non-chunked body: consume up to want_body, capped by
           // decode_left
           if (c.want_body > 0 && !c.in.empty() && decode_left > 0) {
-            size_t room = c.want_body - (handled - c.in.size());
+            size_t bytes_needed = c.want_body - c.body_bytes_read;
             size_t take = c.in.size();
-            if (take > room)
-              take = room;
+            if (take > bytes_needed)
+              take = bytes_needed;
             if (take > decode_left)
               take = decode_left;
 
-            ssize_t written = write(c.temp_fd, c.in.data(), take);
-            if (written < 0) {
-              close(c.temp_fd);
-              c.temp_fd = -1;
-              c.res.setStatusFromCode(500);
-              c.state = WRITING_RESPONSE;
-              return;
+            if (c.temp_fd != -1) {
+              ssize_t written = write(c.temp_fd, c.in.data(), take);
+              if (written < 0) {
+                close(c.temp_fd);
+                c.temp_fd = -1;
+                c.res.setStatusFromCode(500);
+                c.state = WRITING_RESPONSE;
+                return;
+              }
+              c.body_bytes_read += static_cast<size_t>(written);
+            } else {
+              c.body.append(c.in.data(), take);
             }
             c.in.erase(0, take);
             decode_left -= take;
           }
-          // If we now have the full body, we can move on to
-          // responding
-          if (c.body.size() >= c.want_body)
+
+          bool is_full = false;
+          if (c.temp_fd != -1) {
+            if (c.body_bytes_read >= c.want_body)
+              is_full = true;
+            else if (c.body.size() >= c.want_body)
+              is_full = true;
+          }
+
+          if (is_full) {
             if (c.temp_fd != -1) {
               close(c.temp_fd);
               c.temp_fd = -1;
             }
-          c.state = WRITING_RESPONSE;
+            c.state = WRITING_RESPONSE;
+          }
         }
       }
 

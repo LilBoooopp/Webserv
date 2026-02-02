@@ -288,6 +288,7 @@ void Server::handleReadable(int fd) {
 
                 c.temp_fd = open(c.temp_filename.c_str(),
                                  O_CREAT | O_WRONLY | O_TRUNC, 0644);
+                Logger::info("Created temp_fd: %s", c.temp_filename.c_str());
                 if (c.temp_fd < 0) {
                   Logger::error("temp_fd return: %d, name: %s", c.temp_fd,
                                 c.temp_filename.c_str());

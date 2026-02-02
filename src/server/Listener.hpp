@@ -13,3 +13,5 @@ public:
   bool bindAndListen(uint32_t ip_be, uint16_t port_be, int backlog = 128);
   int fd() const { return (fd_); }
 };
+
+int set_nonblock(int fd);

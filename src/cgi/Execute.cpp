@@ -133,7 +133,7 @@ bool CgiHandler::runCgi(Connection &c, int fd) {
 	}
 
 	if (!file_exists(interpreter)) {
-		Logger::error("Interpreter for %s: %s not found", c.req.target.c_str(),
+		Logger::error("Interpreter for %s: %s%s NOT FOUND", c.req.target.c_str(), RED,
 			      interpreter.c_str());
 	}
 

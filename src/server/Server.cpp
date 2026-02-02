@@ -39,11 +39,6 @@ void Server::cleanup() {
   Logger::server("Cleanup complete");
 }
 
-static int set_nonblock(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  return ((flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0) ? 0 : -1);
-}
-
 /**
  * @brief Starts the server by bind and listening on the host and ports
  *

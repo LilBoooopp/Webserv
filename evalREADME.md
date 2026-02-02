@@ -90,29 +90,6 @@ Resilience: Signal handling (SIGINT) for graceful shutdown and resource cleanup.
 
  * RFC 3875 (The Common Gateway Interface)
 
-##  Features List
-### Mandatory Part
-
- * HTTP Protocol: Full support for GET, POST, DELETE methods and HTTP/1.1 headers.
- * I/O Multiplexing: epoll (Linux) and kqueue (macOS) integration.
- * CGI Support: Execution of PHP and Python scripts via child processes with environment setup (REQUEST_METHOD, QUERY_STRING, etc.).
- * Static Serving: Directory listing, static files, and customizable index files.
- * Uploads: Multipart form data handling and file storage.
- * Error Handling: Custom error pages (404, 403, 500, etc.) and graceful failure handling.
- * Resilience: Signal handling (SIGINT) for graceful shutdown and resource cleanup.
-
-### Bonus Part
-
- * Cookies & Sessions: Session management implementation using HTTP cookies.
- * Multiple CGI: Support for multiple CGI interpreters (PHP and Python) configured via file extensions.
-
-## Resources
-### References
-
- * RFC 7230-7235 (HTTP/1.1 Specification)
-
- * RFC 3875 (The Common Gateway Interface)
-
  * Beej's Guide to Network Programming
  
  * Man pages: epoll(7), kqueue(2), socket(2)

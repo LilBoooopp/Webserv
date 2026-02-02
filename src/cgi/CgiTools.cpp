@@ -128,9 +128,9 @@ void parseCgiRequest(const std::string &target, std::string &dir, std::string &f
 
 void CgiHandler::setConfig(const std::vector<ServerConf> &cfg) {
 	cfg_ = &cfg;
-	Logger::cgi("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1), GREY,
-		    "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms, "maxOutput",
-		    (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
+	// Logger::cgi("%sCgiHandler%s\n  %-10s%lums\n  %-10s%lu MB\n", rgba(168, 145, 185, 1), GREY,
+	// 	    "timeout", (unsigned long)(*cfg_)[0].locations[0].cgi_timeout_ms, "maxOutput",
+	// 	    (unsigned long)((*cfg_)[0].locations[0].cgi_maxOutput / (1024UL * 1024UL)));
 }
 
 void CgiHandler::killAsyncProcesses() {

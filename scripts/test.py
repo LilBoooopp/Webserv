@@ -1,397 +1,317 @@
 #!/usr/bin/env python3
-import subprocess
 import socket
 import time
 import sys
 import threading
 import random
 import os
-from contextlib import closing
+import re
 
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
 HOST = "127.0.0.1"
 PORT = 8000
+SERVER_BIN = "./webserv"
+CONFIG_FILE = "default.conf"
 
-# Adjust this if your webserv needs a config file:
-# e.g. ["./webserv", "config/webserv.conf"]
-WEBSERV_CMD = ["./webserv", "default.conf"]
+# Paths must match your webserv config!
+PATH_ROOT = "/"
+PATH_NOT_FOUND = "/wubba_lubba_dub_dub"
+PATH_UPLOAD = "/uploads"  # Must accept POST and DELETE
+PATH_CGI = "/cgi-bin/test.php" # Optional: set to None to skip CGI tests
 
-# How long to wait for the server to start responding
-SERVER_START_TIMEOUT = 10.0
-# Socket timeout for each test connection
-SOCKET_TIMEOUT = 2.0
-# Max bytes to read from response (to avoid dumping huge bodies)
-MAX_READ_BYTES = 64 * 1024
+# Timeouts
+CONNECTION_TIMEOUT = 2.0  # Seconds to wait for connection
+READ_TIMEOUT = 2.0        # Max time to wait for data if length unknown
 
+# ==============================================================================
+# UTILS & COLORS
+# ==============================================================================
+class Colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
 
-class HttpTestResult:
-    def __init__(self, name, ok, error=None, status_line=None, preview=None):
-        self.name = name
-        self.ok = ok
-        self.error = error
-        self.status_line = status_line
-        self.preview = preview
+def print_pass(name, details=""):
+    print(f"{Colors.OKGREEN}[PASS]{Colors.ENDC} {name} {details}")
 
+def print_fail(name, details=""):
+    print(f"{Colors.FAIL}[FAIL]{Colors.ENDC} {name}")
+    print(f"{Colors.FAIL}       Error: {details}{Colors.ENDC}")
 
-def send_raw_request(raw_request):
+# ==============================================================================
+# SMART HTTP READER
+# ==============================================================================
+def read_http_response(s):
     """
-    Opens a TCP connection, sends raw HTTP request bytes, reads response.
-    Returns raw response as bytes.
+    Reads from socket until the full HTTP response is received.
+    Parses Content-Length or Chunked encoding to avoid waiting for timeouts.
     """
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.settimeout(SOCKET_TIMEOUT)
-        s.connect((HOST, PORT))
-        if isinstance(raw_request, bytes):
-            s.sendall(raw_request)
-        else:
-            s.sendall(raw_request.encode("ascii"))
-        chunks = []
-        total = 0
-        while total < MAX_READ_BYTES:
+    s.settimeout(READ_TIMEOUT)
+    data = b""
+    header_part = b""
+    body_part = b""
+    content_length = -1
+    is_chunked = False
+    headers_parsed = False
+
+    while True:
+        try:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+            
+            # 1. Parse Headers if we haven't yet
+            if not headers_parsed:
+                if b"\r\n\r\n" in data:
+                    headers_end = data.find(b"\r\n\r\n") + 4
+                    header_part = data[:headers_end]
+                    body_part = data[headers_end:]
+                    headers_parsed = True
+                    
+                    # Check for Content-Length
+                    cl_match = re.search(rb"Content-Length:\s*(\d+)", header_part, re.IGNORECASE)
+                    if cl_match:
+                        content_length = int(cl_match.group(1))
+                    
+                    # Check for Chunked
+                    if b"Transfer-Encoding: chunked" in header_part:
+                        is_chunked = True
+            
+            # 2. Check if we are done reading based on parsed headers
+            if headers_parsed:
+                # Case A: Content-Length known
+                if content_length != -1:
+                    if len(body_part) >= content_length:
+                        # We have the full body (and maybe more, though unlikely in simple tests)
+                        break
+                
+                # Case B: Chunked Encoding
+                elif is_chunked:
+                    # Look for the end of the zero chunk: 0\r\n\r\n
+                    if body_part.endswith(b"0\r\n\r\n"):
+                        break
+                
+                # Case C: No Body (e.g., 204, 304) or unknown length (Connection: close)
+                # If we can't determine length, we rely on the socket closing or timeout,
+                # but valid HTTP/1.1 usually gives us CL or Chunked.
+                
+        except socket.timeout:
+            break
+            
+    return data
+
+# ==============================================================================
+# TEST FUNCTIONS
+# ==============================================================================
+def send_request(name, request_data, expect_status=200, expect_body=None, check_pipelining=False):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(CONNECTION_TIMEOUT)
+            s.connect((HOST, PORT))
+            
+            if isinstance(request_data, str):
+                request_data = request_data.encode()
+            
+            s.sendall(request_data)
+            response = read_http_response(s)
+            
+            if not response:
+                print_fail(name, "No response received")
+                return False
+
+            # Decode headers for checking (latin-1 is safe for headers)
             try:
-                data = s.recv(4096)
-            except socket.timeout:
-                break
-            if not data:
-                break
-            chunks.append(data)
-            total += len(data)
-        return b"".join(chunks)
+                head_str = response.split(b"\r\n\r\n")[0].decode('latin-1')
+            except:
+                head_str = str(response)
 
+            # Check Status Code
+            status_line = head_str.split('\r\n')[0]
+            if str(expect_status) not in status_line:
+                print_fail(name, f"Expected {expect_status}, got '{status_line}'")
+                return False
 
-def parse_status_line(response_bytes):
-    """
-    Extracts the first line (status line) from an HTTP response.
-    Returns it as a decoded string, or None if it can't be parsed.
-    """
-    try:
-        text = response_bytes.decode("iso-8859-1", errors="replace")
-    except Exception:
-        return None
-    end = text.find("\r\n")
-    if end == -1:
-        return None
-    return text[:end]
+            # Check Pipelining (Special Case)
+            if check_pipelining:
+                # Count how many times "HTTP/1.1" appears in the response
+                # (This assumes the server sends responses back-to-back)
+                count = response.count(b"HTTP/1.1")
+                if count < 2:
+                    print_fail(name, f"Pipelining failed. Expected 2 responses, got {count}")
+                    return False
 
+            # Check Body Content (if requested)
+            if expect_body:
+                if isinstance(expect_body, str):
+                    expect_body = expect_body.encode()
+                if expect_body not in response:
+                    print_fail(name, "Body content mismatch")
+                    return False
 
-def preview_body(response_bytes, limit=120):
-    """
-    Returns a small preview of the response body (first N bytes decoded).
-    Good to see if server is roughly doing what we expect.
-    """
-    try:
-        text = response_bytes.decode("utf-8", errors="replace")
-    except Exception:
-        text = repr(response_bytes)
-    # Split headers/body
-    sep = text.find("\r\n\r\n")
-    if sep == -1:
-        return text[:limit].replace("\n", "\\n")
-    body = text[sep + 4 :]
-    if len(body) > limit:
-        return body[:limit].replace("\n", "\\n") + "...(truncated)"
-    return body.replace("\n", "\\n")
+            print_pass(name, f"({status_line})")
+            return True
 
-
-def run_test(name, raw_request, expect_status_prefix=None):
-    """
-    Runs a single HTTP test:
-      - Sends raw_request
-      - Gets response
-      - Optionally checks that status line starts with expect_status_prefix
-    Returns HttpTestResult.
-    """
-    try:
-        resp = send_raw_request(raw_request)
-        if not resp:
-            return HttpTestResult(name, ok=False, error="No response received")
-
-        status_line = parse_status_line(resp)
-        prev = preview_body(resp)
-
-        if expect_status_prefix and status_line:
-            ok = status_line.startswith(expect_status_prefix)
-        else:
-            ok = status_line is not None
-
-        return HttpTestResult(name, ok=ok, status_line=status_line, preview=prev)
-
+    except ConnectionRefusedError:
+        print_fail(name, "Connection refused. Is the server running?")
+        return False
     except Exception as e:
-        return HttpTestResult(name, ok=False, error=str(e))
+        print_fail(name, str(e))
+        return False
 
+# ==============================================================================
+# SUITES
+# ==============================================================================
 
-def run_concurrent(name, raw_request, count, expect_status_prefix=None):
-    results = []
-    lock = threading.Lock()
+def run_basic_tests():
+    print(f"\n{Colors.BOLD}=== BASIC REQUESTS ==={Colors.ENDC}")
+    
+    # 1. GET Root
+    req = f"GET {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+    send_request("GET Root", req, expect_status=200)
 
-    def worker(idx):
-        res = run_test(f"{name} [#{idx}]", raw_request, expect_status_prefix)
-        with lock:
-            results.append(res)
+    # 2. GET 404
+    req = f"GET {PATH_NOT_FOUND} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+    send_request("GET Non-existent", req, expect_status=404)
+
+    # 3. DELETE (Not Allowed on Root usually)
+    req = f"DELETE {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+    # This might be 405 (Method Not Allowed) or 403 (Forbidden) depending on your config
+    send_request("DELETE Root (Expect Fail)", req, expect_status=405)
+
+def run_upload_tests():
+    print(f"\n{Colors.BOLD}=== UPLOAD & POST ==={Colors.ENDC}")
+    
+    filename = f"test_{random.randint(1000, 9999)}.txt"
+    file_content = "This is a test file content for webserv."
+    
+    # 1. POST File
+    # Note: This is a raw POST. If your server expects Multipart, this might fail unless 
+    # you configured a raw upload endpoint. Assuming raw POST for simplicity:
+    req = (
+        f"POST {PATH_UPLOAD}/{filename} HTTP/1.1\r\n"
+        f"Host: {HOST}\r\n"
+        f"Content-Length: {len(file_content)}\r\n"
+        f"Content-Type: text/plain\r\n\r\n"
+        f"{file_content}"
+    )
+    
+    if send_request("POST Upload File", req, expect_status=201):
+        
+        # 2. GET the uploaded file
+        req_get = f"GET {PATH_UPLOAD}/{filename} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+        send_request("GET Uploaded File", req_get, expect_status=200, expect_body=file_content)
+        
+        # 3. DELETE the file
+        req_del = f"DELETE {PATH_UPLOAD}/{filename} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+        send_request("DELETE Uploaded File", req_del, expect_status=204) # Or 200/202
+
+        # 4. Verify Deletion
+        send_request("GET Deleted File", req_get, expect_status=404)
+
+def run_advanced_tests():
+    print(f"\n{Colors.BOLD}=== ADVANCED HTTP ==={Colors.ENDC}")
+
+    # 1. Chunked Encoding Request
+    # We send the body in two chunks: "Hello " and "World!"
+    chunk1 = b"6\r\nHello \r\n"
+    chunk2 = b"6\r\nWorld!\r\n"
+    end = b"0\r\n\r\n"
+    
+    filename = "chunked_test.txt"
+    
+    headers = (
+        f"POST {PATH_UPLOAD}/{filename} HTTP/1.1\r\n"
+        f"Host: {HOST}\r\n"
+        f"Transfer-Encoding: chunked\r\n\r\n"
+    ).encode()
+    
+    full_req = headers + chunk1 + chunk2 + end
+    
+    # We expect the server to reconstruct "Hello World!"
+    if send_request("Chunked POST", full_req, expect_status=201):
+         # Verify content
+         req_get = f"GET {PATH_UPLOAD}/{filename} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+         send_request("Verify Chunked Content", req_get, expect_status=200, expect_body="Hello World!")
+         
+         # Cleanup
+         req_del = f"DELETE {PATH_UPLOAD}/{filename} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+         send_request("Cleanup Chunked", req_del, expect_status=204) # Or 200
+
+    # 2. Pipelining
+    # Send two GET requests in a single write operation
+    print(f"{Colors.OKBLUE}Testing Pipelining (2 requests in 1 socket send)...{Colors.ENDC}")
+    pipe_req = (
+        f"GET {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+        f"GET {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+    )
+    send_request("Pipelining", pipe_req, expect_status=200, check_pipelining=True)
+
+def run_stress_test(count=50):
+    print(f"\n{Colors.BOLD}=== STRESS TEST ({count} reqs) ==={Colors.ENDC}")
+    
+    def worker(t_id, results):
+        req = f"GET {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((HOST, PORT))
+                s.sendall(req.encode())
+                resp = s.recv(1024)
+                if b"200 OK" in resp:
+                    results.append(True)
+                else:
+                    results.append(False)
+        except:
+            results.append(False)
 
     threads = []
+    results = []
+    
+    print("Launching threads...")
+    start = time.time()
+    
     for i in range(count):
-        t = threading.Thread(target=worker, args=(i,))
+        t = threading.Thread(target=worker, args=(i, results))
         t.start()
         threads.append(t)
+        
     for t in threads:
         t.join()
+        
+    end = time.time()
+    success_count = results.count(True)
+    duration = end - start
+    
+    if success_count == count:
+        print(f"{Colors.OKGREEN}[PASS]{Colors.ENDC} {success_count}/{count} requests succeeded in {duration:.2f}s")
+    else:
+        print(f"{Colors.FAIL}[FAIL]{Colors.ENDC} Only {success_count}/{count} requests succeeded")
 
-    ok_count = sum(1 for r in results if r.ok)
-    status_line = f"{ok_count}/{count} succeeded"
-    preview = None
-    if ok_count != count:
-        failures = [r.error or r.status_line for r in results if not r.ok][:3]
-        preview = " | ".join(f for f in failures if f)
-    return HttpTestResult(name, ok=(ok_count == count), status_line=status_line, preview=preview)
-
-
-def build_upload_request(path, body_bytes):
-    headers = [
-        "POST " + path + " HTTP/1.1",
-        "Host: localhost",
-        f"Content-Length: {len(body_bytes)}",
-        "Content-Type: application/octet-stream",
-        "X-Filename: stress.bin",
-        "",
-        "",
-    ]
-    return "\r\n".join(headers).encode("ascii") + body_bytes
-
-
-def build_chunked_request(path, chunks):
-    # chunks: list of bytes
-    lines = ["POST " + path + " HTTP/1.1", "Host: localhost", "Transfer-Encoding: chunked", "", ""]
-    raw = "\r\n".join(lines).encode("ascii")
-    for c in chunks:
-        raw += f"{len(c):X}\r\n".encode("ascii") + c + b"\r\n"
-    raw += b"0\r\n\r\n"
-    return raw
-
-
-def run_stress_suite():
-    results = []
-
-    # 100 concurrent GET /
-    get_req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
-    results.append(run_concurrent("Burst GET / x100", get_req, 100, expect_status_prefix="HTTP/1.1 "))
-
-    # 50 concurrent pipelined double GET
-    pipelined_req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
-    results.append(run_concurrent("Burst pipelined x50", pipelined_req, 50, expect_status_prefix="HTTP/1.1 "))
-
-    # 20 concurrent small uploads
-    small_body = os.urandom(1024)
-    small_upload = build_upload_request("/upload/", small_body)
-    results.append(run_concurrent("Small uploads x20", small_upload, 20, expect_status_prefix="HTTP/1.1 "))
-
-    # 10 concurrent 64KB uploads
-    big_body = os.urandom(64 * 1024)
-    big_upload = build_upload_request("/upload", big_body)
-    results.append(run_concurrent("Big uploads 64KB x10", big_upload, 10, expect_status_prefix="HTTP/1.1 "))
-
-    # 30 concurrent chunked posts
-    chunks = [b"abcd" * 50, b"efgh" * 50]
-    chunked_req = build_chunked_request("/upload", chunks)
-    results.append(run_concurrent("Chunked uploads x30", chunked_req, 30, expect_status_prefix="HTTP/1.1 "))
-
-    upload_name = f"stress_{random.randint(1, 1_000_000)}.txt"
-    upload_body = b"hello-delete"
-    # Upload directly to /upload/<filename> using standard POST
-    upload_req = build_upload_request(f"/upload/{upload_name}", upload_body)
-    # Delete using standard DELETE to the same path (no CGI)
-    delete_req = f"DELETE /upload/{upload_name} HTTP/1.1\r\n" "Host: localhost\r\n" "\r\n"
-    up_res = run_test("Upload for delete", upload_req, expect_status_prefix="HTTP/1.1 ")
-    results.append(up_res)
-    if up_res.ok:
-        results.append(run_test("Delete uploaded file", delete_req, expect_status_prefix="HTTP/1.1 "))
-
-    return results
-
-
-def wait_for_server():
-    """
-    Polls the server until it accepts a connection or timeout.
-    """
-    deadline = time.time() + SERVER_START_TIMEOUT
-    while time.time() < deadline:
-        try:
-            with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-                s.settimeout(0.5)
-                s.connect((HOST, PORT))
-            return True
-        except Exception:
-            time.sleep(0.1)
-    return False
-
-
-def main():
-    print(f"Starting webserv: {' '.join(WEBSERV_CMD)}")
-
-    server_proc = subprocess.Popen(
-        WEBSERV_CMD,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    try:
-        if not wait_for_server():
-            print("❌ Server did not start or is not listening on 127.0.0.1:8080")
-            server_proc.terminate()
-            stdout, stderr = server_proc.communicate(timeout=2)
-            print("---- webserv stdout ----")
-            print(stdout.decode(errors="ignore"))
-            print("---- webserv stderr ----")
-            print(stderr.decode(errors="ignore"))
-            sys.exit(1)
-
-        print("✅ Server is up, running tests...\n")
-
-        tests = []
-
-        # 1) Minimal valid GET /
-        tests.append(
-            run_test(
-                "GET / (minimal)",
-                "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n",
-                expect_status_prefix="HTTP/1.1 ",
-            )
-        )
-
-        # 2) GET / without Host header (should likely be 400 for HTTP/1.1)
-        tests.append(
-            run_test(
-                "GET / without Host",
-                "GET / HTTP/1.1\r\n\r\n",
-                # If you enforce Host, you might expect 400:
-                # expect_status_prefix="HTTP/1.1 400"
-                expect_status_prefix=None,  # just record what happens
-            )
-        )
-
-        # 3) HEAD /
-        tests.append(
-            run_test(
-                "HEAD /",
-                "HEAD / HTTP/1.1\r\nHost: localhost\r\n\r\n",
-                expect_status_prefix="HTTP/1.1 ",
-            )
-        )
-
-        # 4) Nonexistent path
-        tests.append(
-            run_test(
-                "GET /does_not_exist",
-                "GET /does_not_exist HTTP/1.1\r\nHost: localhost\r\n\r\n",
-                # Often 404:
-                # expect_status_prefix="HTTP/1.1 404"
-                expect_status_prefix=None,
-            )
-        )
-
-        # 5) Malformed request line
-        tests.append(
-            run_test(
-                "Bad request line",
-                "GET / HTTP/1.1 garbage\r\nHost: localhost\r\n\r\n",
-                # Might be 400:
-                expect_status_prefix=None,
-            )
-        )
-
-        # 6) HTTP/1.0 request
-        tests.append(
-            run_test(
-                "GET / HTTP/1.0",
-                "GET / HTTP/1.0\r\nHost: localhost\r\n\r\n",
-                expect_status_prefix="HTTP/1.0 ",
-            )
-        )
-
-        # 7) Simple POST with small body
-        tests.append(
-            run_test(
-                "POST /echo small body",
-                "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nHello",
-                expect_status_prefix="HTTP/1.1 ",
-            )
-        )
-
-        # 8) Chunked POST (if your server supports TE: chunked for requests)
-        tests.append(
-            run_test(
-                "POST / chunked body",
-                ("POST / HTTP/1.1\r\n" "Host: localhost\r\n" "Transfer-Encoding: chunked\r\n\r\n" "4\r\nTest\r\n0\r\n\r\n"),
-                expect_status_prefix="HTTP/1.1 ",
-            )
-        )
-
-        # 9) Very long header
-        long_hdr_val = "X" * 8000
-        tests.append(
-            run_test(
-                "GET / with long header",
-                "GET / HTTP/1.1\r\nHost: localhost\r\nX-Long: " + long_hdr_val + "\r\n\r\n",
-                expect_status_prefix=None,
-            )
-        )
-
-        # 10) Pipelined requests on same connection (2 GETs)
-        pipelined_req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
-        tests.append(
-            run_test(
-                "Pipelined 2x GET /",
-                pipelined_req,
-                expect_status_prefix="HTTP/1.1 ",
-            )
-        )
-
-        # Print results
-        print("============ TEST RESULTS ============\n")
-        for t in tests:
-            status = "✅" if t.ok else "❌"
-            print(f"{status} {t.name}")
-            if t.status_line:
-                print(f"   Status: {t.status_line}")
-            if t.error:
-                print(f"   Error:  {t.error}")
-            if t.preview:
-                print(f"   Body preview: {t.preview}")
-            print()
-
-        print("============ STRESS SUITE ============\n")
-        stress_results = run_stress_suite()
-        for t in stress_results:
-            status = "✅" if t.ok else "❌"
-            print(f"{status} {t.name}")
-            if t.status_line:
-                print(f"   Status: {t.status_line}")
-            if t.error:
-                print(f"   Error:  {t.error}")
-            if t.preview:
-                print(f"   Body preview: {t.preview}")
-            print()
-
-    finally:
-        # Try to terminate the server cleanly
-        server_proc.terminate()
-        try:
-            stdout, stderr = server_proc.communicate(timeout=2)
-        except Exception:
-            server_proc.kill()
-            stdout, stderr = server_proc.communicate()
-
-        print("============ webserv stdout ============")
-        try:
-            print(stdout.decode(errors="ignore"))
-        except Exception:
-            pass
-
-        print("============ webserv stderr ============")
-        try:
-            print(stderr.decode(errors="ignore"))
-        except Exception:
-            pass
-
-
+# ==============================================================================
+# MAIN
+# ==============================================================================
 if __name__ == "__main__":
-    main()
+    print(f"{Colors.BOLD}Starting Webserv Tests on {HOST}:{PORT}{Colors.ENDC}")
+    
+    # Ensure server is running (User must start it manually or use a wrapper)
+    # Simple connectivity check
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(1)
+            s.connect((HOST, PORT))
+    except:
+        print(f"{Colors.FAIL}Error: Could not connect to {HOST}:{PORT}. Is webserv running?{Colors.ENDC}")
+        sys.exit(1)
+
+    run_basic_tests()
+    run_upload_tests()
+    run_advanced_tests()
+    run_stress_test(100)
+    
+    print(f"\n{Colors.BOLD}Test Suite Completed.{Colors.ENDC}")

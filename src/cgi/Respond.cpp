@@ -391,7 +391,7 @@ void CgiHandler::handleMessage(int fd) {
 				}
 				else
 				{
-					if (!scan_headers(tmp_fd, header_text, header_off, 16000))
+					if (!scan_headers(tmp_fd, header_text, header_off, 0))
 					{
 						err = "Invalid CGI output";
 						Logger::cgi("%sstopping %s%s%s execution after %s%lu bytes%s (max %lu bytes)",

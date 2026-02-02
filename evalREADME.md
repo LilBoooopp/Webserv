@@ -1,6 +1,6 @@
 # Webserv
 
-*This project has been created as part of the 42 curriculum by [insert_login_1], [insert_login_2], [insert_login_3].*
+*This project has been created as part of the 42 curriculum by akabbaj, cbopp, gvalente.*
 
 ## Description
 
@@ -33,7 +33,7 @@ Run the server by providing a configuration file. If no file is provided, it def
 ./webserv [/path/to/configuration_file]
 ```
 
-Configuration
+### Configuration
 
 The server uses an NGINX-inspired configuration syntax. Below is a sample configuration:
 
@@ -63,17 +63,17 @@ server {
 ## Features List
 ### Mandatory Part
 
-    HTTP Protocol: Full support for GET, POST, DELETE methods and HTTP/1.1 headers.
+ * HTTP Protocol: Full support for GET, POST, DELETE methods and HTTP/1.1 headers.
 
-    I/O Multiplexing: epoll (Linux) and kqueue (macOS) integration.
+  * I/O Multiplexing: epoll (Linux) and kqueue (macOS) integration.
 
-    CGI Support: Execution of PHP and Python scripts via child processes with environment setup (REQUEST_METHOD, QUERY_STRING, etc.).
+  * CGI Support: Execution of PHP and Python scripts via child processes with environment setup (REQUEST_METHOD, QUERY_STRING, etc.).
 
-    Static Serving: Directory listing, static files, and customizable index files.
+  * Static Serving: Directory listing, static files, and customizable index files.
 
-    Uploads: Multipart form data handling and file storage.
+  * Uploads: Multipart form data handling and file storage.
 
-    Error Handling: Custom error pages (404, 403, 500, etc.) and graceful failure handling.
+  * Error Handling: Custom error pages (404, 403, 500, etc.) and graceful failure handling.
 
 Resilience: Signal handling (SIGINT) for graceful shutdown and resource cleanup.
 
@@ -89,7 +89,55 @@ Resilience: Signal handling (SIGINT) for graceful shutdown and resource cleanup.
  * RFC 7230-7235 (HTTP/1.1 Specification)
 
  * RFC 3875 (The Common Gateway Interface)
+Features List
+Mandatory Part
 
+    HTTP Protocol: Full support for GET, POST, DELETE methods and HTTP/1.1 headers.
+
+    I/O Multiplexing: epoll (Linux) and kqueue (macOS) integration.
+
+    CGI Support: Execution of PHP and Python scripts via child processes with environment setup (REQUEST_METHOD, QUERY_STRING, etc.).
+
+    Static Serving: Directory listing, static files, and customizable index files.
+
+    Uploads: Multipart form data handling and file storage.
+
+    Error Handling: Custom error pages (404, 403, 500, etc.) and graceful failure handling.
+
+    Resilience: Signal handling (SIGINT) for graceful shutdown and resource cleanup.
+
+Bonus Part
+
+    Cookies & Sessions: Session management implementation using HTTP cookies.
+
+    Multiple CGI: Support for multiple CGI interpreters (PHP and Python) configured via file extensions.
+
+Resources
+References
+
+    RFC 7230-7235 (HTTP/1.1 Specification)
+
+    RFC 3875 (The Common Gateway Interface)
+
+    Beej's Guide to Network Programming
+
+    Man pages: epoll(7), kqueue(2), socket(2)
+
+    NGINX Documentation
+
+AI Usage
+
+[Select/Edit the points below that apply to your specific usage to comply with subject rules]
+
+In compliance with the AI instructions for this project, AI tools were used for the following tasks:
+
+    Concept Explanation: AI was used to explain the differences between blocking and non-blocking I/O and how epoll triggers events.
+
+    Debugging: Used to analyze specific logic errors in the Request Parsing state machine and to understand obscure C++98 compilation errors.
+
+    Regex Generation: Assisted in generating complex parsing logic for HTTP headers (e.g., parsing Multipart/form-data boundaries).
+
+    Testing: Generated ideas for edge-case tests (e.g., malformed headers, large chunked requests) to ensure server stability.
  * Beej's Guide to Network Programming
 
  * Man pages: epoll(7), kqueue(2), socket(2)
@@ -107,3 +155,5 @@ In compliance with the AI instructions for this project, AI tools were used for 
   * **Testing:** Generated ideas for edge-case tests (e.g., malformed headers, large chunked requests) to ensure server stability.
 
   * **Makefile creation:** Adapted existing Makefile to conform to new subject regulations.
+
+*No code was copy-pasted directly into the final codebase without review, testing, and understanding.*

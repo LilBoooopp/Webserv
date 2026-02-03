@@ -95,6 +95,9 @@ def main():
 
     data = sys.stdin.buffer.read(content_length)
 
+    # sys.stderr.write("DEBUG CONTENT_LENGTH=%r\n" % os.environ.get("CONTENT_LENGTH"))
+    # sys.stderr.write("DEBUG stdin len=%d\n" % len(data))
+
     try:
         file_mode = "ab" if mode == "append" else "wb"
         with open(dest, file_mode) as f:

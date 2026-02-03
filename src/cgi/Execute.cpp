@@ -147,22 +147,18 @@ bool CgiHandler::runCgi(Connection &c, int fd) {
 		return false;
 	}
 
-	// If the request body was stored in a temp file (large bodies), c.body
-	// will be empty while c.temp_filename contains the data. Read the temp
-	// file and pass its contents to the CGI so the script receives the
-	// proper stdin.
-	std::string reqBody = c.body;
-	if (reqBody.empty() && !c.temp_filename.empty()) {
+	if (c.body.empty() && !c.temp_filename.empty()) {
 		std::ifstream in(c.temp_filename.c_str(), std::ios::binary);
 		if (in.is_open()) {
 			std::ostringstream ss;
 			ss << in.rdbuf();
-			reqBody = ss.str();
+			c.body = ss.str();
 			in.close();
 		}
 	}
 
-	bool execSuccess = execute(data, c.cfg, reqBody);
+	data.contentLength = to_string(c.body.size());
+	bool execSuccess = execute(data, c.cfg, c.body);
 
 	if (execSuccess) {
 		bool isAsync = c.req.hasHeader("x-async");

@@ -36,7 +36,6 @@ Connection &Connection::operator=(const Connection &other) {
     streaming_file = other.streaming_file;
     last_active = other.last_active;
     loc = other.loc;
-    // cfg remains unchanged - it's a const reference to the original
   }
   return *this;
 }

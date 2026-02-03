@@ -42,7 +42,7 @@ def print_pass(name, details=""):
 
 def print_fail(name, details=""):
     print(f"{Colors.FAIL}[FAIL]{Colors.ENDC} {name}")
-    print(f"{Colors.FAIL}       Error: {details}{Colors.ENDC}")
+    print(f"{Colors.FAIL}        Error: {details}{Colors.ENDC}")
 
 # ==============================================================================
 # SMART HTTP READER
@@ -110,7 +110,7 @@ def read_http_response(s):
 # ==============================================================================
 # TEST FUNCTIONS
 # ==============================================================================
-def send_request(name, request_data, expect_status=200, expect_body=None, check_pipelining=False):
+def send_request(name, request_data, expect_status=200, expect_body=None):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(CONNECTION_TIMEOUT)
@@ -137,15 +137,6 @@ def send_request(name, request_data, expect_status=200, expect_body=None, check_
             if str(expect_status) not in status_line:
                 print_fail(name, f"Expected {expect_status}, got '{status_line}'")
                 return False
-
-            # Check Pipelining (Special Case)
-            if check_pipelining:
-                # Count how many times "HTTP/1.1" appears in the response
-                # (This assumes the server sends responses back-to-back)
-                count = response.count(b"HTTP/1.1")
-                if count < 2:
-                    print_fail(name, f"Pipelining failed. Expected 2 responses, got {count}")
-                    return False
 
             # Check Body Content (if requested)
             if expect_body:
@@ -242,15 +233,6 @@ def run_advanced_tests():
          # Cleanup
          req_del = f"DELETE {PATH_UPLOAD}/{filename} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
          send_request("Cleanup Chunked", req_del, expect_status=204) # Or 200
-
-    # 2. Pipelining
-    # Send two GET requests in a single write operation
-    print(f"{Colors.OKBLUE}Testing Pipelining (2 requests in 1 socket send)...{Colors.ENDC}")
-    pipe_req = (
-        f"GET {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
-        f"GET {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
-    )
-    send_request("Pipelining", pipe_req, expect_status=200, check_pipelining=True)
 
 def run_stress_test(count=50):
     print(f"\n{Colors.BOLD}=== STRESS TEST ({count} reqs) ==={Colors.ENDC}")

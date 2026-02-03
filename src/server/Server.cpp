@@ -525,7 +525,7 @@ void Server::handleWritable(int fd) {
       const size_t FILE_CHUNK = 16 * 1024;
 
       char buf[FILE_CHUNK];
-      // If streaming CGI output
+      // If streaming output
       if (c.file_skip > 0) {
         size_t discard;
         if ((off_t)FILE_CHUNK > c.file_skip)

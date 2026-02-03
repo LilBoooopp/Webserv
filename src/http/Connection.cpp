@@ -4,7 +4,7 @@
 Connection::Connection(const ServerConf &cfg)
     : body_bytes_read(0), headers_done(false), responded(false),
       peer_closed(false), close_after(false), state(READING_HEADERS),
-      want_body(0), is_chunked(false), temp_fd(-1), res(200), file_fd(-1),
+      want_body(0), is_chunked(false),file_skip(0),  temp_fd(-1),res(200),  file_fd(-1),
       file_remaining(0), streaming_file(false), cfg(cfg), loc(NULL) {
   last_active = std::time(NULL);
 }

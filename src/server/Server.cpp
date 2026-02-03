@@ -545,7 +545,7 @@ void Server::handleWritable(int fd) {
       const size_t FILE_CHUNK = 16 * 1024;
 
       char buf[FILE_CHUNK];
-      // If streaming CGI output
+      // If streaming output -- WARN : POST responses entering here end up outputting 0 body
       if (c.file_skip > 0) {
         size_t discard;
         if ((off_t)FILE_CHUNK > c.file_skip)
@@ -565,6 +565,7 @@ void Server::handleWritable(int fd) {
           return;
         }
       }
+
       size_t to_read = FILE_CHUNK;
       if (static_cast<off_t>(to_read) > c.file_remaining)
         to_read = static_cast<size_t>(c.file_remaining);

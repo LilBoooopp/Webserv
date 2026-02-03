@@ -137,6 +137,7 @@ class Config {
 	bool	is_valid_time(const std::string &num);
 	bool	parse_ull(const std::string& s, unsigned long long& res);
 	bool 	parse_port(const std::string& s, uint16_t& res);
+	bool	valid_dir(const std::string &path);
 
 	// Config_Error
 	bool _isError;

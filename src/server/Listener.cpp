@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-static int set_nonblock(int fd) {
+ int set_nonblock(int fd) {
   int f = fcntl(fd, F_GETFL, 0);
   return ((f >= 0 && fcntl(fd, F_SETFL, f | O_NONBLOCK) == 0) ? 0 : -1);
 }

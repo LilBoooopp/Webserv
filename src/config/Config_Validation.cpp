@@ -60,7 +60,7 @@ void Config::apply_defaults() {
 	int codes[] = {400, 403, 404, 405, 413, 501, 505};
 
 	for (size_t i = 0; i < _servers.size(); ++i) {
-		if (_servers[i].hosts.empty())
+		if (_servers[i].hosts.host_str.empty())
 			setError(0, "Missing host in server");
 		if (_servers[i].root.empty())
 		{

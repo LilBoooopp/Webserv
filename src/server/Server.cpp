@@ -55,12 +55,12 @@ static int set_nonblock(int fd) {
 bool Server::start() {
   cfg_ = conf_.getServers();
   listener_.reserve(cfg_.size());
-  uint32_t ip_be = cfg_[0].hosts[0].host;
+  uint32_t ip_be = cfg_[0].hosts.host;
   for (size_t i = 0; i < cfg_.size(); i++) {
     listener_.push_back(Listener());
-    if (!listener_[i].bindAndListen(ip_be, cfg_[i].hosts[0].port)) {
+    if (!listener_[i].bindAndListen(ip_be, cfg_[i].hosts.port)) {
       Logger::error("Bind and Listen error, IP %d PORT %d", ip_be,
-                    cfg_[i].hosts[0].port);
+                    cfg_[i].hosts.port);
       return (false);
     }
     if (!reactor_.add(listener_[i].fd(), EPOLLIN)) {

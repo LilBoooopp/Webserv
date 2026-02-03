@@ -79,7 +79,7 @@ struct LocationConf {
 };
 
 struct ServerConf {
-	std::vector<HostPort> hosts;
+	HostPort	hosts;
 	std::vector<std::string>	names;			// For virtual hosts to match server name
 	
 	// Not sure that this should be here...

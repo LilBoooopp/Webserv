@@ -8,8 +8,8 @@ static std::vector<char *> buildCgiEnv(CgiData &data, const ServerConf &cfg,
 	envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
 	envStrings.push_back("SERVER_PROTOCOL=HTTP/1.1");
 	envStrings.push_back("SERVER_SOFTWARE=" + cfg.names[0]);
-	envStrings.push_back("SERVER_NAME=" + cfg.hosts[0].host_str);
-	envStrings.push_back("SERVER_PORT=" + to_string(cfg.hosts[0].port_int));
+	envStrings.push_back("SERVER_NAME=" + cfg.hosts.host_str);
+	envStrings.push_back("SERVER_PORT=" + to_string(cfg.hosts.port_int));
 	envStrings.push_back("REQUEST_URI=" + data.requestUri);
 	envStrings.push_back("REQUEST_METHOD=" + data.method);
 	envStrings.push_back("QUERY_STRING=" + data.queryString);

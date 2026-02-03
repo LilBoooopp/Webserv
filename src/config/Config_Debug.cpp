@@ -49,8 +49,7 @@ void Config::debug_print_location(const LocationConf &location, const char *clr)
 void Config::debug_print_server(const ServerConf &server, const char *clr) {
 	std::cout << "Server:" << std::endl;
 	std::cout << "    Hosts:" << std::endl;
-	for (size_t i = 0; i < server.hosts.size(); ++i)
-		std::cout << " " << server.hosts[i].host << ":" << server.hosts[i].port
+	std::cout << " " << server.hosts.host << ":" << server.hosts.port
 			  << std::endl;
 	std::cout << "    Names:";
 	for (size_t i = 0; i < server.names.size(); ++i)

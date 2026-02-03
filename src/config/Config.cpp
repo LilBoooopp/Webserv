@@ -115,7 +115,6 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			return ;
 		}
 		std::string host_port = tokens[1];
-		HostPort	res;
 		size_t	pos = host_port.find(':');
 		if (pos == std::string::npos)
 		{
@@ -125,15 +124,15 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 				setError(line, "Invalid port");
 				return;
 			}
-			res.host_str = "0.0.0.0";
-			res.host = INADDR_ANY;
-			res.port_int = (int)p;
-			res.port = htons(p);
+			server.hosts.host_str = "0.0.0.0";
+			server.hosts.host = INADDR_ANY;
+			server.hosts.port_int = (int)p;
+			server.hosts.port = htons(p);
 		}
 		else
 		{
-			res.host_str = host_port.substr(0, pos);
-			if (!IP_to_long(res.host_str.c_str(), res.host))
+			server.hosts.host_str = host_port.substr(0, pos);
+			if (!IP_to_long(server.hosts.host_str.c_str(), server.hosts.host))
 			{
 				setError(line, "Invalid IP");
 				return;
@@ -144,12 +143,11 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 				setError(line, "Invalid port");
 				return;
 			}
-			res.port_int = (int)p;
-			res.port = htons(p);
+			server.hosts.port_int = (int)p;
+			server.hosts.port = htons(p);
 		}
 		if (_isError)
 			return ;
-		server.hosts.push_back(res);
 	}
 	else if (key == "server_name")
 	{
@@ -420,6 +418,33 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 		setError(line, "Unknown directive");
 }
 
+static bool	check_in_vec(const std::vector <int>& ports, int port)
+{
+	size_t	i = 0;
+	while (i < ports.size())
+	{
+		if (port == ports[i])
+			return true;
+		i++;
+	}
+	return false;
+}
+
+static bool check_hostport(std::vector <ServerConf> servers)
+{
+	size_t	i = 0;
+	std::vector <int> ports;
+	
+	while (i < servers.size())
+	{
+		if (check_in_vec(ports, servers[i].hosts.port_int))
+			return (false);
+		ports.push_back(servers[i].hosts.port_int);
+		i++;
+	}
+	return (true);
+}
+
 bool Config::parse(const std::string &filename)
 {
 	ServerConf	server;
@@ -530,6 +555,11 @@ bool Config::parse(const std::string &filename)
 	}
 	if (_isError)
 		return (false);
+	if (!check_hostport(_servers))
+	{
+		setError(0, "Double use of same port detected");
+		return (false);
+	}
 	apply_defaults();
 	return (valid_config());
 }

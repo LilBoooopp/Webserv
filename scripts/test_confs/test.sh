@@ -1,8 +1,8 @@
 #!/bin/bash
 
 WEBSERV=./webserv
-VALID_DIR=test_confs/confs_valid
-INVALID_DIR=test_confs/confs_invalid
+VALID_DIR=scripts/test_confs/confs_valid
+INVALID_DIR=scripts/test_confs/confs_invalid
 
 GREEN="\033[0;32m"
 RED="\033[0;31m"

@@ -185,10 +185,10 @@ void Server::prepareResponse(int fd, Connection &c) {
 
   // Set Connection header based on client request
   std::string connection_header = c.req.getHeader("connection");
-  if (connection_header == "keep-alive" || connection_header == "Keep-Alive") {
-    c.res.setHeader("Connection", "keep-alive");
-  } else {
+  if (connection_header == "close" || connection_header == "Close") {
     c.res.setHeader("Connection", "close");
+  } else {
+    c.res.setHeader("Connection", "keep-alive");
   }
 
   Router::finalizeResponse(c);

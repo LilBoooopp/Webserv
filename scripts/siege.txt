@@ -1,5 +1,5 @@
-http://localhost:8000/
-http://localhost:8000/ressources
-http://localhost:8000/ressources/secret
-http://localhost:8000/ressources/audio
-http://localhost:8000/ressources/img
+http://127.0.0.1:8000/
+http://127.0.0.1:8000/ressources
+http://127.0.0.1:8000/ressources/secret
+http://127.0.0.1:8000/ressources/audio
+http://127.0.0.1:8000/ressources/img

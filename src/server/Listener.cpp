@@ -5,10 +5,16 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-static int set_nonblock(int fd) {
-	int f = fcntl(fd, F_GETFL, 0);
-	return ((f >= 0 && fcntl(fd, F_SETFL, f | O_NONBLOCK) == 0) ? 0 : -1);
+// UNVALID USE OF F_GETFL ?
+// static int set_nonblock(int fd) {
+// 	int f = fcntl(fd, F_GETFL, 0);
+// 	return ((f >= 0 && fcntl(fd, F_SETFL, f | O_NONBLOCK) == 0) ? 0 : -1);
+// }
+
+int set_nonblock(int fd) {
+	return ((fcntl(fd, F_SETFL, O_NONBLOCK) == 0) ? 0 : -1);
 }
+
 
 Listener::Listener() : fd_(-1) {
 	fd_ = ::socket(AF_INET, SOCK_STREAM, 0);

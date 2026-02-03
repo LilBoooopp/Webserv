@@ -1,4 +1,6 @@
 #include "Cgi.hpp"
+#include <fstream>
+#include <sstream>
 
 static std::vector<char *> buildCgiEnv(CgiData &data, const ServerConf &cfg,
 				       std::vector<std::string> &envStrings) {
@@ -145,7 +147,22 @@ bool CgiHandler::runCgi(Connection &c, int fd) {
 		return false;
 	}
 
-	bool execSuccess = execute(data, c.cfg, c.body);
+	// If the request body was stored in a temp file (large bodies), c.body
+	// will be empty while c.temp_filename contains the data. Read the temp
+	// file and pass its contents to the CGI so the script receives the
+	// proper stdin.
+	std::string reqBody = c.body;
+	if (reqBody.empty() && !c.temp_filename.empty()) {
+		std::ifstream in(c.temp_filename.c_str(), std::ios::binary);
+		if (in.is_open()) {
+			std::ostringstream ss;
+			ss << in.rdbuf();
+			reqBody = ss.str();
+			in.close();
+		}
+	}
+
+	bool execSuccess = execute(data, c.cfg, reqBody);
 
 	if (execSuccess) {
 		bool isAsync = c.req.hasHeader("x-async");

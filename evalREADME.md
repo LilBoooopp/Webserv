@@ -60,6 +60,23 @@ server {
 }
 ```
 
+Invalid root : segfault when url accessed 
+Duplicate methods handled how?
+Duplicate CGIs
+
+The following values can be set in the global scope:
+ * Max body size (default: 1024 * 1024)
+ * Timeout (default: 5000ms)
+ * Root location
+ * Index files
+If the values are not set where necessary in server these values will be inherited.
+Similarly if these values are not set in the location block, they will inherit from the corresponding server block.
+
+CGI timeouts will inherit from server timeouts if not set.
+CGI max output will inherit from location max body size.
+
+If no allowed methods are set, GET will be set by default.
+
 ## Features List
 ### Mandatory Part
 

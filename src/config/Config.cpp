@@ -22,6 +22,11 @@ void	Config::parse_global(std::vector<std::string> &tokens, GlobalConf &global, 
 			setError(line, "Invalid root syntax, expected 'root PATH ;'");
 			return ;
 		}
+		if (!valid_dir(tokens[1]))
+		{
+			setError(line, "Root is not a valid directory");
+			return ;
+		}
 		global.root = tokens[1];
 	}
 		else if (key == "index")
@@ -162,6 +167,11 @@ void	Config::parse_server(std::vector<std::string> &tokens, ServerConf &server, 
 			setError(line, "Invalid root syntax, expected 'root PATH ;'");
 			return ;
 		}
+		if (!valid_dir(tokens[1]))
+		{
+			setError(line, "Root is not a valid directory");
+			return ;
+		}
 		server.root = tokens[1];
 	}
 		else if (key == "index")
@@ -293,6 +303,11 @@ void	Config::parse_location(std::vector<std::string> &tokens, LocationConf &loca
 		if (tokens.size() != 3)
 		{
 			setError(line, "Invalid root syntax, expected 'root PATH ;'");
+			return ;
+		}
+		if (!valid_dir(tokens[1]))
+		{
+			setError(line, "Root is not a valid directory");
 			return ;
 		}
 		location.has_root = true;

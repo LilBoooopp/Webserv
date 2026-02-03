@@ -18,7 +18,7 @@ CONFIG_FILE = "default.conf"
 # Paths must match your webserv config!
 PATH_ROOT = "/"
 PATH_NOT_FOUND = "/wubba_lubba_dub_dub"
-PATH_UPLOAD = "/uploads/postBytes/"  # Must accept POST and DELETE
+PATH_UPLOAD = "/uploads/postBytes"  # Must accept POST and DELETE
 PATH_CGI = "/cgi-bin/test.php" # Optional: set to None to skip CGI tests
 
 # Timeouts
@@ -182,8 +182,7 @@ def run_basic_tests():
 
     # 3. DELETE (Not Allowed on Root usually)
     req = f"DELETE {PATH_ROOT} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"
-    # This might be 405 (Method Not Allowed) or 403 (Forbidden) depending on your config
-    send_request("DELETE Root (Expect Fail)", req, expect_status=405)
+    send_request("DELETE Root (Expect Fail)", req, expect_status=403)
 
 def run_upload_tests():
     print(f"\n{Colors.BOLD}=== UPLOAD & POST ==={Colors.ENDC}")

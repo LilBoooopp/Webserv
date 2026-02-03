@@ -366,10 +366,24 @@ void Server::handleReadable(int fd) {
             size_t before = c.in.size();
             ChunkedDecoder::Status st = c.decoder.feed(c.in, c.body);
             size_t consumed = before - c.in.size();
-            if (consumed > decode_left)
-              consumed = decode_left;
-            decode_left -= consumed;
 
+            if (consumed > decode_left)
+              decode_left = 0;
+            else
+              decode_left -= consumed;
+
+            if (c.temp_fd != -1 && !c.body.empty()) {
+              ssize_t written = write(c.temp_fd, c.body.data(), c.body.size());
+              if (written < 0) {
+                close(c.temp_fd);
+                c.temp_fd = -1;
+                c.res.setStatusFromCode(500);
+                c.state = WRITING_RESPONSE;
+                break;
+              }
+              c.body_bytes_read += static_cast<size_t>(written);
+              c.body.clear();
+            }
             if (st == ChunkedDecoder::NEED_MORE)
               break;
             if (st == ChunkedDecoder::ERROR) {
@@ -381,7 +395,9 @@ void Server::handleReadable(int fd) {
               // Final size check after full decoding
               size_t maxSize =
                   c.loc ? c.loc->max_size : c.cfg.locations[0].max_size;
-              if (c.body.size() > maxSize) {
+
+              size_t totalSize = c.body_bytes_read + c.body.size();
+              if (totalSize > maxSize) {
                 // Body exceeds max_size: respond
                 // 413 and stop processing
                 Logger::request("%schunked body size %s%s%s "
@@ -401,6 +417,10 @@ void Server::handleReadable(int fd) {
                                             // request
                                             // body
                                             // decoded
+              }
+              if (c.temp_fd != -1) {
+                close(c.temp_fd);
+                c.temp_fd = -1;
               }
               break;
             }

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include "../utils/File.hpp"
 
 bool	Config::parse_ull(const std::string& s, unsigned long long& res)
 {
@@ -169,3 +170,12 @@ std::vector<std::string> Config::tokenize(std::string &line) {
   return (tokens);
 }
 
+bool  Config::valid_dir(const std::string &path)
+{
+  struct stat st;
+  if (::stat(path.c_str(), &st) == 0) {
+    if (is_dir(st))
+      return true;
+  }
+  return false;
+}
